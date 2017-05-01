@@ -35,9 +35,10 @@ func NewBasicAuthorizer() beego.FilterFunc {
 	return func(ctx *context.Context) {
 		user := getUserName(ctx.Request)
 		method := ctx.Request.Method
-		path := ctx.Request.RequestURI
+		path := ctx.Request.URL.Path
 
 		if !e.Enforce(user, path, method) {
+			ctx.ResponseWriter.WriteHeader(403)
 			ctx.WriteString("Not authorized to access page, user: " + user + ", method: " + method + ", path: " + path)
 		}
 	}
