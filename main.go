@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/astaxie/beego"
-	"github.com/astaxie/beego/plugins/auth"
 	"github.com/hsluoyz/beeauthz/authz"
+	"github.com/hsluoyz/beeauthz/authn"
 )
 
 const (
@@ -31,9 +31,10 @@ func (c *Controller) Put() {
 }
 
 func main() {
-	// authenticate every request
-	beego.InsertFilter("*", beego.BeforeRouter,auth.Basic("alice","123"))
+	// authenticate every request.
+	beego.InsertFilter("*", beego.BeforeRouter, authn.NewAuthenticator("alice:123", "bob:123"))
 
+	// authorize every request.
 	beego.InsertFilter("*", beego.BeforeRouter, authz.NewBasicAuthorizer())
 
 	beego.Router("*", &Controller{})
