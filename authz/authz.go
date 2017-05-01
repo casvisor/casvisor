@@ -1,12 +1,12 @@
 package authz
 
 import (
+	"encoding/base64"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
-	"encoding/base64"
 	"github.com/hsluoyz/casbin/api"
-	"strings"
 	"net/http"
+	"strings"
 )
 
 func getUserName(r *http.Request) string {

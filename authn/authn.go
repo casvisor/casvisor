@@ -2,8 +2,8 @@ package authn
 
 import (
 	"github.com/astaxie/beego"
-	"strings"
 	"github.com/astaxie/beego/plugins/auth"
+	"strings"
 )
 
 var defaultRealm = "Authorization Required"

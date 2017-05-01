@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/astaxie/beego"
-	"github.com/hsluoyz/beeauthz/authz"
 	"github.com/hsluoyz/beeauthz/authn"
+	"github.com/hsluoyz/beeauthz/authz"
 )
 
 const (
