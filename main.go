@@ -34,7 +34,7 @@ func main() {
 	// authenticate every request
 	beego.InsertFilter("*", beego.BeforeRouter,auth.Basic("alice","123"))
 
-	beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer())
+	beego.InsertFilter("*", beego.BeforeRouter, authz.NewBasicAuthorizer())
 
 	beego.Router("*", &Controller{})
 	beego.Run()
