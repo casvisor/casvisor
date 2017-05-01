@@ -4,6 +4,7 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"github.com/astaxie/beego/plugins/auth"
+	"github.com/hsluoyz/casbin/api"
 	"strings"
 	"net/http"
 	"encoding/base64"
@@ -49,11 +50,19 @@ func getUserName(r *http.Request) string {
 }
 
 func main() {
+	e := &api.Enforcer{}
+	e.InitWithFile("authz_model.conf", "authz_policy.csv")
+
 	var HasPermission = func(ctx *context.Context) {
 		user := getUserName(ctx.Request)
 		method := ctx.Request.Method
 		path := ctx.Request.RequestURI
-		ctx.WriteString("Not authorized to access page, user: " + user + ", method: " + method + ", path: " + path)
+
+		if e.Enforce(user, path, method) {
+			ctx.WriteString("This is the content of the page.")
+		} else {
+			ctx.WriteString("Not authorized to access page, user: " + user + ", method: " + method + ", path: " + path)
+		}
 	}
 
 	// authenticate every request
