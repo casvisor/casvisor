@@ -1,7 +1,7 @@
-# beeauthz
-A Beego sample project that uses [casbin](https://github.com/hsluoyz/casbin) as the authorization module.
+# beego-authz
+A Beego middleware that provides authorization like ACL, RBAC, ABAC based on [casbin](https://github.com/hsluoyz/casbin).
 
-With casbin, you can control who can access the resources via which method for your Beego app.
+With beego-authz, you can control who can access the resources via which method for your Beego app.
 
 ## Get Started
 
@@ -29,9 +29,3 @@ You need to have authentication enabled before using casbin authorization module
 ## License
 
 This project is licensed under the [Apache 2.0 license](https://github.com/hsluoyz/casbin/blob/master/LICENSE).
-
-## Contact
-
-If you have any issues or feature requests, please feel free to contact me at:
-- https://github.com/hsluoyz/casbin/issues
-- hsluoyz@gmail.com (Yang Luo's email, if your issue needs to be kept private, please contact me via this mail)
