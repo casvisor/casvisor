@@ -1,30 +1,15 @@
 package authz
 
 import (
-	"encoding/base64"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"github.com/hsluoyz/casbin/api"
 	"net/http"
-	"strings"
 )
 
 func getUserName(r *http.Request) string {
-	s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
-	if len(s) != 2 || s[0] != "Basic" {
-		return ""
-	}
-
-	b, err := base64.StdEncoding.DecodeString(s[1])
-	if err != nil {
-		return ""
-	}
-	pair := strings.SplitN(string(b), ":", 2)
-	if len(pair) != 2 {
-		return ""
-	}
-
-	return pair[0]
+	username, _, _ := r.BasicAuth()
+	return username
 }
 
 // NewBasicAuthorizer returns the casbin authorizer.
