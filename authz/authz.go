@@ -47,20 +47,6 @@ import (
 	"net/http"
 )
 
-// NewBasicAuthorizer returns the authorizer.
-// Use a casbin model file and a casbin policy file as input
-func NewBasicAuthorizer(modelPath string, policyPath string) beego.FilterFunc {
-	return func(ctx *context.Context) {
-		e := &api.Enforcer{}
-		e.InitWithFile(modelPath, policyPath)
-		a := &BasicAuthorizer{enforcer: e}
-
-		if !a.CheckPermission(ctx.Request) {
-			a.RequirePermission(ctx.ResponseWriter)
-		}
-	}
-}
-
 // NewAuthorizer returns the authorizer.
 // Use a casbin enforcer as input
 func NewAuthorizer(e *api.Enforcer) beego.FilterFunc {
