@@ -12,6 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package authz provides handlers to enable ACL, RBAC, ABAC authorization support.
+// Simple Usage:
+//	import(
+//		"github.com/astaxie/beego"
+//		"github.com/astaxie/beego/plugins/authz"
+//		"github.com/hsluoyz/casbin/api"
+//	)
+//
+//	func main(){
+//		// mediate the access for every request
+//		beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer(api.NewEnforcer("authz_model.conf", "authz_policy.csv")))
+//		beego.Run()
+//	}
+//
+//
+// Advanced Usage:
+//
+//	func main(){
+//		e := api.NewEnforcer("authz_model.conf", "")
+//		e.AddRoleForUser("alice", "admin")
+//		e.AddPolicy(...)
+//
+//		beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer(e))
+//		beego.Run()
+//	}
+
 package authz
 
 import (
