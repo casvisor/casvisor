@@ -37,7 +37,6 @@
 //		beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer(e))
 //		beego.Run()
 //	}
-
 package authz
 
 import (
