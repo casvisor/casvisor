@@ -75,3 +75,33 @@ func TestPathWildcard(t *testing.T) {
 	testRequest(t, handler, "bob", "/dataset2/folder1/item2", "POST", 200)
 	testRequest(t, handler, "bob", "/dataset2/folder1/item2", "DELETE", 403)
 }
+
+func TestRBAC(t *testing.T) {
+	handler := beego.NewControllerRegister()
+
+	handler.InsertFilter("*", beego.BeforeRouter, auth.Basic("cathy", "123"))
+	e := api.NewEnforcer("authz_model.conf", "authz_policy.csv")
+	handler.InsertFilter("*", beego.BeforeRouter, NewAuthorizer(e))
+
+	handler.Any("*", func(ctx *context.Context) {
+		ctx.Output.SetStatus(200)
+	})
+
+	// cathy can access all /dataset1/* resources via all methods because it has the dataset1_admin role.
+	testRequest(t, handler, "cathy", "/dataset1/item", "GET", 200)
+	testRequest(t, handler, "cathy", "/dataset1/item", "POST", 200)
+	testRequest(t, handler, "cathy", "/dataset1/item", "DELETE", 200)
+	testRequest(t, handler, "cathy", "/dataset2/item", "GET", 403)
+	testRequest(t, handler, "cathy", "/dataset2/item", "POST", 403)
+	testRequest(t, handler, "cathy", "/dataset2/item", "DELETE", 403)
+
+	// delete all roles on user cathy, so cathy cannot access any resources now.
+	e.DeleteRolesForUser("cathy")
+
+	testRequest(t, handler, "cathy", "/dataset1/item", "GET", 403)
+	testRequest(t, handler, "cathy", "/dataset1/item", "POST", 403)
+	testRequest(t, handler, "cathy", "/dataset1/item", "DELETE", 403)
+	testRequest(t, handler, "cathy", "/dataset2/item", "GET", 403)
+	testRequest(t, handler, "cathy", "/dataset2/item", "POST", 403)
+	testRequest(t, handler, "cathy", "/dataset2/item", "DELETE", 403)
+}
