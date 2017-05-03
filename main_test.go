@@ -9,7 +9,27 @@ import (
 	"testing"
 )
 
-func testEnforce(t *testing.T, user string, path string, method string, code int) {
+type TestController struct {
+	beego.Controller
+}
+
+func (c *TestController) Get() {
+	c.Ctx.WriteString(PermitString)
+}
+
+func (c *TestController) Post() {
+	c.Ctx.WriteString(PermitString)
+}
+
+func (c *TestController) Delete() {
+	c.Ctx.WriteString(PermitString)
+}
+
+func (c *TestController) Put() {
+	c.Ctx.WriteString(PermitString)
+}
+
+func testRequest(t *testing.T, user string, path string, method string, code int) {
 	r, _ := http.NewRequest(method, path, nil)
 	r.SetBasicAuth(user, "123")
 	w := httptest.NewRecorder()
@@ -20,13 +40,13 @@ func testEnforce(t *testing.T, user string, path string, method string, code int
 	}
 }
 
-func TestAuthzModel(t *testing.T) {
+func TestAuthorizer(t *testing.T) {
 	beego.InsertFilter("*", beego.BeforeRouter, auth.Basic("alice", "123"))
 	beego.InsertFilter("*", beego.BeforeRouter, authz.NewBasicAuthorizer("authz_model.conf", "authz_policy.csv"))
-	beego.Router("*", &Controller{})
+	beego.Router("*", &TestController{})
 
-	testEnforce(t, "alice", "/dataset1/resource1", "GET", 200)
-	testEnforce(t, "alice", "/dataset1/resource1", "POST", 200)
-	testEnforce(t, "alice", "/dataset1/resource2", "GET", 200)
-	testEnforce(t, "alice", "/dataset1/resource2", "POST", 403)
+	testRequest(t, "alice", "/dataset1/resource1", "GET", 200)
+	testRequest(t, "alice", "/dataset1/resource1", "POST", 200)
+	testRequest(t, "alice", "/dataset1/resource2", "GET", 200)
+	testRequest(t, "alice", "/dataset1/resource2", "POST", 403)
 }
