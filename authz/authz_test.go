@@ -54,3 +54,23 @@ func TestAuthorizer(t *testing.T) {
 	testRequest(t, "alice", "/dataset1/resource2", "GET", 200)
 	testRequest(t, "alice", "/dataset1/resource2", "POST", 403)
 }
+
+func TestWildcard(t *testing.T) {
+	beego.InsertFilter("*", beego.BeforeRouter, auth.Basic("bob", "123"))
+	beego.InsertFilter("*", beego.BeforeRouter, NewAuthorizer(api.NewEnforcer("authz_model.conf", "authz_policy.csv")))
+	beego.Router("*", &TestController{})
+
+	testRequest(t, "bob", "/dataset2/resource1", "GET", 200)
+	testRequest(t, "bob", "/dataset2/resource1", "POST", 200)
+	testRequest(t, "bob", "/dataset2/resource1", "DELETE", 200)
+	testRequest(t, "bob", "/dataset2/resource2", "GET", 200)
+	testRequest(t, "bob", "/dataset2/resource2", "POST", 403)
+	testRequest(t, "bob", "/dataset2/resource2", "DELETE", 403)
+
+	testRequest(t, "bob", "/dataset2/folder1/item1", "GET", 403)
+	testRequest(t, "bob", "/dataset2/folder1/item1", "POST", 200)
+	testRequest(t, "bob", "/dataset2/folder1/item1", "DELETE", 403)
+	testRequest(t, "bob", "/dataset2/folder1/item2", "GET", 403)
+	testRequest(t, "bob", "/dataset2/folder1/item2", "POST", 200)
+	testRequest(t, "bob", "/dataset2/folder1/item2", "DELETE", 403)
+}
