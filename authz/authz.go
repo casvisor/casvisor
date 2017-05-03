@@ -23,8 +23,7 @@ func NewBasicAuthorizer() beego.FilterFunc {
 		path := ctx.Request.URL.Path
 
 		if !e.Enforce(user, path, method) {
-			ctx.ResponseWriter.WriteHeader(403)
-			ctx.WriteString("Not authorized to access page, user: " + user + ", method: " + method + ", path: " + path)
+			requirePermission(ctx.ResponseWriter)
 		}
 	}
 }
@@ -37,7 +36,12 @@ func NewAuthorizer(e *api.Enforcer) beego.FilterFunc {
 		path := ctx.Request.RequestURI
 
 		if !e.Enforce(user, path, method) {
-			ctx.WriteString("Not authorized to access page, user: " + user + ", method: " + method + ", path: " + path)
+			requirePermission(ctx.ResponseWriter)
 		}
 	}
+}
+
+func requirePermission(w http.ResponseWriter) {
+	w.WriteHeader(403)
+	w.Write([]byte("403 Forbidden\n"))
 }
