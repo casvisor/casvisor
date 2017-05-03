@@ -1,12 +1,15 @@
-package main
+package authz
 
 import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/plugins/auth"
-	"github.com/hsluoyz/beego-authz/authz"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+)
+
+const (
+	PermitString = "This is the content of the page."
 )
 
 type TestController struct {
@@ -42,7 +45,7 @@ func testRequest(t *testing.T, user string, path string, method string, code int
 
 func TestAuthorizer(t *testing.T) {
 	beego.InsertFilter("*", beego.BeforeRouter, auth.Basic("alice", "123"))
-	beego.InsertFilter("*", beego.BeforeRouter, authz.NewBasicAuthorizer("authz_model.conf", "authz_policy.csv"))
+	beego.InsertFilter("*", beego.BeforeRouter, NewBasicAuthorizer("authz_model.conf", "authz_policy.csv"))
 	beego.Router("*", &TestController{})
 
 	testRequest(t, "alice", "/dataset1/resource1", "GET", 200)

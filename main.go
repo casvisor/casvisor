@@ -6,10 +6,6 @@ import (
 	"github.com/hsluoyz/beego-authz/authz"
 )
 
-const (
-	PermitString = "This is the content of the page."
-)
-
 func main() {
 	// authenticate every request.
 	beego.InsertFilter("*", beego.BeforeRouter, auth.Basic("alice", "123"))
