@@ -1,4 +1,4 @@
-# beego-authz [![GoDoc](https://godoc.org/github.com/hsluoyz/beego-authz?status.svg)](https://godoc.org/github.com/hsluoyz/beego-authz)
+# beego-authz [![GoDoc](https://godoc.org/github.com/casbin/beego-authz?status.svg)](https://godoc.org/github.com/casbin/beego-authz)
 A Beego middleware that provides authorization like ACL, RBAC, ABAC based on [casbin](https://github.com/hsluoyz/casbin).
 
 With beego-authz, you can control who can access the resources via which method for your Beego app.
@@ -28,4 +28,4 @@ You need to have authentication enabled before using casbin authorization module
 
 ## License
 
-This project is licensed under the [Apache 2.0 license](https://github.com/hsluoyz/casbin/blob/master/LICENSE).
+This project is licensed under the [Apache 2.0 license](https://github.com/casbin/beego-authz/blob/master/LICENSE).
