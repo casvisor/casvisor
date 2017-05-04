@@ -19,7 +19,7 @@ It means that you want user ``alice`` to access ``/dataset1/*`` via ``GET`` and 
 2. Insert the authorizer as a Beego filter.
 
 ```golang
-beego.InsertFilter("*", beego.BeforeRouter, authz.NewBasicAuthorizer())
+beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer(casbin.NewEnforcer("authz_model.conf", "authz_policy.csv")))
 ```
 
 ## Note

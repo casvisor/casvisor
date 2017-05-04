@@ -17,12 +17,12 @@
 //	import(
 //		"github.com/astaxie/beego"
 //		"github.com/astaxie/beego/plugins/authz"
-//		"github.com/hsluoyz/casbin/api"
+//		"github.com/hsluoyz/casbin"
 //	)
 //
 //	func main(){
 //		// mediate the access for every request
-//		beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer(api.NewEnforcer("authz_model.conf", "authz_policy.csv")))
+//		beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer(casbin.NewEnforcer("authz_model.conf", "authz_policy.csv")))
 //		beego.Run()
 //	}
 //
@@ -30,7 +30,7 @@
 // Advanced Usage:
 //
 //	func main(){
-//		e := api.NewEnforcer("authz_model.conf", "")
+//		e := casbin.NewEnforcer("authz_model.conf", "")
 //		e.AddRoleForUser("alice", "admin")
 //		e.AddPolicy(...)
 //
@@ -42,13 +42,13 @@ package authz
 import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
-	"github.com/hsluoyz/casbin/api"
+	"github.com/hsluoyz/casbin"
 	"net/http"
 )
 
 // NewAuthorizer returns the authorizer.
 // Use a casbin enforcer as input
-func NewAuthorizer(e *api.Enforcer) beego.FilterFunc {
+func NewAuthorizer(e *casbin.Enforcer) beego.FilterFunc {
 	return func(ctx *context.Context) {
 		a := &BasicAuthorizer{enforcer: e}
 
@@ -60,7 +60,7 @@ func NewAuthorizer(e *api.Enforcer) beego.FilterFunc {
 
 // BasicAuthorizer stores the casbin handler
 type BasicAuthorizer struct {
-	enforcer *api.Enforcer
+	enforcer *casbin.Enforcer
 }
 
 // GetUserName gets the user name from the request.

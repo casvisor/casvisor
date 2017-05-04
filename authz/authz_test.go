@@ -18,7 +18,7 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"github.com/astaxie/beego/plugins/auth"
-	"github.com/hsluoyz/casbin/api"
+	"github.com/hsluoyz/casbin"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,7 +39,7 @@ func TestBasic(t *testing.T) {
 	handler := beego.NewControllerRegister()
 
 	handler.InsertFilter("*", beego.BeforeRouter, auth.Basic("alice", "123"))
-	handler.InsertFilter("*", beego.BeforeRouter, NewAuthorizer(api.NewEnforcer("authz_model.conf", "authz_policy.csv")))
+	handler.InsertFilter("*", beego.BeforeRouter, NewAuthorizer(casbin.NewEnforcer("authz_model.conf", "authz_policy.csv")))
 
 	handler.Any("*", func(ctx *context.Context) {
 		ctx.Output.SetStatus(200)
@@ -55,7 +55,7 @@ func TestPathWildcard(t *testing.T) {
 	handler := beego.NewControllerRegister()
 
 	handler.InsertFilter("*", beego.BeforeRouter, auth.Basic("bob", "123"))
-	handler.InsertFilter("*", beego.BeforeRouter, NewAuthorizer(api.NewEnforcer("authz_model.conf", "authz_policy.csv")))
+	handler.InsertFilter("*", beego.BeforeRouter, NewAuthorizer(casbin.NewEnforcer("authz_model.conf", "authz_policy.csv")))
 
 	handler.Any("*", func(ctx *context.Context) {
 		ctx.Output.SetStatus(200)
@@ -80,7 +80,7 @@ func TestRBAC(t *testing.T) {
 	handler := beego.NewControllerRegister()
 
 	handler.InsertFilter("*", beego.BeforeRouter, auth.Basic("cathy", "123"))
-	e := api.NewEnforcer("authz_model.conf", "authz_policy.csv")
+	e := casbin.NewEnforcer("authz_model.conf", "authz_policy.csv")
 	handler.InsertFilter("*", beego.BeforeRouter, NewAuthorizer(e))
 
 	handler.Any("*", func(ctx *context.Context) {
