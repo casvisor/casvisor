@@ -1,4 +1,4 @@
-# beego-authz
+# beego-authz [![GoDoc](https://godoc.org/github.com/hsluoyz/beego-authz?status.svg)](https://godoc.org/github.com/hsluoyz/beego-authz)
 A Beego middleware that provides authorization like ACL, RBAC, ABAC based on [casbin](https://github.com/hsluoyz/casbin).
 
 With beego-authz, you can control who can access the resources via which method for your Beego app.
