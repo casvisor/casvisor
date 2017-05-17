@@ -1,5 +1,5 @@
 # beego-authz [![GoDoc](https://godoc.org/github.com/casbin/beego-authz?status.svg)](https://godoc.org/github.com/casbin/beego-authz)
-A Beego middleware that provides authorization like ACL, RBAC, ABAC based on [casbin](https://github.com/hsluoyz/casbin).
+A Beego middleware that provides authorization like ACL, RBAC, ABAC based on [casbin](https://github.com/casbin/casbin).
 
 With beego-authz, you can control who can access the resources via which method for your Beego app.
 
@@ -14,7 +14,7 @@ p, bob, /dataset2/resource2, GET
 p, bob, /dataset2/*, POST
 ```
 
-It means that you want user ``alice`` to access ``/dataset1/*`` via ``GET`` and ``/dataset1/resource1`` via ``POST``. The similar way applies to user ``bob``. For more advanced usage for the policy, please refer to casbin: https://github.com/hsluoyz/casbin
+It means that you want user ``alice`` to access ``/dataset1/*`` via ``GET`` and ``/dataset1/resource1`` via ``POST``. The similar way applies to user ``bob``. For more advanced usage for the policy, please refer to casbin: https://github.com/casbin/casbin
 
 2. Insert the authorizer as a Beego filter.
 

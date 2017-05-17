@@ -18,7 +18,7 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/plugins/auth"
 	"github.com/casbin/beego-authz/authz"
-	"github.com/hsluoyz/casbin"
+	"github.com/casbin/casbin"
 )
 
 func main() {
