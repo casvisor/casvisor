@@ -8,13 +8,13 @@ With beego-authz, you can control who can access the resources via which method 
 1. Modify the access control policy ``authz_policy.csv`` as you wanted. For example, like below:
 
 ```csv
-p, alice, /dataset1/*, GET
-p, alice, /dataset1/resource1, POST
-p, bob, /dataset2/resource2, GET
-p, bob, /dataset2/*, POST
+p, alice, 0.0.0.0/0, /dataset1/*, GET
+p, alice, 127.0.0.1/24, /dataset1/resource1, POST
+p, bob, 0.0.0.0/0, /dataset2/resource2, GET
+p, bob, 127.0.0.1/24, /dataset2/*, POST
 ```
 
-It means that you want user ``alice`` to access ``/dataset1/*`` via ``GET`` and ``/dataset1/resource1`` via ``POST``. The similar way applies to user ``bob``. For more advanced usage for the policy, please refer to casbin: https://github.com/casbin/casbin
+It means that you want user ``alice`` from ``0.0.0.0~255.255.255.255`` to access ``/dataset1/*`` via ``GET`` and from ``127.0.0.0~127.0.0.255`` to access ``/dataset1/resource1`` via ``POST``. The similar way applies to user ``bob``. For more advanced usage for the policy, please refer to casbin: https://github.com/casbin/casbin
 
 2. Insert the authorizer as a Beego filter.
 
