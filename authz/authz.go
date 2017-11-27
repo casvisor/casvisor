@@ -40,10 +40,12 @@
 package authz
 
 import (
+	"net"
+	"net/http"
+
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"github.com/casbin/casbin"
-	"net/http"
 )
 
 // NewAuthorizer returns the authorizer.
@@ -70,13 +72,26 @@ func (a *BasicAuthorizer) GetUserName(r *http.Request) string {
 	return username
 }
 
+// getIpAddress gets the remote addr from the request.
+func getIPAddress(r *http.Request) (string, error) {
+	addr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
+	if err != nil {
+		return "", err
+	}
+	return addr.IP.String(), nil
+}
+
 // CheckPermission checks the user/method/path combination from the request.
 // Returns true (permission granted) or false (permission forbidden)
 func (a *BasicAuthorizer) CheckPermission(r *http.Request) bool {
 	user := a.GetUserName(r)
+	addr, err := getIPAddress(r)
+	if err != nil {
+		return false
+	}
 	method := r.Method
 	path := r.URL.Path
-	return a.enforcer.Enforce(user, path, method)
+	return a.enforcer.Enforce(user, addr, path, method)
 }
 
 // RequirePermission returns the 403 Forbidden to the client
