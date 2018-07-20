@@ -1,31 +1,31 @@
 # beego-authz [![Build Status](https://travis-ci.org/casbin/beego-authz.svg?branch=master)](https://travis-ci.org/casbin/beego-authz) [![Coverage Status](https://coveralls.io/repos/github/casbin/beego-authz/badge.svg?branch=master)](https://coveralls.io/github/casbin/beego-authz?branch=master) [![GoDoc](https://godoc.org/github.com/casbin/beego-authz?status.svg)](https://godoc.org/github.com/casbin/beego-authz)
-A Beego middleware that provides authorization like ACL, RBAC, ABAC based on [casbin](https://github.com/casbin/casbin).
 
-With beego-authz, you can control who can access the resources via which method for your Beego app.
+``beego-authz`` is an authorization middleware for [Beego](https://beego.me/). It provides authorization like ACL, RBAC, ABAC based on Casbin: https://github.com/casbin/casbin
+
+With ``beego-authz``, you can control who can access what resource via which method for your Beego app.
 
 ## Get Started
 
-1. Modify the access control policy ``authz_policy.csv`` as you wanted. For example, like below:
+### Step 1: edit the policy
 
-```csv
-p, alice, /dataset1/*, GET
-p, alice, /dataset1/resource1, POST
-p, bob, /dataset2/resource2, GET
-p, bob, /dataset2/*, POST
-```
+Modify the Casbin model: [authz_model.csv](https://github.com/casbin/beego-authz/blob/master/authz/authz_model.csv) and policy: [authz_policy.csv](https://github.com/casbin/beego-authz/blob/master/authz/authz_policy.csv) as you want. You may need to learn Casbin's basics to know how to edit these files. The policy means that the user ``alice`` can access ``/dataset1/*`` via ``GET`` and ``/dataset1/resource1`` via ``POST``. The similar way applies to user ``bob``. ``cathy`` has the role ``dataset1_admin``, which is permitted to access any resources under ``/dataset1/`` with any action. For more advanced usage of Casbin (like database support, policy language grammar, etc), please refer to Casbin: https://github.com/casbin/casbin
 
-It means that you want user ``alice`` to access ``/dataset1/*`` via ``GET`` and ``/dataset1/resource1`` via ``POST``. The similar way applies to user ``bob``. For more advanced usage for the policy, please refer to casbin: https://github.com/casbin/casbin
+### Step 2: integrate with Beego
 
-2. Insert the authorizer as a Beego filter.
+Insert the [Casbin authorizer](https://github.com/casbin/beego-authz/blob/master/authz/authz.go) as a Beego filter.
 
-```golang
+```go
 beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer(casbin.NewEnforcer("authz_model.conf", "authz_policy.csv")))
 ```
 
-## Note
+### Step 3: setup with authentication
 
-You need to have authentication enabled before using casbin authorization module, because authorization needs to have a user name to enforce the policy. And authentication will give us a user name. Currently, the built-in HTTP basic authentication is fully supported.
+Make sure you already have an authentication mechanism, so you know who is accessing, like a username. Modify the [GetUserName()](https://github.com/casbin/beego-authz/blob/master/authz/authz.go#L70-L73) method to let Casbin know the current authenticated username.
+
+## Getting Help
+
+- [Casbin](https://github.com/casbin/casbin)
 
 ## License
 
-This project is licensed under the [Apache 2.0 license](https://github.com/casbin/beego-authz/blob/master/LICENSE).
+This project is under Apache 2.0 License. See the [LICENSE](https://github.com/casbin/beego-authz/blob/master/LICENSE) file for the full license text.
