@@ -8,7 +8,7 @@ With ``beego-authz``, you can control who can access what resource via which met
 
 ### Step 1: edit the policy
 
-Modify the Casbin model: [authz_model.csv](https://github.com/casbin/beego-authz/blob/master/authz/authz_model.csv) and policy: [authz_policy.csv](https://github.com/casbin/beego-authz/blob/master/authz/authz_policy.csv) as you want. You may need to learn Casbin's basics to know how to edit these files. The policy means that the user ``alice`` can access ``/dataset1/*`` via ``GET`` and ``/dataset1/resource1`` via ``POST``. The similar way applies to user ``bob``. ``cathy`` has the role ``dataset1_admin``, which is permitted to access any resources under ``/dataset1/`` with any action. For more advanced usage of Casbin (like database support, policy language grammar, etc), please refer to Casbin: https://github.com/casbin/casbin
+Modify the Casbin model: [authz_model.conf](https://github.com/casbin/beego-authz/blob/master/authz/authz_model.conf) and policy: [authz_policy.csv](https://github.com/casbin/beego-authz/blob/master/authz/authz_policy.csv) as you want. You may need to learn Casbin's basics to know how to edit these files. The policy means that the user ``alice`` can access ``/dataset1/*`` via ``GET`` and ``/dataset1/resource1`` via ``POST``. The similar way applies to user ``bob``. ``cathy`` has the role ``dataset1_admin``, which is permitted to access any resources under ``/dataset1/`` with any action. For more advanced usage of Casbin (like database support, policy language grammar, etc), please refer to Casbin: https://github.com/casbin/casbin
 
 ### Step 2: integrate with Beego
 
@@ -20,7 +20,7 @@ beego.InsertFilter("*", beego.BeforeRouter, authz.NewAuthorizer(casbin.NewEnforc
 
 ### Step 3: setup with authentication
 
-Make sure you already have an authentication mechanism, so you know who is accessing, like a username. Modify the [GetUserName()](https://github.com/casbin/beego-authz/blob/master/authz/authz.go#L70-L73) method to let Casbin know the current authenticated username.
+Make sure you already have an authentication mechanism, so you know who is accessing, like a username. Modify the [GetUserName()](https://github.com/casbin/beego-authz/blob/master/authz/authz.go#L68-L71) method to let Casbin know the current authenticated username.
 
 ## Getting Help
 
