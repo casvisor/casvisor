@@ -23,3 +23,10 @@ go.work
 
 .idea/
 *.iml
+
+tmp/
+tmpFiles/
+*.tmp
+logs/
+lastupdate.tmp
+commentsRouter*.go
