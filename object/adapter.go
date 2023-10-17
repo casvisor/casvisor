@@ -17,11 +17,13 @@ package object
 import (
 	"fmt"
 	"runtime"
+	"strings"
 
 	"github.com/casbin/casvisor/util"
 
 	"github.com/beego/beego"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	"xorm.io/xorm"
 )
 
@@ -71,14 +73,52 @@ func NewAdapter(driverName string, dataSourceName string) *Adapter {
 }
 
 func (a *Adapter) createDatabase() error {
-	engine, err := xorm.NewEngine(a.driverName, a.dataSourceName)
+	dbName := beego.AppConfig.String("dbName")
+
+	switch a.driverName {
+	case "mysql":
+		return a.createDatabaseForMySQL(dbName)
+	case "postgres":
+		return a.createDatabaseForPostgres(dbName)
+	default:
+		return nil
+	}
+}
+
+func (a *Adapter) createDatabaseForMySQL(dbName string) error {
+	dsn := a.dataSourceName + "mysql"
+	engine, err := xorm.NewEngine(a.driverName, dsn)
 	if err != nil {
 		return err
 	}
 	defer engine.Close()
 
-	_, err = engine.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s default charset utf8 COLLATE utf8_general_ci", beego.AppConfig.String("dbName")))
+	_, err = engine.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s default charset utf8 COLLATE utf8_general_ci", dbName))
+
 	return err
+}
+
+func (a *Adapter) createDatabaseForPostgres(dbName string) error {
+	dsn := strings.ReplaceAll(a.dataSourceName, dbName, "postgres")
+	engine, err := xorm.NewEngine(a.driverName, dsn)
+	if err != nil {
+		return err
+	}
+	defer engine.Close()
+
+	rows, err := engine.DB().Query(fmt.Sprintf("SELECT 1 FROM pg_database WHERE datname = '%s'", dbName))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if _, err = engine.Exec(fmt.Sprintf("CREATE DATABASE %s", dbName)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (a *Adapter) open() {
@@ -86,7 +126,12 @@ func (a *Adapter) open() {
 		panic(err)
 	}
 
-	engine, err := xorm.NewEngine(a.driverName, a.dataSourceName+beego.AppConfig.String("dbName"))
+	dsn := a.dataSourceName
+	if a.driverName == "mysql" {
+		dsn = a.dataSourceName + beego.AppConfig.String("dbName")
+	}
+
+	engine, err := xorm.NewEngine(a.driverName, dsn)
 	if err != nil {
 		panic(err)
 	}
