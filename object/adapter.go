@@ -15,6 +15,7 @@
 package object
 
 import (
+	"database/sql"
 	"fmt"
 	"runtime"
 	"strings"
@@ -118,6 +119,22 @@ func (a *Adapter) createDatabaseForPostgres(dbName string) error {
 		}
 	}
 
+	schema := util.GetParamFromDataSourceName(a.dataSourceName, "search_path")
+	if schema != "" {
+		db, err := sql.Open(a.driverName, a.dataSourceName)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		_, err = db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", schema))
+		if err != nil {
+			if !strings.Contains(err.Error(), "already exists") {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -135,7 +152,12 @@ func (a *Adapter) open() {
 	if err != nil {
 		panic(err)
 	}
-
+	if a.driverName == "postgres" {
+		schema := util.GetParamFromDataSourceName(a.dataSourceName, "search_path")
+		if schema != "" {
+			engine.SetSchema(schema)
+		}
+	}
 	a.engine = engine
 	a.createTable()
 }
