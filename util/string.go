@@ -157,12 +157,17 @@ func SnakeString(s string) string {
 }
 
 func GetParamFromDataSourceName(dataSourceName string, key string) string {
-	parsedUrl, err := url.Parse(dataSourceName)
-	if err == nil {
-		return parsedUrl.Query().Get(key)
+	if key == "" {
+		return ""
 	}
 
-	reg := regexp.MustCompile(key + "=([^ ]+)")
+	parsedUrl, err := url.Parse(dataSourceName)
+	value := parsedUrl.Query().Get(key)
+	if err == nil && value != "" {
+		return value
+	}
+
+	reg := regexp.MustCompile(key + " ?=([^ ]+)")
 	matches := reg.FindStringSubmatch(dataSourceName)
 	if len(matches) >= 2 {
 		return matches[1]
