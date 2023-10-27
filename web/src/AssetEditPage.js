@@ -166,9 +166,12 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general:Organization"), i18next.t("general:Organization - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.owner} onChange={e => {
-              this.updateAssetField("owner", e.target.value);
-            }} />
+            <Input
+              value={this.state.asset.owner}
+              disabled={!Setting.isAdminUser(this.props.account)}
+              onChange={e => {
+                this.updateAssetField("owner", e.target.value);
+              }} />
           </Col>
         </Row>
         <Row style={{marginTop: "20px"}} >
