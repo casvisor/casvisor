@@ -42,8 +42,8 @@ type Record struct {
 }
 
 func GetRecordCount(owner, field, value string) (int64, error) {
-	session := GetSession("", -1, -1, field, value, "", "")
-	return session.Count(&Asset{})
+	session := GetSession(owner, -1, -1, field, value, "", "")
+	return session.Count(&Record{Owner: owner})
 }
 
 func GetRecords(owner string) ([]*Record, error) {
