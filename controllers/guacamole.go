@@ -21,9 +21,8 @@ import (
 	"github.com/beego/beego"
 	"github.com/casbin/casvisor/object"
 	"github.com/casbin/casvisor/util"
-	"github.com/gorilla/websocket"
-
 	"github.com/casbin/casvisor/util/guacamole"
+	"github.com/gorilla/websocket"
 )
 
 const (
