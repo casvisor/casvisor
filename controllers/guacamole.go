@@ -46,7 +46,7 @@ var UpGrader = websocket.Upgrader{
 	Subprotocols: []string{"guacamole"},
 }
 
-func (c *ApiController) Guacamole() error {
+func (c *ApiController) GetAssetTunnel() error {
 	ctx := c.Ctx
 	ws, err := UpGrader.Upgrade(ctx.ResponseWriter, ctx.Request, nil)
 	if err != nil {
@@ -60,8 +60,14 @@ func (c *ApiController) Guacamole() error {
 	height := c.Input().Get("height")
 	dpi := c.Input().Get("dpi")
 
-	intWidth, _ := strconv.Atoi(width)
-	intHeight, _ := strconv.Atoi(height)
+	intWidth, err := strconv.Atoi(width)
+	if err != nil {
+		return err
+	}
+	intHeight, err := strconv.Atoi(height)
+	if err != nil {
+		return err
+	}
 
 	remoteAppName := c.Input().Get("remoteApp")
 	remoteAppDir := c.Input().Get("remoteAppDir")

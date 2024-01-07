@@ -60,5 +60,5 @@ func initAPI() {
 	beego.Router("/api/add-session", &controllers.ApiController{}, "POST:AddSession")
 	beego.Router("/api/delete-session", &controllers.ApiController{}, "POST:DeleteSession")
 
-	beego.Router("/api/guacamole", &controllers.ApiController{}, "GET:Guacamole")
+	beego.Router("/api/get-asset-tunnel", &controllers.ApiController{}, "GET:GetAssetTunnel")
 }

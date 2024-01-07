@@ -1,4 +1,4 @@
-// Copyright 2023 The casbin Authors. All Rights Reserved.
+// Copyright 2024 The casbin Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type Tunnel struct {
@@ -219,7 +220,7 @@ func (t *Tunnel) Close() error {
 }
 
 func Disconnect(ws *websocket.Conn, code int, reason string) {
-	// guacd 无法处理中文字符，所以进行了base64编码。
+	// guacd cannot handle Chinese characters, so base64 encoding is done
 	encodeReason := base64.StdEncoding.EncodeToString([]byte(reason))
 	err := NewInstruction("error", encodeReason, strconv.Itoa(code))
 	_ = ws.WriteMessage(websocket.TextMessage, []byte(err.String()))

@@ -74,7 +74,7 @@ const GuacdPage = () => {
   const renderDisplay = (assetOwner, assetName, protocol, width, height) => {
     const sessionId = "123";
     const wsEndpoint = Setting.ServerUrl.replace("http://", "ws://");
-    const wsUrl = `${wsEndpoint}/api/guacamole?owner=${assetOwner}&name=${assetName}&`;
+    const wsUrl = `${wsEndpoint}/api/get-asset-tunnel?owner=${assetOwner}&name=${assetName}&`;
     const tunnel = new Guacamole.WebSocketTunnel(wsUrl);
     const client = new Guacamole.Client(tunnel);
 

@@ -1,4 +1,4 @@
-// Copyright 2023 The casbin Authors. All Rights Reserved.
+// Copyright 2024 The casbin Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import i18next from "i18next";
 import PopconfirmModal from "./common/modal/PopconfirmModal";
 import {Link} from "react-router-dom";
 import BaseListPage from "./BaseListPage";
+import moment from "moment";
 
 class SessionListPage extends BaseListPage {
   deleteSession(i) {
@@ -83,7 +84,10 @@ class SessionListPage extends BaseListPage {
           if (!record["connectedTime"]) {
             return "-";
           }
-          return Setting.getTimeDifference(new Date(record["connectedTime"]), new Date());
+          const connectedTime = moment(record["connectedTime"]);
+          const currentTime = moment();
+          const duration = moment.duration(currentTime.diff(connectedTime));
+          return `${duration.hours()}h ${duration.minutes()}m ${duration.seconds()}s`;
         },
       },
       {
