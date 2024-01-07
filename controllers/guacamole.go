@@ -46,12 +46,12 @@ var UpGrader = websocket.Upgrader{
 	Subprotocols: []string{"guacamole"},
 }
 
-func (c *ApiController) GetAssetTunnel() error {
+func (c *ApiController) GetAssetTunnel() {
 	ctx := c.Ctx
 	ws, err := UpGrader.Upgrade(ctx.ResponseWriter, ctx.Request, nil)
 	if err != nil {
-		beego.Error("WebSocket upgrade failed:", err)
-		return err
+		c.ResponseError("WebSocket upgrade failed:", err)
+		return
 	}
 
 	owner := c.Input().Get("owner")
@@ -62,11 +62,13 @@ func (c *ApiController) GetAssetTunnel() error {
 
 	intWidth, err := strconv.Atoi(width)
 	if err != nil {
-		return err
+		c.ResponseError(err.Error())
+		return
 	}
 	intHeight, err := strconv.Atoi(height)
 	if err != nil {
-		return err
+		c.ResponseError(err.Error())
+		return
 	}
 
 	remoteAppName := c.Input().Get("remoteApp")
@@ -75,7 +77,8 @@ func (c *ApiController) GetAssetTunnel() error {
 
 	asset, err := object.GetAsset(util.GetIdFromOwnerAndName(owner, name))
 	if err != nil {
-		return err
+		c.ResponseError(err.Error())
+		return
 	}
 
 	configuration := guacamole.NewConfiguration()
@@ -120,7 +123,8 @@ func (c *ApiController) GetAssetTunnel() error {
 
 	_, err = object.AddSession(&session)
 	if err != nil {
-		return err
+		c.ResponseError(err.Error())
+		return
 	}
 
 	guacamoleHandler := NewGuacamoleHandler(ws, tunnel)
@@ -131,11 +135,11 @@ func (c *ApiController) GetAssetTunnel() error {
 		_, message, err := ws.ReadMessage()
 		if err != nil {
 			_ = tunnel.Close()
-			return nil
+			return
 		}
 		_, err = tunnel.WriteAndFlush(message)
 		if err != nil {
-			return nil
+			return
 		}
 	}
 }
