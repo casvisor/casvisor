@@ -319,3 +319,18 @@ export function isResponseDenied(data) {
 export function GenerateId() {
   return uuidv4();
 }
+
+export function getTimeDifference(startTime, endTime) {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  // 计算时间差（以毫秒为单位）
+  const timeDiff = Math.abs(end - start);
+
+  // 将时间差转换为小时、分钟和秒
+  const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+  const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+
+  return hours + "小时 " + minutes + "分钟 " + seconds + "秒";
+}

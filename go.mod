@@ -27,5 +27,6 @@ require (
 	github.com/prometheus/client_golang v1.11.1 // indirect
 	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18 // indirect
 	github.com/stretchr/testify v1.8.3 // indirect
+	github.com/wwt/guac v1.3.2
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
