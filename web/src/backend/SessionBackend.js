@@ -14,8 +14,8 @@
 
 import * as Setting from "../Setting";
 
-export function getSessions(owner, page = "", pageSize = "", field = "", value = "", sortField = "", sortOrder = "") {
-  return fetch(`${Setting.ServerUrl}/api/get-sessions?owner=${owner}&p=${page}&pageSize=${pageSize}&field=${field}&value=${value}&sortField=${sortField}&sortOrder=${sortOrder}`, {
+export function getSessions(owner, page = "", pageSize = "", field = "", value = "", sortField = "", sortOrder = "", status = "=connected") {
+  return fetch(`${Setting.ServerUrl}/api/get-sessions?owner=${owner}&p=${page}&pageSize=${pageSize}&field=${field}&value=${value}&sortField=${sortField}&sortOrder=${sortOrder}&status=${status}`, {
     method: "GET",
     credentials: "include",
   }).then(res => res.json());
@@ -37,12 +37,10 @@ export function updateSession(owner, name, session) {
   }).then(res => res.json());
 }
 
-export function addSession(session) {
-  const newSession = Setting.deepCopy(session);
-  return fetch(`${Setting.ServerUrl}/api/add-session`, {
+export function CreateSession(assetId, mode = "guacd") {
+  return fetch(`${Setting.ServerUrl}/api/create-session?assetId=${assetId}&mode=${mode}`, {
     method: "POST",
     credentials: "include",
-    body: JSON.stringify(newSession),
   }).then(res => res.json());
 }
 
@@ -52,5 +50,19 @@ export function deleteSession(session) {
     method: "POST",
     credentials: "include",
     body: JSON.stringify(newSession),
+  }).then(res => res.json());
+}
+
+export function connect(sessionId) {
+  return fetch(`${Setting.ServerUrl}/api/session-connect?id=${sessionId} `, {
+    method: "POST",
+    credentials: "include",
+  }).then(res => res.json());
+}
+
+export function disconnect(sessionId) {
+  return fetch(`${Setting.ServerUrl}/api/session-disconnect?id=${sessionId} `, {
+    method: "POST",
+    credentials: "include",
   }).then(res => res.json());
 }
