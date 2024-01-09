@@ -38,7 +38,7 @@ export function updateSession(owner, name, session) {
 }
 
 export function CreateSession(assetId, mode = "guacd") {
-  return fetch(`${Setting.ServerUrl}/api/create-session?assetId=${assetId}&mode=${mode}`, {
+  return fetch(`${Setting.ServerUrl}/api/add-session-internal?assetId=${assetId}&mode=${mode}`, {
     method: "POST",
     credentials: "include",
   }).then(res => res.json());
@@ -54,14 +54,14 @@ export function deleteSession(session) {
 }
 
 export function connect(sessionId) {
-  return fetch(`${Setting.ServerUrl}/api/session-connect?id=${sessionId} `, {
+  return fetch(`${Setting.ServerUrl}/api/start-session?id=${sessionId} `, {
     method: "POST",
     credentials: "include",
   }).then(res => res.json());
 }
 
 export function disconnect(sessionId) {
-  return fetch(`${Setting.ServerUrl}/api/session-disconnect?id=${sessionId} `, {
+  return fetch(`${Setting.ServerUrl}/api/stop-session?id=${sessionId} `, {
     method: "POST",
     credentials: "include",
   }).then(res => res.json());

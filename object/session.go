@@ -16,11 +16,12 @@ package object
 
 import (
 	"errors"
+	"strconv"
+	"sync"
+
 	"github.com/casbin/casvisor/util"
 	"github.com/casbin/casvisor/util/guacamole"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
-	"strconv"
-	"sync"
 	"xorm.io/core"
 )
 
@@ -174,7 +175,7 @@ func CreateSession(ip, assetId, mode string, user *casdoorsdk.User) (*Session, e
 		Name:        util.GenerateId(),
 		CreatedTime: util.GetCurrentTime(),
 		Protocol:    asset.Protocol,
-		IP:          asset.IP,
+		IP:          asset.Ip,
 		Port:        asset.Port,
 		AssetId:     assetId,
 		Username:    asset.Username,

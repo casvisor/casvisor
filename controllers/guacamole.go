@@ -128,19 +128,19 @@ func (c *ApiController) GetAssetTunnel() {
 
 	guacSession.Observer = guacamole.NewObserver(sessionId)
 	guacamole.GlobalSessionManager.Add(guacSession)
-	sess := object.Session{
+	session := object.Session{
 		ConnectionId: tunnel.ConnectionID,
 		Width:        intWidth,
 		Height:       intHeight,
 		Status:       object.Connecting,
 		Recording:    configuration.GetParameter(guacamole.RecordingPath),
 	}
-	if sess.Recording == "" {
+	if session.Recording == "" {
 		// No audit is required when no screen is recorded
-		sess.Reviewed = true
+		session.Reviewed = true
 	}
 
-	_, err = object.UpdateSession(sessionId, &sess, []string{"status", "connectionId", "width", "height", "recording", "review"}...)
+	_, err = object.UpdateSession(sessionId, &session, []string{"status", "connectionId", "width", "height", "recording", "review"}...)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return

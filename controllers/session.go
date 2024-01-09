@@ -146,6 +146,25 @@ func (c *ApiController) UpdateSession() {
 // @Success 200 {object} Response
 // @router /add-session [post]
 func (c *ApiController) AddSession() {
+	var session object.Session
+	err := json.Unmarshal(c.Ctx.Input.RequestBody, &session)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.Data["json"] = wrapActionResponse(object.AddSession(&session))
+	c.ServeJSON()
+}
+
+// AddSessionInternal
+// @Title AddSessionInternal
+// @Tag Session API
+// @Description add session
+// @Param   assetId    query   string  true        "The id of asset"
+// @Success 200 {object} Response
+// @router /add-session-internal [get]
+func (c *ApiController) AddSessionInternal() {
 	assetId := c.Input().Get("assetId")
 	mode := c.Input().Get("mode")
 
@@ -172,7 +191,7 @@ func (c *ApiController) AddSession() {
 	c.ResponseOk(session)
 }
 
-func (c *ApiController) SessionConnect() {
+func (c *ApiController) StartSession() {
 	sessionId := c.Input().Get("id")
 
 	s := object.Session{}
@@ -188,7 +207,7 @@ func (c *ApiController) SessionConnect() {
 	c.ResponseOk()
 }
 
-func (c *ApiController) SessionDisconnect() {
+func (c *ApiController) StopSession() {
 	sessionId := c.Input().Get("id")
 
 	s := object.Session{}

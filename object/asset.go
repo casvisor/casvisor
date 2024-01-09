@@ -47,7 +47,7 @@ type Asset struct {
 
 	Description string `xorm:"varchar(100)" json:"description"`
 	Protocol    string `xorm:"varchar(100)" json:"protocol"`
-	IP          string `xorm:"varchar(100)" json:"ip"`
+	Ip          string `xorm:"varchar(100)" json:"ip"`
 	Port        int    `json:"port"`
 	Username    string `xorm:"varchar(100)" json:"username"`
 	Password    string `xorm:"varchar(100)" json:"password"`
