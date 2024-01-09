@@ -22,7 +22,7 @@ import BaseListPage from "./BaseListPage";
 import moment from "moment";
 import React from "react";
 
-const Connected = "connected";
+export const Connected = "connected";
 const Disconnected = "disconnected";
 
 class SessionListPage extends BaseListPage {
