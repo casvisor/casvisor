@@ -24,6 +24,10 @@ import {GenerateId} from "./Setting";
 import PopconfirmModal from "./common/modal/PopconfirmModal";
 
 class RecordListPage extends BaseListPage {
+  constructor(props) {
+    super(props);
+  }
+
   newRecord() {
     return {
       owner: this.props.account.owner,
@@ -56,12 +60,12 @@ class RecordListPage extends BaseListPage {
   }
 
   deleteRecord(i) {
-    RecordBackend.deleteRecord(this.state.records[i])
+    RecordBackend.deleteRecord(this.state.data[i])
       .then((res) => {
         if (res.status === "ok") {
           Setting.showMessage("success", "Record deleted successfully");
           this.setState({
-            records: Setting.deleteRow(this.state.records, i),
+            data: Setting.deleteRow(this.state.data, i),
             pagination: {total: this.state.pagination.total - 1},
           });
         } else {

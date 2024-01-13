@@ -23,12 +23,16 @@ import i18next from "i18next";
 import PopconfirmModal from "./common/modal/PopconfirmModal";
 
 class AssetListPage extends BaseListPage {
+  constructor(props) {
+    super(props);
+  }
+
   newAsset() {
     return {
       owner: this.props.account.owner,
-      name: `machine_${this.state.assets.length}`,
+      name: `machine_${this.state.data.length + 1}`,
       createdTime: moment().format(),
-      description: `New Machine - ${this.state.assets.length}`,
+      description: `New Machine - ${this.state.data.length}`,
       protocol: "rdp",
       ip: "127.0.0.1",
       port: 3389,
@@ -62,12 +66,12 @@ class AssetListPage extends BaseListPage {
   }
 
   deleteAsset(i) {
-    AssetBackend.deleteAsset(this.state.assets[i])
+    AssetBackend.deleteAsset(this.state.data[i])
       .then((res) => {
         if (res.status === "ok") {
           Setting.showMessage("success", "Asset deleted successfully");
           this.setState({
-            assets: Setting.deleteRow(this.state.assets, i),
+            data: Setting.deleteRow(this.state.data, i),
             pagination: {total: this.state.pagination.total - 1},
           });
         } else {

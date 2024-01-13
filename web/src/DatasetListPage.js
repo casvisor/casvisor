@@ -21,6 +21,10 @@ import * as DatasetBackend from "./backend/DatasetBackend";
 import i18next from "i18next";
 
 class DatasetListPage extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+
   newDataset() {
     return {
       owner: this.props.account.name,
