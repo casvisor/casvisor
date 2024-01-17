@@ -39,9 +39,14 @@ export function updateSession(owner, name, session) {
 }
 
 export function addAssetTunnel(assetId, mode = "guacd") {
-  return fetch(`${Setting.ServerUrl}/api/add-asset-tunnel?assetId=${assetId}&mode=${mode}`, {
+  const formData = new FormData();
+  formData.append("assetId", assetId);
+  formData.append("mode", mode);
+
+  return fetch(`${Setting.ServerUrl}/api/add-asset-tunnel`, {
     method: "POST",
     credentials: "include",
+    body: formData,
   }).then(res => res.json());
 }
 
@@ -55,15 +60,23 @@ export function deleteSession(session) {
 }
 
 export function connect(sessionId) {
-  return fetch(`${Setting.ServerUrl}/api/start-session?id=${sessionId} `, {
+  const formData = new FormData();
+  formData.append("id", sessionId);
+
+  return fetch(`${Setting.ServerUrl}/api/start-session`, {
     method: "POST",
     credentials: "include",
+    body: formData,
   }).then(res => res.json());
 }
 
 export function disconnect(sessionId) {
-  return fetch(`${Setting.ServerUrl}/api/stop-session?id=${sessionId} `, {
+  const formData = new FormData();
+  formData.append("id", sessionId);
+
+  return fetch(`${Setting.ServerUrl}/api/stop-session`, {
     method: "POST",
     credentials: "include",
+    body: formData,
   }).then(res => res.json());
 }
