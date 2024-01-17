@@ -95,12 +95,12 @@ func (c *ApiController) GetAssetTunnel() {
 
 	intWidth, err := strconv.Atoi(width)
 	if err != nil {
-		c.ResponseError(err.Error())
+		panic(err)
 		return
 	}
 	intHeight, err := strconv.Atoi(height)
 	if err != nil {
-		c.ResponseError(err.Error())
+		panic(err)
 		return
 	}
 
@@ -109,19 +109,19 @@ func (c *ApiController) GetAssetTunnel() {
 	remoteAppArgs := c.Input().Get("remoteAppArgs")
 
 	if err != nil {
-		c.ResponseError(err.Error())
+		panic(err)
 		return
 	}
 
 	session, err := object.GetConnSession(sessionId)
 	if err != nil {
-		c.ResponseError(err.Error())
+		panic(err)
 		return
 	}
 
 	asset, err := object.GetAsset(session.AssetId)
 	if err != nil {
-		c.ResponseError(err.Error())
+		panic(err)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (c *ApiController) GetAssetTunnel() {
 
 	_, err = object.UpdateSession(sessionId, session)
 	if err != nil {
-		c.ResponseError(err.Error())
+		panic(err)
 		return
 	}
 
@@ -189,14 +189,12 @@ func (c *ApiController) GetAssetTunnel() {
 		if err != nil {
 			_ = tunnel.Close()
 			object.CloseSession(sessionId, Normal, "Normal user exit")
-			c.ResponseOk()
 			return
 		}
 
 		_, err = tunnel.WriteAndFlush(message)
 		if err != nil {
 			object.CloseSession(sessionId, Normal, "Normal user exit")
-			c.ResponseOk()
 			return
 		}
 	}
