@@ -188,22 +188,13 @@ func (c *ApiController) GetAssetTunnel() {
 		_, message, err := ws.ReadMessage()
 		if err != nil {
 			_ = tunnel.Close()
-
-			err := object.CloseSession(sessionId, Normal, "Normal user exit")
-			if err != nil {
-				c.ResponseError(err.Error())
-				return
-			}
+			object.CloseSession(sessionId, Normal, "Normal user exit")
 			return
 		}
 
 		_, err = tunnel.WriteAndFlush(message)
 		if err != nil {
-			err := object.CloseSession(sessionId, Normal, "Normal user exit")
-			if err != nil {
-				c.ResponseError(err.Error())
-				return
-			}
+			object.CloseSession(sessionId, Normal, "Normal user exit")
 			return
 		}
 	}
