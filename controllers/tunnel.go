@@ -81,6 +81,8 @@ func (c *ApiController) AddAssetTunnel() {
 }
 
 func (c *ApiController) GetAssetTunnel() {
+	// https://blog.csdn.net/weixin_51507240/article/details/131761587
+	c.EnableRender = false
 	ctx := c.Ctx
 	ws, err := UpGrader.Upgrade(ctx.ResponseWriter, ctx.Request, nil)
 	if err != nil {
