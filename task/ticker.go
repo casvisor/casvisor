@@ -21,8 +21,7 @@ import (
 	"github.com/casbin/casvisor/object"
 )
 
-type Ticker struct {
-}
+type Ticker struct{}
 
 func NewTicker() *Ticker {
 	return &Ticker{}
@@ -41,6 +40,7 @@ func (t *Ticker) SetupTicker() {
 func (t *Ticker) deleteUnUsedSession() {
 	sessions, err := object.GetSessionsByStatus([]string{object.NoConnect, object.Connecting})
 	if err != nil {
+		logs.Info("failed to get unused sessions: ", err)
 		return
 	}
 
