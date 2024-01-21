@@ -63,6 +63,15 @@ class App extends Component {
     });
   }
 
+  componentDidUpdate(prevProps, prevState, snapshot) {
+    const uri = location.pathname;
+    if (this.state.uri !== uri) {
+      this.setState({
+        uri: uri,
+      });
+    }
+  }
+
   setLanguage() {
     // let language = account?.language;
     const language = localStorage.getItem("language");
