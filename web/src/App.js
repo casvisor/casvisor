@@ -68,6 +68,7 @@ class App extends Component {
     if (this.state.uri !== uri) {
       this.setState({
         uri: uri,
+        selectedMenuKey: uri.split("/")[1],
       });
     }
   }
