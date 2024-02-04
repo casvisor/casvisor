@@ -88,8 +88,8 @@ class SessionListPage extends BaseListPage {
     const columns = [
       {
         title: i18next.t("general:Asset"),
-        dataIndex: "assetId",
-        key: "assetId",
+        dataIndex: "asset",
+        key: "asset",
         width: "200px",
         sorter: (a, b) => a.name.localeCompare(b.name),
         render: (text, record, index) => {
@@ -178,26 +178,26 @@ class SessionListPage extends BaseListPage {
       },
       {
         title: i18next.t("general:Connection start time"),
-        dataIndex: "connectedTime",
-        key: "connectedTime",
+        dataIndex: "startTime",
+        key: "startTime",
         width: "220px",
-        sorter: (a, b) => a.connectedTime.localeCompare(b.connectedTime),
+        sorter: (a, b) => a.startTime.localeCompare(b.startTime),
         render: (text, asset, index) => {
           return Setting.getFormattedDate(text);
         },
       },
       {
         title: i18next.t("general:Connection duration"),
-        dataIndex: "connectedTimeDur",
-        key: "connectedTimeDur",
+        dataIndex: "startTimeDur",
+        key: "startTimeDur",
         // width: "200px",
         render: (text, record) => {
-          if (!record["connectedTime"]) {
+          if (!record["startTime"]) {
             return "-";
           }
-          const connectedTime = moment(record["connectedTime"]);
+          const startTime = moment(record["startTime"]);
           const currentTime = moment();
-          const duration = moment.duration(currentTime.diff(connectedTime));
+          const duration = moment.duration(currentTime.diff(startTime));
           return `${duration.hours()}h ${duration.minutes()}m ${duration.seconds()}s`;
         },
       },

@@ -113,21 +113,21 @@ func (c *ApiController) GetAssetTunnel() {
 		return
 	}
 
+	asset, err := object.GetAsset(session.Asset)
+	if err != nil || asset == nil {
+		guacamole.Disconnect(ws, AssetNotFound, err.Error())
+		return
+	}
+
 	configuration := guacamole.NewConfiguration()
 	propertyMap := configuration.LoadConfig()
 
-	setConfig(propertyMap, session, configuration)
+	setConfig(propertyMap, asset, configuration)
 	configuration.SetParameter("width", width)
 	configuration.SetParameter("height", height)
 	configuration.SetParameter("dpi", dpi)
 
 	if session.Protocol == "rdp" {
-		asset, err := object.GetAsset(session.AssetId)
-		if err != nil || asset == nil {
-			guacamole.Disconnect(ws, AssetNotFound, err.Error())
-			return
-		}
-
 		if asset.EnableRemoteApp {
 			remoteApp := asset.RemoteApps[0]
 			configuration.SetParameter("remote-app", "||"+remoteApp.RemoteAppName)
@@ -272,13 +272,13 @@ func (c *ApiController) TunnelMonitor() {
 	}
 }
 
-func setConfig(propertyMap map[string]string, session *object.Session, configuration *guacamole.Configuration) {
-	configuration.Protocol = session.Protocol
+func setConfig(propertyMap map[string]string, asset *object.Asset, configuration *guacamole.Configuration) {
+	configuration.Protocol = asset.Protocol
 
-	configuration.SetParameter("hostname", session.IP)
-	configuration.SetParameter("port", strconv.Itoa(session.Port))
-	configuration.SetParameter("username", session.Username)
-	configuration.SetParameter("password", session.Password)
+	configuration.SetParameter("hostname", asset.Ip)
+	configuration.SetParameter("port", strconv.Itoa(asset.Port))
+	configuration.SetParameter("username", asset.Username)
+	configuration.SetParameter("password", asset.Password)
 
 	switch configuration.Protocol {
 	case "rdp":

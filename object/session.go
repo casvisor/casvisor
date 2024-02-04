@@ -35,16 +35,12 @@ type Session struct {
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
 	CreatedTime string `xorm:"varchar(100)" json:"createdTime"`
 
-	ConnectedTime    string `xorm:"varchar(100)" json:"connectedTime"`
-	DisconnectedTime string `xorm:"varchar(100)" json:"disconnectedTime"`
+	StartTime string `xorm:"varchar(100)" json:"startTime"`
+	EndTime   string `xorm:"varchar(100)" json:"endTime"`
 
 	Protocol      string `xorm:"varchar(20)" json:"protocol"`
-	IP            string `xorm:"varchar(200)" json:"ip"`
-	Port          int    `json:"port"`
 	ConnectionId  string `xorm:"varchar(50)" json:"connectionId"`
-	AssetId       string `xorm:"varchar(200) index" json:"assetId"`
-	Username      string `xorm:"varchar(200)" json:"username"`
-	Password      string `xorm:"varchar(500)" json:"password"`
+	Asset         string `xorm:"varchar(200) index" json:"asset"`
 	Creator       string `xorm:"varchar(36) index" json:"creator"`
 	ClientIp      string `xorm:"varchar(200)" json:"clientIp"`
 	UserAgent     string `xorm:"varchar(200)" json:"userAgent"`
@@ -54,21 +50,11 @@ type Session struct {
 	Height        int    `json:"height"`
 	Status        string `xorm:"varchar(20) index" json:"status"`
 	Recording     string `xorm:"varchar(1000)" json:"recording"`
-	PrivateKey    string `xorm:"mediumtext" json:"privateKey"`
-	Passphrase    string `xorm:"varchar(500)" json:"passphrase"`
 	Code          int    `json:"code"`
 	Message       string `json:"message"`
 
-	Mode       string `xorm:"varchar(10)" json:"mode"`
-	FileSystem bool   `json:"fileSystem"`
-	Upload     bool   `json:"upload"`
-	Download   bool   `json:"download"`
-	Delete     bool   `json:"delete"`
-	Rename     bool   `json:"rename"`
-	Edit       bool   `json:"edit"`
-	CreateDir  bool   `json:"createDir"`
-	Copy       bool   `json:"copy"`
-	Paste      bool   `json:"paste"`
+	Mode       string   `xorm:"varchar(10)" json:"mode"`
+	Operations []string `xorm:"json varchar(1000)" json:"operations"`
 
 	Reviewed     bool  `json:"reviewed"`
 	CommandCount int64 `json:"commandCount"`
@@ -196,25 +182,11 @@ func CreateSession(session *Session, assetId, mode string) (*Session, error) {
 	session.Name = util.GenerateId()
 	session.CreatedTime = util.GetCurrentTime()
 	session.Protocol = asset.Protocol
-	session.IP = asset.Ip
-	session.Port = asset.Port
-	session.AssetId = assetId
-	session.Username = asset.Username
-	session.Password = asset.Password
-	session.Width = 1280
-	session.Height = 720
+	session.Asset = assetId
 	session.Status = NoConnect
 	session.Mode = mode
-	session.FileSystem = true
-	session.Upload = true
-	session.Download = true
-	session.Delete = true
-	session.Rename = true
-	session.Edit = true
-	session.CreateDir = true
-	session.Copy = true
-	session.Paste = true
 	session.Reviewed = false
+	session.Operations = []string{"paste", "copy", "createDir", "edit", "rename", "delete", "download", "upload", "fileSystem"}
 
 	_, err = AddSession(session)
 	if err != nil {
@@ -224,15 +196,7 @@ func CreateSession(session *Session, assetId, mode string) (*Session, error) {
 	respSession := &Session{
 		Owner:      session.Owner,
 		Name:       session.Name,
-		Protocol:   session.Protocol,
-		Upload:     session.Upload,
-		Download:   session.Download,
-		Delete:     session.Delete,
-		Rename:     session.Rename,
-		Edit:       session.Edit,
-		FileSystem: session.FileSystem,
-		Copy:       session.Copy,
-		Paste:      session.Paste,
+		Operations: session.Operations,
 	}
 	return respSession, nil
 }
@@ -262,10 +226,7 @@ func CloseDBSession(id string, code int, msg string) error {
 	s.Status = Disconnected
 	s.Code = code
 	s.Message = msg
-	s.DisconnectedTime = util.GetCurrentTime()
-	s.Password = "-"
-	s.PrivateKey = "-"
-	s.Passphrase = "-"
+	s.EndTime = util.GetCurrentTime()
 
 	_, err = UpdateSession(id, s)
 	if err != nil {
