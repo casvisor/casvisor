@@ -59,29 +59,26 @@ func (c *ApiController) AddAssetTunnel() {
 	mode := c.Input().Get("mode")
 
 	user := c.GetSessionUser()
+	if user == nil {
+		c.ResponseError("please sign in first")
+		return
+	}
 
-	s, err := object.CreateSession(c.Ctx.Input.IP(), assetId, mode, user)
+	session := &object.Session{
+		Creator:       user.Name,
+		ClientIp:      c.getClientIp(),
+		UserAgent:     c.getUserAgent(),
+		ClientIpDesc:  util.GetDescFromIP(c.getClientIp()),
+		UserAgentDesc: util.GetDescFromUserAgent(c.getUserAgent()),
+	}
+
+	var err error
+	session, err = object.CreateSession(session, assetId, mode)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
-	} else if s == nil {
-		c.ResponseError("Session not found")
-		return
 	}
 
-	session := object.Session{
-		Owner:      s.Owner,
-		Name:       s.Name,
-		Protocol:   s.Protocol,
-		Upload:     s.Upload,
-		Download:   s.Download,
-		Delete:     s.Delete,
-		Rename:     s.Rename,
-		Edit:       s.Edit,
-		FileSystem: s.FileSystem,
-		Copy:       s.Copy,
-		Paste:      s.Paste,
-	}
 	c.ResponseOk(session)
 }
 
