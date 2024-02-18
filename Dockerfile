@@ -1,4 +1,4 @@
-FROM jumpserver/guacd:1.5.4-bookworm as guacd
+FROM casbin/guacd:1.5.4-bookworm as guacd
 FROM node:18.19.0 AS FRONT
 WORKDIR /web
 COPY ./web .
