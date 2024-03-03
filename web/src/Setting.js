@@ -326,3 +326,12 @@ export function GetIdFromObject(obj) {
   }
   return `${obj.owner}/${obj.name}`;
 }
+
+export const DataBaseTypes = [
+  {label: "MySQL", value: "mysql"},
+  {label: "Microsoft SQL Server", value: "mssql"},
+  {label: "Oracle", value: "oracle"},
+  {label: "PostgreSQL", value: "postgresql"},
+  {label: "Redis", value: "redis"},
+  {label: "MongoDB", value: "mongodb"},
+];

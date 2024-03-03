@@ -45,21 +45,29 @@ type Asset struct {
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
 	CreatedTime string `xorm:"varchar(100)" json:"createdTime"`
 
-	Description string `xorm:"varchar(100)" json:"description"`
-	Protocol    string `xorm:"varchar(100)" json:"protocol"`
+	DisplayName string `xorm:"varchar(100)" json:"displayName"`
 	Ip          string `xorm:"varchar(100)" json:"ip"`
 	Port        int    `json:"port"`
 	Username    string `xorm:"varchar(100)" json:"username"`
-	Password    string `xorm:"varchar(100)" json:"password"`
-	Language    string `xorm:"varchar(100)" json:"language"`
+	Password    string `xorm:"varchar(200)" json:"password"`
+	Language    string `xorm:"varchar(20)" json:"language"`
+	Category    string `xorm:"varchar(20)" json:"category"`
 	Tag         string `xorm:"varchar(100)" json:"tag"`
 	Os          string `xorm:"varchar(100)" json:"os"`
-	AutoQuery   bool   `json:"autoQuery"`
-	IsPermanent bool   `json:"isPermanent"`
 
+	Protocol        string       `xorm:"varchar(20)" json:"protocol"`
+	AutoQuery       bool         `json:"autoQuery"`
+	IsPermanent     bool         `json:"isPermanent"`
 	EnableRemoteApp bool         `json:"enableRemoteApp"`
 	RemoteApps      []*RemoteApp `json:"remoteApps"`
 	Services        []*Service   `json:"services"`
+
+	Id              string `xorm:"varchar(100) index" json:"id"`
+	DatabaseType    string `xorm:"varchar(100)" json:"databaseType"`
+	AuthType        string `xorm:"varchar(100)" json:"authType"`
+	DefaultDatabase string `xorm:"varchar(100)" json:"defaultDatabase"`
+	DatabaseUrl     string `xorm:"varchar(200)" json:"databaseUrl"`
+	UseDatabaseUrl  bool   `json:"useDatabaseUrl"`
 }
 
 func GetAssetCount(owner, field, value string) (int64, error) {
@@ -164,6 +172,10 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 }
 
 func AddAsset(asset *Asset) (bool, error) {
+	if asset.Id == "" {
+		asset.Id = util.GenerateId()
+	}
+
 	affected, err := adapter.engine.Insert(asset)
 	if err != nil {
 		return false, err

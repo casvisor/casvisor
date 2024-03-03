@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// http://localhost:18001/assets/dccb0b3e-aa59-443f-996b-c69a98b21ea9
-
 import React from "react";
 import {Button, Card, Col, Input, Row, Select, Switch} from "antd";
 import * as AssetBackend from "./backend/AssetBackend";
@@ -21,8 +19,6 @@ import * as Setting from "./Setting";
 import i18next from "i18next";
 import ServiceTable from "./ServiceTable";
 import RemoteAppTable from "./RemoteAppTable";
-
-const {Option} = Select;
 
 class AssetEditPage extends React.Component {
   constructor(props) {
@@ -130,21 +126,51 @@ class AssetEditPage extends React.Component {
     });
   }
 
-  getDefaultPort(protocol) {
-    if (protocol === "rdp") {
+  getDefaultPort(key) {
+    switch (key) {
+    case "rdp":
       return 3389;
-    } else if (protocol === "vnc") {
+    case "vnc":
       return 5900;
-    } else if (protocol === "ssh") {
+    case "ssh":
       return 22;
-    } else if (protocol === "telnet") {
+    case "telnet":
       return 23;
-    } else {
+    case "mysql":
+      return 3306;
+    case "mssql":
+      return 1433;
+    case "oracle":
+      return 1521;
+    case "postgresql":
+      return 5432;
+    case "redis":
+      return 6379;
+    case "mongodb":
+      return 27017;
+    default:
       return 0;
     }
   }
 
+  omitSetting(assset) {
+    if (assset.category === "Machine") {
+      assset.databaseType = "";
+      assset.authType = "";
+      assset.defaultDatabase = "";
+      assset.databaseUrl = "";
+      assset.useDatabaseUrl = false;
+      assset.databaseFile = "";
+      assset.connectionColor = "";
+    } else if (assset.category === "Database") {
+      assset.protocol = "";
+    }
+    return assset;
+  }
+
   renderAsset() {
+    const asset = this.state.asset;
+
     return (
       <Card size="small" title={
         <div>
@@ -159,7 +185,7 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general:Organization"), i18next.t("general:Organization - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.owner} onChange={e => {
+            <Input value={asset.owner} onChange={e => {
               this.updateAssetField("owner", e.target.value);
             }} />
           </Col>
@@ -169,47 +195,83 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general:Name"), i18next.t("general:Name - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.name} onChange={e => {
+            <Input value={asset.name} onChange={e => {
               this.updateAssetField("name", e.target.value);
             }} />
           </Col>
         </Row>
         <Row style={{marginTop: "20px"}} >
           <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Description"), i18next.t("general:Description - Tooltip"))} :
+            {Setting.getLabel(i18next.t("general:Display name"), i18next.t("general:Display name - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.description} onChange={e => {
-              this.updateAssetField("description", e.target.value);
+            <Input value={asset.displayName} onChange={e => {
+              this.updateAssetField("displayName", e.target.value);
             }} />
           </Col>
         </Row>
         <Row style={{marginTop: "20px"}} >
           <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Protocol"), i18next.t("general:Protocol - Tooltip"))} :
+            {Setting.getLabel(i18next.t("general:Category"), i18next.t("general:DisplayName - Category"))} :
           </Col>
           <Col span={22} >
-            <Select virtual={false} style={{width: "100%"}} value={this.state.asset.protocol} onChange={value => {
-              this.updateAssetField("protocol", value);
-              this.updateAssetField("port", this.getDefaultPort(value));
-            }}>
-              {
-                [
-                  {id: "rdp", name: "RDP"},
-                  {id: "vnc", name: "VNC"},
-                  {id: "ssh", name: "SSH"},
-                  {id: "telnet", name: "Telnet"},
-                ].map((item, index) => <Option key={index} value={item.id}>{item.name}</Option>)
-              }
-            </Select>
+            <Select virtual={false} style={{width: "100%"}} value={asset.category}
+              options={[
+                {label: "Machine", value: "Machine"},
+                {label: "Database", value: "Database"},
+              ].map((item) => Setting.getOption(item.label, item.value))}
+              onChange={value => {
+                this.updateAssetField("category", value);
+                this.updateAssetField("protocol", value === "Machine" ? "rdp" : "");
+              }}
+            />
           </Col>
         </Row>
+        {
+          asset.category === "Machine" &&
+          <Row style={{marginTop: "20px"}} >
+            <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+              {Setting.getLabel(i18next.t("general:Protocol"), i18next.t("general:Protocol - Tooltip"))} :
+            </Col>
+            <Col span={22} >
+              <Select virtual={false} style={{width: "100%"}} value={asset.protocol}
+                options={[
+                  {label: "RDP", value: "rdp"},
+                  {label: "VNC", value: "vnc"},
+                  {label: "SSH", value: "ssh"},
+                  {label: "Telnet", value: "telnet"},
+                ].map((item) => Setting.getOption(item.label, item.value))}
+                onChange={value => {
+                  this.updateAssetField("protocol", value);
+                  this.updateAssetField("port", this.getDefaultPort(value));
+                }}
+              />
+            </Col>
+          </Row>
+        }
+        {
+          asset.category === "Database" &&
+          <Row style={{marginTop: "20px"}} >
+            <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+              {Setting.getLabel(i18next.t("general:Database type"), i18next.t("general:Database type - Tooltip"))} :
+            </Col>
+            <Col span={22} >
+              <Select virtual={false} style={{width: "100%"}} value={asset.databaseType}
+                options={Setting.DataBaseTypes.map((item) => Setting.getOption(item.label, item.value))}
+                onChange={value => {
+                  this.updateAssetField("databaseType", value);
+                  this.updateAssetField("port", this.getDefaultPort(value));
+                }}
+              />
+            </Col>
+          </Row>
+        }
         <Row style={{marginTop: "20px"}} >
           <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
             {Setting.getLabel(i18next.t("general:IP"), i18next.t("general:IP - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.ip} onChange={e => {
+            <Input value={asset.ip} onChange={e => {
               this.updateAssetField("ip", e.target.value);
             }} />
           </Col>
@@ -220,8 +282,8 @@ class AssetEditPage extends React.Component {
           </Col>
           <Col span={22} >
             <Input
-              value={this.state.asset.port}
-              defaultValue={this.getDefaultPort(this.state.asset.protocol)}
+              value={asset.port}
+              defaultValue={this.getDefaultPort(asset.protocol)}
               onChange={e => {
                 this.updateAssetField("port", e.target.value);
               }}
@@ -233,7 +295,7 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general:Username"), i18next.t("general:Username - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.username} onChange={e => {
+            <Input value={asset.username} onChange={e => {
               this.updateAssetField("username", e.target.value);
             }} />
           </Col>
@@ -243,7 +305,7 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general:Password"), i18next.t("general:Password - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.password} onChange={e => {
+            <Input value={asset.password} onChange={e => {
               this.updateAssetField("password", e.target.value);
             }} />
           </Col>
@@ -253,7 +315,7 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("asset:OS"), i18next.t("asset:OS - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Select virtual={false} style={{width: "100%"}} value={this.state.asset.os} onChange={value => {
+            <Select virtual={false} style={{width: "100%"}} value={asset.os} onChange={value => {
               this.updateAssetField("os", value);
             }}
             options={[
@@ -267,7 +329,7 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general: Tag"), i18next.t("general: Tag - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.tags} onChange={e => {
+            <Input value={asset.tags} onChange={e => {
               this.updateAssetField("tag", e.target.value);
             }
             } />
@@ -278,81 +340,80 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general:Language"), i18next.t("general:Language - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.language} onChange={e => {
+            <Input value={asset.language} onChange={e => {
               this.updateAssetField("language", e.target.value);
             }} />
           </Col>
         </Row>
-        <Row style={{marginTop: "20px"}} >
-          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Auto query"), i18next.t("general:Auto query - Tooltip"))} :
-          </Col>
-          <Col span={22} >
-            <Switch checked={this.state.asset.autoQuery} onChange={checked => {
-              this.updateAssetField("autoQuery", checked);
-            }} />
-          </Col>
-        </Row>
-        <Row style={{marginTop: "20px"}} >
-          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Is Permanent"), i18next.t("application:Is Permanent - Tooltip"))} :
-          </Col>
-          <Col span={1} >
-            <Switch checked={this.state.asset.isPermanent} onChange={checked => {
-              this.updateAssetField("isPermanent", checked);
-            }} />
-          </Col>
-        </Row>
-        {this.state.asset.protocol === "rdp" && (
-          <div>
-            <Row style={{marginTop: "20px"}} >
-              <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-                {Setting.getLabel(i18next.t("general:Enable Remote App"), i18next.t("general:Enable Remote App - Tooltip"))} :
-              </Col>
-              <Col span={22}>
-                <Switch checked={this.state.asset.enableRemoteApp} onChange={checked => {
-                  if (checked && this.state.asset.remoteApps.length === 0) {
-                    Setting.showMessage("error", i18next.t("asset:Cannot enable Remote App when Remote Apps are empty. Please add at least one Remote App in below table first, then enable again"));
-                    return;
-                  }
-                  this.updateAssetField("enableRemoteApp", checked);
-                }} />
-              </Col>
-            </Row>
-            {this.state.asset.enableRemoteApp && (
+        {
+          asset.category === "Machine" && (
+            <div>
+              <Row style={{marginTop: "20px"}} >
+                <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+                  {Setting.getLabel(i18next.t("general:Auto query"), i18next.t("general:Auto query - Tooltip"))} :
+                </Col>
+                <Col span={22} >
+                  <Switch checked={asset.autoQuery} onChange={checked => {
+                    this.updateAssetField("autoQuery", checked);
+                  }} />
+                </Col>
+              </Row>
+              <Row style={{marginTop: "20px"}} >
+                <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+                  {Setting.getLabel(i18next.t("general:Is Permanent"), i18next.t("application:Is Permanent - Tooltip"))} :
+                </Col>
+                <Col span={1} >
+                  <Switch checked={asset.isPermanent} onChange={checked => {
+                    this.updateAssetField("isPermanent", checked);
+                  }} />
+                </Col>
+              </Row>
+              {
+                asset.protocol === "rdp" && (
+                  <Row style={{marginTop: "20px"}} >
+                    <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+                      {Setting.getLabel(i18next.t("general:Enable Remote App"), i18next.t("general:Enable Remote App - Tooltip"))} :
+                    </Col>
+                    <Col span={22}>
+                      <Switch checked={asset.enableRemoteApp} onChange={checked => {
+                        if (checked && asset.remoteApps.length === 0) {
+                          Setting.showMessage("error", i18next.t("asset:Cannot enable Remote App when Remote Apps are empty. Please add at least one Remote App in below table first, then enable again"));
+                          return;
+                        }
+                        this.updateAssetField("enableRemoteApp", checked);
+                      }} />
+                    </Col>
+                  </Row>
+                )
+              }
               <Row style={{marginTop: "20px"}} >
                 <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2} >
                   {Setting.getLabel(i18next.t("general:Remote Apps"), i18next.t("general:Remote Apps - Tooltip"))} :
                 </Col>
                 <Col span={22} >
-                  <RemoteAppTable title={"Remote Apps"} table={this.state.asset.remoteApps} onUpdateTable={(value) => {
+                  <RemoteAppTable title={"Remote Apps"} table={asset.remoteApps} onUpdateTable={(value) => {
                     this.updateAssetField("remoteApps", value);
                   }} />
                 </Col>
               </Row>
-            )}
-          </div>
-        )}
-        {this.state.asset.protocol === "ssh" && (
-          <div>
-          </div>
-        )}
-        <Row style={{marginTop: "20px"}} >
-          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Services"), i18next.t("general:Services - Tooltip"))} :
-          </Col>
-          <Col span={22} >
-            <ServiceTable title={"Services"} table={this.state.asset.services} onUpdateTable={(value) => {
-              this.updateAssetField("services", value);
-            }} />
-          </Col>
-        </Row>
+              <Row style={{marginTop: "20px"}} >
+                <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2} >
+                  {Setting.getLabel(i18next.t("general:Services"), i18next.t("general:Services - Tooltip"))} :
+                </Col>
+                <Col span={22} >
+                  <ServiceTable title={"Services"} table={asset.services} onUpdateTable={(value) => {
+                    this.updateAssetField("services", value);
+                  }} />
+                </Col>
+              </Row>
+            </div>
+          )}
       </Card>
     );
   }
 
   submitAssetEdit(willExist) {
-    const asset = Setting.deepCopy(this.state.asset);
+    const asset = Setting.deepCopy(this.omitSetting(this.state.asset));
     AssetBackend.updateAsset(this.state.asset.owner, this.state.assetName, asset)
       .then((res) => {
         if (res.status === "ok") {
