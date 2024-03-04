@@ -13,11 +13,11 @@
 // limitations under the License.
 
 import React from "react";
-import {AuthConfig} from "./Conf";
+import {dbgateUrl} from "./Conf";
 const DatabasesPage = () => {
   return (
     <div >
-      <iframe src={AuthConfig.dbgateUrl} style={{width: "100%", height: "100vh"}} />;
+      <iframe src={dbgateUrl} style={{width: "100%", height: "100vh"}} />;
     </div>
   );
 };

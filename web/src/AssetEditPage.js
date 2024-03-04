@@ -128,25 +128,25 @@ class AssetEditPage extends React.Component {
 
   getDefaultPort(key) {
     switch (key) {
-    case "rdp":
+    case "RDP":
       return 3389;
-    case "vnc":
+    case "VNC":
       return 5900;
-    case "ssh":
+    case "SSH":
       return 22;
-    case "telnet":
+    case "Telnet":
       return 23;
-    case "mysql":
+    case "MySQL":
       return 3306;
-    case "mssql":
+    case "Microsoft SQL Server":
       return 1433;
-    case "oracle":
+    case "Oracle":
       return 1521;
-    case "postgresql":
+    case "PostgreSQL":
       return 5432;
-    case "redis":
+    case "Redis":
       return 6379;
-    case "mongodb":
+    case "MongoDB":
       return 27017;
     default:
       return 0;
@@ -234,15 +234,10 @@ class AssetEditPage extends React.Component {
               {Setting.getLabel(i18next.t("general:Protocol"), i18next.t("general:Protocol - Tooltip"))} :
             </Col>
             <Col span={22} >
-              <Select virtual={false} style={{width: "100%"}} value={asset.protocol}
-                options={[
-                  {label: "RDP", value: "rdp"},
-                  {label: "VNC", value: "vnc"},
-                  {label: "SSH", value: "ssh"},
-                  {label: "Telnet", value: "telnet"},
-                ].map((item) => Setting.getOption(item.label, item.value))}
+              <Select virtual={false} style={{width: "100%"}} value={asset.type}
+                options={Setting.getMachineTypes().map((item) => Setting.getOption(item.label, item.value))}
                 onChange={value => {
-                  this.updateAssetField("protocol", value);
+                  this.updateAssetField("type", value);
                   this.updateAssetField("port", this.getDefaultPort(value));
                 }}
               />
@@ -256,10 +251,10 @@ class AssetEditPage extends React.Component {
               {Setting.getLabel(i18next.t("general:Database type"), i18next.t("general:Database type - Tooltip"))} :
             </Col>
             <Col span={22} >
-              <Select virtual={false} style={{width: "100%"}} value={asset.databaseType}
-                options={Setting.DataBaseTypes.map((item) => Setting.getOption(item.label, item.value))}
+              <Select virtual={false} style={{width: "100%"}} value={asset.type}
+                options={Setting.getDataBaseTypes().map((item) => Setting.getOption(item.label, item.value))}
                 onChange={value => {
-                  this.updateAssetField("databaseType", value);
+                  this.updateAssetField("type", value);
                   this.updateAssetField("port", this.getDefaultPort(value));
                 }}
               />
@@ -268,11 +263,11 @@ class AssetEditPage extends React.Component {
         }
         <Row style={{marginTop: "20px"}} >
           <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:IP"), i18next.t("general:IP - Tooltip"))} :
+            {Setting.getLabel(i18next.t("general:Endpoint"), i18next.t("general:Endpoint - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={asset.ip} onChange={e => {
-              this.updateAssetField("ip", e.target.value);
+            <Input value={asset.endpoint} onChange={e => {
+              this.updateAssetField("endpoint", e.target.value);
             }} />
           </Col>
         </Row>

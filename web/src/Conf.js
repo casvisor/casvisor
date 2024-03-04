@@ -19,7 +19,6 @@ export const AuthConfig = {
   appName: "app-casvisor",
   organizationName: "casbin",
   redirectPath: "/callback",
-  dbgateUrl: "http://localhost:5001",
 };
 
 export const ForceLanguage = "";
@@ -32,3 +31,5 @@ export const ThemeDefault = {
   borderRadius: 6,
   isCompact: false,
 };
+
+export const dbgateUrl = "http://localhost:5001";

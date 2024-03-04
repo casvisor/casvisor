@@ -148,53 +148,25 @@ class AssetListPage extends BaseListPage {
         },
       },
       {
-        title: i18next.t("general:Protocol"),
-        dataIndex: "protocol",
-        key: "protocol",
+        title: i18next.t("general:Type"),
+        dataIndex: "type",
+        key: "type",
         width: "100px",
         sorter: true,
         filterMultiple: false,
-        filters: [
-          {text: "RDP", value: "rdp"},
-          {text: "VNC", value: "vnc"},
-          {text: "SSH", value: "ssh"},
-        ],
-        render: (text, record, index) => {
-          return text === "" ? "-" : text;
-        },
+        filters: Setting.getMachineTypes().concat(Setting.getDataBaseTypes()),
       },
       {
-        title: i18next.t("general:Database type"),
-        dataIndex: "databaseType",
-        key: "databaseType",
-        width: "150px",
-        sorter: true,
-        filterMultiple: false,
-        filters: [
-          {text: "MySQL", value: "mysql"},
-          {text: "Microsoft SQL Server", value: "mssql"},
-          {text: "Oracle", value: "oracle"},
-          {text: "PostgreSQL", value: "postgresql"},
-          {text: "Redis", value: "redis"},
-          {text: "MongoDB", value: "mongodb"},
-        ],
-        render: (text, record, index) => {
-          return text === "" ? "-" : Setting.DataBaseTypes.find((item) => item.value === text).label;
-        },
-      },
-      {
-        title: i18next.t("general:IP"),
-        dataIndex: "ip",
-        key: "ip",
+        title: i18next.t("general:Endpoint"),
+        dataIndex: "endpoint",
+        key: "endpoint",
         width: "120px",
-        sorter: (a, b) => a.ip.localeCompare(b.ip),
       },
       {
         title: i18next.t("general:Port"),
         dataIndex: "port",
         key: "port",
         width: "90px",
-        sorter: (a, b) => a.port - b.port,
       },
       {
         title: i18next.t("general:Username"),
@@ -273,15 +245,12 @@ class AssetListPage extends BaseListPage {
   fetch = (params = {}) => {
     let field = params.searchedColumn, value = params.searchText;
     const sortField = params.sortField, sortOrder = params.sortOrder;
-    if (params.category !== undefined && params.category !== null) {
+    if (params.category) {
       field = "category";
       value = params.category;
-    } else if (params.protocol !== undefined && params.protocol !== null) {
-      field = "protocol";
-      value = params.protocol;
-    } else if (params.databaseType !== undefined && params.databaseType !== null) {
-      field = "databaseType";
-      value = params.databaseType;
+    } else if (params.type) {
+      field = "type";
+      value = params.type;
     }
     this.setState({loading: true});
     AssetBackend.getAssets(Setting.getRequestOrganization(this.props.account), params.pagination.current, params.pagination.pageSize, field, value, sortField, sortOrder)
