@@ -14,7 +14,9 @@
 
 package dbgate
 
-import "github.com/casbin/casvisor/util"
+import (
+	"strings"
+)
 
 var driversMap = make(map[string]string)
 
@@ -42,9 +44,24 @@ func initDriversMap() {
 }
 
 func (c *Connection) TransferToSave() *Connection {
-	if c.Id == "" {
-		c.Id = util.GenerateId()
-	}
 	c.Engine = driversMap[c.Engine]
+	c.Password, _ = encryptPassword(c.Password)
+
 	return c
+}
+
+func encryptPassword(password string) (string, error) {
+	if password != "" && !strings.HasPrefix(password, "crypt:") {
+		encryptor, err := getEncryptor()
+		if err != nil {
+			return "", err
+		}
+
+		encrypted, err := encryptor.encrypt(password)
+		if err != nil {
+			return "", err
+		}
+		return "crypt:" + encrypted, err
+	}
+	return password, nil
 }

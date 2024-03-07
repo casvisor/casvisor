@@ -239,7 +239,6 @@ func (asset *Asset) toConnection() *dbgate.Connection {
 		Server:          asset.Endpoint,
 		User:            asset.Username,
 		Password:        asset.Password,
-		PasswordMode:    "saveRaw",
 		Port:            asset.Port,
 		DatabaseUrl:     asset.DatabaseUrl,
 		UseDatabaseUrl:  asset.UseDatabaseUrl,
