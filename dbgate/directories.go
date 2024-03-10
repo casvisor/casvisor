@@ -2,7 +2,7 @@ package dbgate
 
 import (
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/beego/beego/logs"
 	"github.com/casbin/casvisor/conf"
@@ -11,7 +11,7 @@ import (
 var dbgateDir = conf.GetConfigString("dbgateDir")
 
 func dataDir() string {
-	dbgateWorkspaceDir := strings.TrimSuffix(dbgateDir, "/") + "/.dbgate"
+	dbgateWorkspaceDir := filepath.Join(dbgateDir, ".dbgate")
 	ensureDirectory(dbgateWorkspaceDir)
 	return dbgateWorkspaceDir
 }
