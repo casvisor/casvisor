@@ -55,7 +55,7 @@ func ProxyFilter(ctx *context.Context) {
 
 	targetURL, err := url.Parse(dbgateEndpoint + requestPath)
 	if err != nil {
-		ctx.Output.Body([]byte(err.Error()))
+		responseError(ctx, fmt.Sprintf("Invalid target URL: %s", err))
 		return
 	}
 
@@ -64,7 +64,7 @@ func ProxyFilter(ctx *context.Context) {
 	if originalQuery != "" {
 		parsedQuery, err := url.ParseQuery(originalQuery)
 		if err != nil {
-			ctx.Output.Body([]byte(err.Error()))
+			responseError(ctx, fmt.Sprintf("Invalid query string: %s", err))
 			return
 		}
 
@@ -79,7 +79,7 @@ func ProxyFilter(ctx *context.Context) {
 
 	target, err := url.Parse(targetURLWithQuery.String())
 	if err != nil {
-		ctx.Output.Body([]byte(err.Error()))
+		responseError(ctx, fmt.Sprintf("Invalid target URL: %s", err))
 		return
 	}
 
