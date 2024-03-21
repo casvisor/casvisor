@@ -53,12 +53,21 @@ func ProxyFilter(ctx *context.Context) {
 		return
 	}
 
-	targetURL, _ := url.Parse(dbgateEndpoint + requestPath)
+	targetURL, err := url.Parse(dbgateEndpoint + requestPath)
+	if err != nil {
+		ctx.Output.Body([]byte(err.Error()))
+		return
+	}
 
 	originalQuery := ctx.Request.URL.RawQuery
 	targetURLWithQuery := targetURL
 	if originalQuery != "" {
-		parsedQuery, _ := url.ParseQuery(originalQuery)
+		parsedQuery, err := url.ParseQuery(originalQuery)
+		if err != nil {
+			ctx.Output.Body([]byte(err.Error()))
+			return
+		}
+
 		targetQuery := targetURL.Query()
 		for key, values := range parsedQuery {
 			for _, value := range values {
@@ -68,7 +77,11 @@ func ProxyFilter(ctx *context.Context) {
 		targetURLWithQuery.RawQuery = targetQuery.Encode()
 	}
 
-	target, _ := url.Parse(targetURLWithQuery.String())
+	target, err := url.Parse(targetURLWithQuery.String())
+	if err != nil {
+		ctx.Output.Body([]byte(err.Error()))
+		return
+	}
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Director = func(r *http.Request) {
@@ -82,6 +95,7 @@ func ProxyFilter(ctx *context.Context) {
 				r.Header.Set("X-Real-Ip", clientIP)
 			}
 		}
+
 		fileExt := filepath.Ext(r.URL.Path)
 		contentType := mime.TypeByExtension(fileExt)
 		if contentType != "" {
