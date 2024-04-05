@@ -15,7 +15,6 @@
 package conf
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"runtime"
@@ -29,10 +28,14 @@ var GatewayAddr *net.TCPAddr
 
 func init() {
 	var err error
-	GatewayAddr, err = net.ResolveTCPAddr("tcp", GetConfigString("gatewayEndpoint"))
-	if err != nil {
-		fmt.Println("parse gatewayAddr failed")
+	gatewayEndpoint := GetConfigString("gatewayEndpoint")
+	if gatewayEndpoint == "" {
 		return
+	}
+
+	GatewayAddr, err = net.ResolveTCPAddr("tcp", gatewayEndpoint)
+	if err != nil {
+		panic("failed to resolve gateway address %s")
 	}
 }
 

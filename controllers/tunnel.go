@@ -277,7 +277,11 @@ func setConfig(propertyMap map[string]string, asset *object.Asset, configuration
 	}
 
 	if asset.RemotePort != 0 {
-		configuration.SetParameter("hostname", conf.GatewayAddr.IP.String())
+		if conf.GatewayAddr != nil {
+			configuration.SetParameter("hostname", conf.GatewayAddr.IP.String())
+		} else {
+			configuration.SetParameter("hostname", "localhost")
+		}
 		configuration.SetParameter("port", strconv.Itoa(asset.RemotePort))
 	} else {
 		configuration.SetParameter("hostname", asset.Endpoint)

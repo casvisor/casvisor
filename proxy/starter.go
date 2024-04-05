@@ -16,7 +16,7 @@ package proxy
 
 import (
 	"fmt"
-	"os"
+	"time"
 
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
@@ -27,6 +27,10 @@ import (
 )
 
 func StartProxyServer() {
+	if conf.GatewayAddr == nil {
+		return
+	}
+
 	proxyServer, err := server.NewProxyServer("Casvisor Proxy Server", conf.GatewayAddr.Port)
 	if err != nil {
 		panic(fmt.Errorf("failed to create proxy server %s", err))
@@ -36,7 +40,11 @@ func StartProxyServer() {
 }
 
 func StartProxyClient() {
-	asset, err := object.GetAssetByName(util.GetHostname())
+	if conf.GatewayAddr == nil {
+		return
+	}
+
+	asset, err := object.GetAsset(util.GetIdFromOwnerAndName(conf.GetConfigString("casdoorOrganization"), util.GetHostname()))
 	if err != nil {
 		panic(fmt.Errorf("failed to get asset by hostname %s", err))
 	}
@@ -44,32 +52,20 @@ func StartProxyClient() {
 		panic("asset not found")
 	}
 
+	count := 0
 	for {
+		println("Connecting to proxy server...")
 		client.NewClient(asset.Name,
 			conf.GatewayAddr.IP.String(),
 			conf.GatewayAddr.Port,
 			tunnel.AssetToAppInfo(asset),
 		).Run()
-	}
-}
 
-func StartMode() string {
-	if conf.GetConfigString("startMode") == "server" {
-		return "server"
-	}
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return "server"
-	}
-
-	asset, err := object.GetAssetByName(hostname)
-	if err != nil {
-		return "server"
-	}
-	if asset == nil {
-		return "server"
-	} else {
-		return "client"
+		time.Sleep(5 * time.Second)
+		count++
+		if count >= tunnel.RetryTimes {
+			panic("failed to connect to proxy server,  no additional retries will be attempted")
+			return
+		}
 	}
 }

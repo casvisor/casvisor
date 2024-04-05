@@ -131,24 +131,6 @@ func GetAsset(id string) (*Asset, error) {
 	return getAsset(owner, name)
 }
 
-func GetAssetByName(name string) (*Asset, error) {
-	if name == "" {
-		return nil, nil
-	}
-
-	asset := Asset{Name: name}
-	existed, err := adapter.engine.Get(&asset)
-	if err != nil {
-		return &asset, err
-	}
-
-	if existed {
-		return &asset, nil
-	} else {
-		return nil, nil
-	}
-}
-
 func GetMaskedAsset(asset *Asset, errs ...error) (*Asset, error) {
 	if len(errs) > 0 && errs[0] != nil {
 		return nil, errs[0]
@@ -303,7 +285,6 @@ func AssetHook(asset *Asset, oldAsset *Asset, action string) error {
 		if err != nil {
 			return err
 		}
-
 	case "delete":
 		err := dataStore.Remove(asset.Id)
 		if err != nil {

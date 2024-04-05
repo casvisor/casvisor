@@ -21,7 +21,6 @@ import (
 	"github.com/casvisor/casvisor/authz"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/proxy"
-
 	"github.com/casvisor/casvisor/routers"
 	"github.com/casvisor/casvisor/task"
 	"github.com/casvisor/casvisor/util"
@@ -58,10 +57,7 @@ func main() {
 
 	task.NewTicker().SetupTicker()
 
-	if proxy.StartMode() == "client" {
-		proxy.StartProxyClient()
-		return
-	}
+	go proxy.StartProxyClient()
 	go proxy.StartProxyServer()
 
 	beego.Run()

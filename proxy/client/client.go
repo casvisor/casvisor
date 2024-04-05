@@ -16,10 +16,10 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
-	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/proxy/tunnel"
 )
 
@@ -75,11 +75,11 @@ func (c *Client) storeServerApp(msg *tunnel.Message) {
 		}
 	}
 
-	logs.Info("---------- Sever ----------")
+	println("---------- Sever ----------")
 	for name, app := range c.onProxyApps {
-		logs.Info("[%s]:\t%s:%d", name, c.conn.GetRemoteIP(), app.ListenPort)
+		fmt.Printf("[%s]:\t%s:%d", name, c.conn.GetRemoteIP(), app.ListenPort)
 	}
-	logs.Info("---------------------------")
+	println("---------------------------")
 
 	// prepared, start first heartbeat
 	c.heartbeatChan <- msg
@@ -146,7 +146,6 @@ func (c *Client) handleBindMsg(msg *tunnel.Message) {
 func (c *Client) Run() {
 	conn, err := tunnel.Dial(c.RemoteAddr, c.RemotePort)
 	if err != nil {
-		logs.Error("Dial to server error.", err)
 		return
 	}
 	c.conn = conn
@@ -160,10 +159,8 @@ func (c *Client) Run() {
 		msg, err := c.conn.ReadMessage()
 		if err != nil {
 			if err == io.EOF {
-				logs.Info("Name [%s], client is dead!", c.Name)
 				return
 			}
-			logs.Error("Read message from server error.", err)
 			break
 		}
 

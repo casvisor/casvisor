@@ -83,7 +83,6 @@ class AssetEditPage extends React.Component {
 
           this.setState({
             asset: newAsset,
-            isIntranet: newAsset.hostname !== "",
           });
         } else {
           Setting.showMessage("error", `Failed to get asset: ${res.msg}`);
@@ -171,7 +170,7 @@ class AssetEditPage extends React.Component {
   }
 
   renderAsset() {
-    const {asset, isIntranet} = this.state;
+    const {asset} = this.state;
 
     return (
       <Card size="small" title={
@@ -263,17 +262,6 @@ class AssetEditPage extends React.Component {
             </Col>
           </Row>
         }
-        <Row style={{marginTop: "20px"}} >
-          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Intranet"), i18next.t("general:Intranet - Tooltip"))} :
-          </Col>
-          <Switch checked={isIntranet} onChange={checked => {
-            this.setState({
-              isIntranet: checked,
-            });
-          }}>{i18next.t("general:Intranet")}
-          </Switch>
-        </Row>
         <Row style={{marginTop: "20px"}} >
           <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
             {Setting.getLabel(i18next.t("general:Endpoint"), i18next.t("general:Endpoint - Tooltip"))} :
