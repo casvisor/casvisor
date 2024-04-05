@@ -15,11 +15,11 @@
 package client
 
 import (
-	"github.com/casvisor/casvisor/proxy/tunnel"
 	"io"
 	"time"
 
 	"github.com/beego/beego/logs"
+	"github.com/casvisor/casvisor/proxy/tunnel"
 )
 
 type Client struct {

@@ -16,13 +16,13 @@ package server
 
 import (
 	"errors"
-	"github.com/casvisor/casvisor/object"
-	"github.com/casvisor/casvisor/proxy/tunnel"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/beego/beego/logs"
+	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/proxy/tunnel"
 )
 
 type ServerStatus int

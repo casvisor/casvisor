@@ -15,6 +15,8 @@
 package proxy
 
 import (
+	"os"
+
 	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
@@ -22,7 +24,6 @@ import (
 	"github.com/casvisor/casvisor/proxy/server"
 	"github.com/casvisor/casvisor/proxy/tunnel"
 	"github.com/casvisor/casvisor/util"
-	"os"
 )
 
 func StartProxyServer() {
