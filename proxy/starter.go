@@ -15,7 +15,6 @@
 package proxy
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/casvisor/casvisor/conf"
@@ -33,7 +32,7 @@ func StartProxyServer() {
 
 	proxyServer, err := server.NewProxyServer("Casvisor Proxy Server", conf.GatewayAddr.Port)
 	if err != nil {
-		panic(fmt.Errorf("failed to create proxy server %s", err))
+		panic(err)
 		return
 	}
 	proxyServer.Serve()
@@ -46,7 +45,7 @@ func StartProxyClient() {
 
 	asset, err := object.GetAsset(util.GetIdFromOwnerAndName(conf.GetConfigString("casdoorOrganization"), util.GetHostname()))
 	if err != nil {
-		panic(fmt.Errorf("failed to get asset by hostname %s", err))
+		panic(err)
 	}
 	if asset == nil {
 		panic("asset not found")
