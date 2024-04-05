@@ -15,12 +15,12 @@
 package controllers
 
 import (
-	"github.com/casvisor/casvisor/conf"
 	"net/http"
 	"strconv"
 
 	"github.com/beego/beego"
 	"github.com/beego/beego/logs"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/util"
 	"github.com/casvisor/casvisor/util/guacamole"
@@ -277,7 +277,7 @@ func setConfig(propertyMap map[string]string, asset *object.Asset, configuration
 	}
 
 	if asset.RemotePort != 0 {
-		configuration.SetParameter("hostname", conf.GetConfigString("remoteHost"))
+		configuration.SetParameter("hostname", conf.GatewayAddr.IP.String())
 		configuration.SetParameter("port", strconv.Itoa(asset.RemotePort))
 	} else {
 		configuration.SetParameter("hostname", asset.Endpoint)

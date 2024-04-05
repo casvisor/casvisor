@@ -15,13 +15,26 @@
 package conf
 
 import (
-	"github.com/casvisor/casvisor/util"
+	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strings"
 
 	"github.com/beego/beego"
+	"github.com/casvisor/casvisor/util"
 )
+
+var GatewayAddr *net.TCPAddr
+
+func init() {
+	var err error
+	GatewayAddr, err = net.ResolveTCPAddr("tcp", GetConfigString("gatewayAddr"))
+	if err != nil {
+		fmt.Println("parse gatewayAddr failed")
+		return
+	}
+}
 
 func GetConfigString(key string) string {
 	if value, ok := os.LookupEnv(key); ok {

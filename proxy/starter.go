@@ -27,8 +27,7 @@ import (
 )
 
 func StartProxyServer() {
-	proxyPort := conf.GetConfigInt("proxyPort")
-	proxyServer, err := server.NewProxyServer("Casvisor Proxy Server", proxyPort)
+	proxyServer, err := server.NewProxyServer("Casvisor Proxy Server", conf.GatewayAddr.Port)
 	if err != nil {
 		panic(fmt.Errorf("failed to create proxy server %s", err))
 		return
@@ -37,9 +36,6 @@ func StartProxyServer() {
 }
 
 func StartProxyClient() {
-	proxyPort := conf.GetConfigInt("proxyPort")
-	remoteHost := conf.GetConfigString("remoteHost")
-
 	asset, err := object.GetAssetByName(util.GetHostname())
 	if err != nil {
 		panic(fmt.Errorf("failed to get asset by hostname %s", err))
@@ -50,8 +46,8 @@ func StartProxyClient() {
 
 	for {
 		client.NewClient(asset.Name,
-			remoteHost,
-			proxyPort,
+			conf.GatewayAddr.IP.String(),
+			conf.GatewayAddr.Port,
 			tunnel.AssetToAppInfo(asset),
 		).Run()
 	}
