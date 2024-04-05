@@ -29,7 +29,7 @@ var GatewayAddr *net.TCPAddr
 
 func init() {
 	var err error
-	GatewayAddr, err = net.ResolveTCPAddr("tcp", GetConfigString("gatewayAddr"))
+	GatewayAddr, err = net.ResolveTCPAddr("tcp", GetConfigString("gatewayEndpoint"))
 	if err != nil {
 		fmt.Println("parse gatewayAddr failed")
 		return

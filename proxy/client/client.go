@@ -146,6 +146,7 @@ func (c *Client) handleBindMsg(msg *tunnel.Message) {
 func (c *Client) Run() {
 	conn, err := tunnel.Dial(c.RemoteAddr, c.RemotePort)
 	if err != nil {
+		logs.Error("Dial to server error.", err)
 		return
 	}
 	c.conn = conn
@@ -174,10 +175,5 @@ func (c *Client) Run() {
 		case tunnel.AppWaitBind:
 			go c.handleBindMsg(msg)
 		}
-	}
-}
-func (c *Client) Close() {
-	if c.conn != nil {
-		c.conn.Close()
 	}
 }
