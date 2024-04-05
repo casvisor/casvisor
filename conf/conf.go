@@ -29,13 +29,11 @@ var GatewayAddr *net.TCPAddr
 func init() {
 	var err error
 	gatewayEndpoint := GetConfigString("gatewayEndpoint")
-	if gatewayEndpoint == "" {
-		return
-	}
-
-	GatewayAddr, err = net.ResolveTCPAddr("tcp", gatewayEndpoint)
-	if err != nil {
-		panic("failed to resolve gateway address %s")
+	if gatewayEndpoint != "" {
+		GatewayAddr, err = net.ResolveTCPAddr("tcp", gatewayEndpoint)
+		if err != nil {
+			panic("failed to resolve gateway address %s")
+		}
 	}
 }
 
