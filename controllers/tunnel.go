@@ -275,8 +275,14 @@ func setConfig(propertyMap map[string]string, asset *object.Asset, configuration
 		configuration.Protocol = "vnc"
 	}
 
-	configuration.SetParameter("hostname", asset.Endpoint)
-	configuration.SetParameter("port", strconv.Itoa(asset.Port))
+	if asset.Hostname != "" {
+		configuration.SetParameter("hostname", asset.RemoteHostname)
+		configuration.SetParameter("port", strconv.Itoa(asset.RemotePort))
+	} else {
+		configuration.SetParameter("hostname", asset.Endpoint)
+		configuration.SetParameter("port", strconv.Itoa(asset.Port))
+	}
+
 	configuration.SetParameter("username", asset.Username)
 	configuration.SetParameter("password", asset.Password)
 

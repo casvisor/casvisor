@@ -33,6 +33,8 @@ func GetConfigString(key string) string {
 			res = "https://cdn.casbin.org"
 		} else if key == "logConfig" {
 			res = "{\"filename\": \"logs/casdoor.log\", \"maxdays\":99999, \"perm\":\"0770\"}"
+		} else if key == "dbName" {
+			res = "casvisor"
 		}
 	}
 

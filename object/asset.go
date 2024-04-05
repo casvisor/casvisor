@@ -70,6 +70,9 @@ type Asset struct {
 	EnableRemoteApp bool         `json:"enableRemoteApp"`
 	RemoteApps      []*RemoteApp `json:"remoteApps"`
 	Services        []*Service   `json:"services"`
+	RemotePort      int          `json:"remotePort"`
+	RemoteHostname  string       `json:"remoteHostname"`
+	Hostname        string       `json:"hostname"`
 
 	Id              string `xorm:"varchar(100)" json:"id"`
 	DatabaseUrl     string `xorm:"varchar(200)" json:"databaseUrl"`
@@ -128,6 +131,24 @@ func getAsset(owner string, name string) (*Asset, error) {
 func GetAsset(id string) (*Asset, error) {
 	owner, name := util.GetOwnerAndNameFromId(id)
 	return getAsset(owner, name)
+}
+
+func GetAssetByHostname(hostname string) (*Asset, error) {
+	if hostname == "" {
+		return nil, nil
+	}
+
+	asset := Asset{Hostname: hostname}
+	existed, err := adapter.engine.Get(&asset)
+	if err != nil {
+		return &asset, err
+	}
+
+	if existed {
+		return &asset, nil
+	} else {
+		return nil, nil
+	}
 }
 
 func GetMaskedAsset(asset *Asset, errs ...error) (*Asset, error) {
@@ -218,7 +239,10 @@ func DeleteAsset(asset *Asset) (bool, error) {
 	return affected != 0, nil
 }
 
-func (asset *Asset) getId() string {
+func (asset *Asset) GetId() string {
+	if asset == nil {
+		return ""
+	}
 	return fmt.Sprintf("%s/%s", asset.Owner, asset.Name)
 }
 
