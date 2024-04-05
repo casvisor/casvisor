@@ -15,8 +15,9 @@
 package tunnel
 
 import (
-	"github.com/casvisor/casvisor/object"
 	"time"
+
+	"github.com/casvisor/casvisor/object"
 )
 
 const (
