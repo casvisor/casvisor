@@ -15,9 +15,9 @@
 package proxy
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/proxy/client"
@@ -27,33 +27,34 @@ import (
 )
 
 func StartProxyServer() {
-	proxyPort := util.ParseInt(conf.GetConfigString("proxyPort"))
+	proxyPort := conf.GetConfigInt("proxyPort")
 	proxyServer, err := server.NewProxyServer("Casvisor Proxy Server", proxyPort)
 	if err != nil {
-		logs.Error("failed to create proxy server:", err)
+		panic(fmt.Errorf("failed to create proxy server %s", err))
 		return
 	}
 	proxyServer.Serve()
 }
 
 func StartProxyClient() {
-	proxyPort := util.ParseInt(conf.GetConfigString("proxyPort"))
+	proxyPort := conf.GetConfigInt("proxyPort")
+	remoteHost := conf.GetConfigString("remoteHost")
 
-	asset, err := object.GetAssetByHostname(util.GetHostname())
+	asset, err := object.GetAssetByName(util.GetHostname())
 	if err != nil {
-		logs.Error("get asset by hostname error:", err)
-		return
+		panic(fmt.Errorf("failed to get asset by hostname %s", err))
 	}
 	if asset == nil {
-		logs.Error("the asset not found by hostname")
-		return
+		panic("asset not found")
 	}
 
-	client.NewClient(asset.Name,
-		asset.RemoteHostname,
-		proxyPort,
-		tunnel.AssetToAppInfo(asset),
-	).Run()
+	for {
+		client.NewClient(asset.Name,
+			remoteHost,
+			proxyPort,
+			tunnel.AssetToAppInfo(asset),
+		).Run()
+	}
 }
 
 func StartMode() string {
@@ -66,7 +67,7 @@ func StartMode() string {
 		return "server"
 	}
 
-	asset, err := object.GetAssetByHostname(hostname)
+	asset, err := object.GetAssetByName(hostname)
 	if err != nil {
 		return "server"
 	}

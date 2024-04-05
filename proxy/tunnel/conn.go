@@ -23,8 +23,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-
-	"github.com/beego/beego/logs"
 )
 
 const (
@@ -85,10 +83,6 @@ func (c *Conn) Send(buff []byte) error {
 }
 
 func (c *Conn) SendMessage(msg *Message) error {
-	if msg.Type == "" {
-		return fmt.Errorf("message type is empty")
-	}
-
 	msgBytes, _ := json.Marshal(msg)
 	err := c.Send(msgBytes)
 	if err != nil {
@@ -116,10 +110,6 @@ func (c *Conn) ReadMessage() (*Message, error) {
 		return nil, err
 	}
 
-	if message.Type == "" {
-		return nil, fmt.Errorf("message type is empty")
-	}
-
 	return message, nil
 }
 
@@ -127,7 +117,6 @@ func (c *Conn) ReadMessage() (*Message, error) {
 func Bind(c1 *Conn, c2 *Conn) {
 	var wait sync.WaitGroup
 	pipe := func(to *Conn, from *Conn) {
-		// 链接断开或发生异常时断开
 		defer to.Close()
 		defer from.Close()
 		defer wait.Done()
@@ -135,7 +124,7 @@ func Bind(c1 *Conn, c2 *Conn) {
 		var err error
 		_, err = io.Copy(to.Conn, from.Conn)
 		if err != nil {
-			logs.Warn("io.Copy err:", err)
+			return
 		}
 	}
 

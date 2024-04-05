@@ -28,7 +28,6 @@ class AssetEditPage extends React.Component {
       assetOwner: props.match.params.organizationName,
       assetName: props.match.params.assetName,
       asset: null,
-      isIntranet: false,
       organizations: [],
       mode: props.location.mode !== undefined ? props.location.mode : "edit",
     };
@@ -155,25 +154,20 @@ class AssetEditPage extends React.Component {
     }
   }
 
-  omitSetting(assset) {
-    if (assset.category === "Machine") {
-      assset.authType = "";
-      assset.defaultDatabase = "";
-      assset.databaseUrl = "";
-      assset.useDatabaseUrl = false;
-    } else if (assset.category === "Database") {
-      assset.autoQuery = false;
-      assset.isPermanent = false;
-      assset.remoteApps = [];
-      assset.services = [];
-      assset.enableRemoteApp = false;
+  omitSetting(asset) {
+    if (asset.category === "Machine") {
+      asset.authType = "";
+      asset.defaultDatabase = "";
+      asset.databaseUrl = "";
+      asset.useDatabaseUrl = false;
+    } else if (asset.category === "Database") {
+      asset.autoQuery = false;
+      asset.isPermanent = false;
+      asset.remoteApps = [];
+      asset.services = [];
+      asset.enableRemoteApp = false;
     }
-
-    if (!this.state.isIntranet) {
-      assset.hostname = "";
-      assset.remoteHostname = "";
-    }
-    return assset;
+    return asset;
   }
 
   renderAsset() {
@@ -280,33 +274,6 @@ class AssetEditPage extends React.Component {
           }}>{i18next.t("general:Intranet")}
           </Switch>
         </Row>
-        {
-          isIntranet && (
-            <React.Fragment>
-              <Row style={{marginTop: "20px"}} >
-                <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-                  {Setting.getLabel(i18next.t("Asset:Hostname"), i18next.t("Asset:Hostname - Tooltip"))} :
-                </Col>
-                <Col span={22} >
-                  <Input value={asset.hostname} onChange={e => {
-                    this.updateAssetField("hostname", e.target.value);
-                  }} />
-                </Col>
-              </Row>
-              <Row style={{marginTop: "20px"}} >
-                <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-                  {Setting.getLabel(i18next.t("Asset:Remote hostname"), i18next.t("Asset:Remote hostname - Tooltip"))} :
-                </Col>
-                <Col span={22} >
-                  <Input value={asset.remoteHostname || Setting.ServerUrl} onChange={e => {
-                    this.updateAssetField("remoteHostname", e.target.value);
-                  }
-                  } />
-                </Col>
-              </Row>
-            </React.Fragment>
-          )
-        }
         <Row style={{marginTop: "20px"}} >
           <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
             {Setting.getLabel(i18next.t("general:Endpoint"), i18next.t("general:Endpoint - Tooltip"))} :

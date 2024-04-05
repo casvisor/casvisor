@@ -15,6 +15,7 @@
 package controllers
 
 import (
+	"github.com/casvisor/casvisor/conf"
 	"net/http"
 	"strconv"
 
@@ -275,8 +276,8 @@ func setConfig(propertyMap map[string]string, asset *object.Asset, configuration
 		configuration.Protocol = "vnc"
 	}
 
-	if asset.Hostname != "" {
-		configuration.SetParameter("hostname", asset.RemoteHostname)
+	if asset.RemotePort != 0 {
+		configuration.SetParameter("hostname", conf.GetConfigString("remoteHost"))
 		configuration.SetParameter("port", strconv.Itoa(asset.RemotePort))
 	} else {
 		configuration.SetParameter("hostname", asset.Endpoint)

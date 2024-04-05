@@ -15,6 +15,7 @@
 package conf
 
 import (
+	"github.com/casvisor/casvisor/util"
 	"os"
 	"runtime"
 	"strings"
@@ -48,6 +49,11 @@ func GetConfigBool(key string) bool {
 	} else {
 		return false
 	}
+}
+
+func GetConfigInt(key string) int {
+	value := GetConfigString(key)
+	return util.ParseInt(value)
 }
 
 func GetConfigDataSourceName() string {

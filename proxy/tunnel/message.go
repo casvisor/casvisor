@@ -16,27 +16,25 @@ package tunnel
 
 import "encoding/json"
 
-type MessageType string
-
 const (
-	TypeServerHeartbeat MessageType = "1001"
-	TypeClientHeartbeat MessageType = "1002"
+	ServerHeartbeat = iota
+	ClientHeartbeat
 
-	TypeInitApp MessageType = "1003" // client request to init app
-	TypeAppMsg  MessageType = "1004" // server notify client has proxy app
+	InitApp // client request to init app
+	AppMsg  // server notify client has proxy app
 
-	TypeAppWaitBind MessageType = "1005" // server notifies client to connect to app port
-	TypeClientBind  MessageType = "1006" // client connects to the app port
+	AppWaitBind // server notifies client to connect to app port
+	ClientBind  // client connects to the app port
 )
 
 type Message struct {
-	Type    MessageType `json:"type"`
+	Type    uint        `json:"type"`
 	Content string      `json:"content"`
 	Name    string      `json:"name"`
 	Meta    interface{} `json:"mate"`
 }
 
-func NewMessage(typ MessageType, msg string, name string, meta interface{}) *Message {
+func NewMessage(typ uint, msg string, name string, meta interface{}) *Message {
 	return &Message{Type: typ, Content: msg, Name: name, Meta: meta}
 }
 

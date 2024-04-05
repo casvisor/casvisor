@@ -140,7 +140,7 @@ func (s *Server) initApp(clientConn *tunnel.Conn, msg *tunnel.Message) {
 	}
 
 	// send app info to client
-	resp := tunnel.NewMessage(tunnel.TypeAppMsg, "", s.Name, waitToProxyAppsInfo)
+	resp := tunnel.NewMessage(tunnel.AppMsg, "", s.Name, waitToProxyAppsInfo)
 	err = clientConn.SendMessage(resp)
 	if err != nil {
 		logs.Error(err.Error())
@@ -153,11 +153,10 @@ func (s *Server) initApp(clientConn *tunnel.Conn, msg *tunnel.Message) {
 		for {
 			select {
 			case <-s.heartbeatChan:
-				// logs.Debug("received heartbeat msg from", clientConn.GetRemoteAddr())
-				resp := tunnel.NewMessage(tunnel.TypeServerHeartbeat, "", s.Name, nil)
+				resp := tunnel.NewMessage(tunnel.ServerHeartbeat, "", s.Name, nil)
 				err := clientConn.SendMessage(resp)
 				if err != nil {
-					logs.Warn(err.Error())
+					logs.Error(err.Error())
 					return
 				}
 			case <-time.After(tunnel.HeartbeatTimeout):
@@ -203,7 +202,7 @@ func (s *Server) startProxyApp(clientConn *tunnel.Conn, app *tunnel.AppInfo) {
 				}
 				continue
 			}
-			if msg.Type != tunnel.TypeClientBind {
+			if msg.Type != tunnel.ClientBind {
 				logs.Warn("get wrong msg")
 				continue
 			}
@@ -236,7 +235,7 @@ func (s *Server) startProxyApp(clientConn *tunnel.Conn, app *tunnel.AppInfo) {
 			})
 
 			// notify client to connect
-			msg := tunnel.NewMessage(tunnel.TypeAppWaitBind, app.Name, app.Name, nil)
+			msg := tunnel.NewMessage(tunnel.AppWaitBind, app.Name, app.Name, nil)
 			err := clientConn.SendMessage(msg)
 			if err != nil {
 				logs.Error(err)
@@ -248,14 +247,6 @@ func (s *Server) startProxyApp(clientConn *tunnel.Conn, app *tunnel.AppInfo) {
 }
 
 func (s *Server) Serve() {
-	if s == nil {
-		logs.Error("proxy server is nil")
-		return
-	}
-	if s.listener == nil {
-		logs.Error("listener is nil")
-		return
-	}
 	for {
 		clientConn, err := s.listener.GetConn()
 		if err != nil {
@@ -279,9 +270,9 @@ func (s *Server) process(clientConn *tunnel.Conn) {
 		}
 
 		switch msg.Type {
-		case tunnel.TypeInitApp:
+		case tunnel.InitApp:
 			go s.initApp(clientConn, msg)
-		case tunnel.TypeClientHeartbeat:
+		case tunnel.ClientHeartbeat:
 			s.heartbeatChan <- msg
 		}
 	}

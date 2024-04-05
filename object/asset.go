@@ -71,8 +71,6 @@ type Asset struct {
 	RemoteApps      []*RemoteApp `json:"remoteApps"`
 	Services        []*Service   `json:"services"`
 	RemotePort      int          `json:"remotePort"`
-	RemoteHostname  string       `json:"remoteHostname"`
-	Hostname        string       `json:"hostname"`
 
 	Id              string `xorm:"varchar(100)" json:"id"`
 	DatabaseUrl     string `xorm:"varchar(200)" json:"databaseUrl"`
@@ -133,12 +131,12 @@ func GetAsset(id string) (*Asset, error) {
 	return getAsset(owner, name)
 }
 
-func GetAssetByHostname(hostname string) (*Asset, error) {
-	if hostname == "" {
+func GetAssetByName(name string) (*Asset, error) {
+	if name == "" {
 		return nil, nil
 	}
 
-	asset := Asset{Hostname: hostname}
+	asset := Asset{Name: name}
 	existed, err := adapter.engine.Get(&asset)
 	if err != nil {
 		return &asset, err
@@ -240,9 +238,6 @@ func DeleteAsset(asset *Asset) (bool, error) {
 }
 
 func (asset *Asset) GetId() string {
-	if asset == nil {
-		return ""
-	}
 	return fmt.Sprintf("%s/%s", asset.Owner, asset.Name)
 }
 
@@ -308,6 +303,7 @@ func AssetHook(asset *Asset, oldAsset *Asset, action string) error {
 		if err != nil {
 			return err
 		}
+
 	case "delete":
 		err := dataStore.Remove(asset.Id)
 		if err != nil {

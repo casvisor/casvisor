@@ -15,6 +15,7 @@
 package client
 
 import (
+	"errors"
 	"io"
 	"time"
 
@@ -30,6 +31,7 @@ type Client struct {
 	wantProxyApps map[string]*tunnel.AppInfo
 	onProxyApps   map[string]*tunnel.AppInfo
 	heartbeatChan chan *tunnel.Message // when get heartbeat msg, put msg in
+	conn          *tunnel.Conn
 }
 
 func NewClient(name string, remoteAddr string, remotePort int, appInfo *tunnel.AppInfo) *Client {
@@ -48,51 +50,21 @@ func NewClient(name string, remoteAddr string, remotePort int, appInfo *tunnel.A
 	return client
 }
 
-func (c *Client) Run() {
-	conn, err := tunnel.Dial(c.RemoteAddr, c.RemotePort)
-	if err != nil {
-		logs.Error("Dial server error.", err)
-	}
-
-	c.sendInitAppMsg(conn)
-	for {
-		msg, err := conn.ReadMessage()
-		if err != nil {
-			if err == io.EOF {
-				logs.Info("Name [%s], c is dead!", c.Name)
-				return
-			}
-			logs.Error("Read message from server error.", err)
-			break
-		}
-
-		switch msg.Type {
-		case tunnel.TypeServerHeartbeat:
-			c.heartbeatChan <- msg
-		case tunnel.TypeAppMsg:
-			c.storeServerApp(conn, msg)
-		case tunnel.TypeAppWaitBind:
-			go c.handleBindMsg(msg)
-		}
-	}
-}
-
-func (c *Client) sendInitAppMsg(conn *tunnel.Conn) {
+func (c *Client) sendInitAppMsg() error {
 	if c.wantProxyApps == nil {
-		logs.Error("has no app c to proxy")
+		return errors.New("wantProxyApps is nil")
 	}
 
-	// 通知server开始监听这些app
-	msg := tunnel.NewMessage(tunnel.TypeInitApp, "", c.Name, c.wantProxyApps)
-	if err := conn.SendMessage(msg); err != nil {
-		logs.Error("send init app msg to server.", err)
-		return
+	msg := tunnel.NewMessage(tunnel.InitApp, "", c.Name, c.wantProxyApps)
+	if err := c.conn.SendMessage(msg); err != nil {
+		return err
 	}
+	return nil
 }
 
-func (c *Client) storeServerApp(conn *tunnel.Conn, msg *tunnel.Message) {
+func (c *Client) storeServerApp(msg *tunnel.Message) {
 	if msg.Meta == nil {
-		logs.Error("has no app to proxy")
+		panic("server app info is nil")
 	}
 
 	for name, app := range msg.Meta.(map[string]interface{}) {
@@ -105,7 +77,7 @@ func (c *Client) storeServerApp(conn *tunnel.Conn, msg *tunnel.Message) {
 
 	logs.Info("---------- Sever ----------")
 	for name, app := range c.onProxyApps {
-		logs.Info("[%s]:\t%s:%d", name, conn.GetRemoteIP(), app.ListenPort)
+		logs.Info("[%s]:\t%s:%d", name, c.conn.GetRemoteIP(), app.ListenPort)
 	}
 	logs.Info("---------------------------")
 
@@ -117,17 +89,16 @@ func (c *Client) storeServerApp(conn *tunnel.Conn, msg *tunnel.Message) {
 		for {
 			select {
 			case <-c.heartbeatChan:
-				// logs.Debug("received heartbeat msg from", conn.GetRemoteAddr())
 				time.Sleep(tunnel.HeartbeatInterval)
-				resp := tunnel.NewMessage(tunnel.TypeClientHeartbeat, "", c.Name, nil)
-				err := conn.SendMessage(resp)
+				resp := tunnel.NewMessage(tunnel.ClientHeartbeat, "", c.Name, nil)
+				err := c.conn.SendMessage(resp)
 				if err != nil {
-					logs.Warn(err.Error())
+					return
 				}
 			case <-time.After(tunnel.HeartbeatTimeout):
-				logs.Error("Name [%s], user conn [%s] Heartbeat timeout", c.Name, conn.GetRemoteAddr())
-				if conn != nil {
-					conn.Close()
+				if c.conn != nil {
+					c.conn.Close()
+					return
 				}
 			}
 		}
@@ -151,23 +122,62 @@ func (c *Client) handleBindMsg(msg *tunnel.Message) {
 	localConn, err := tunnel.Dial(appClient.LocalAddress, appClient.LocalPort)
 	if err != nil {
 		defer localConn.Close()
-		logs.Error("Dial local app error.", err)
+		panic(err)
 		return
 	}
 
 	remoteConn, err := tunnel.Dial(c.RemoteAddr, appServer.ListenPort)
 	if err != nil {
 		defer remoteConn.Close()
-		logs.Error("Dial remote app error.", err)
+		panic(err)
 		return
 	}
 
-	bindMsg := tunnel.NewMessage(tunnel.TypeClientBind, msg.Content, c.Name, nil)
+	bindMsg := tunnel.NewMessage(tunnel.ClientBind, msg.Content, c.Name, nil)
 	err = remoteConn.SendMessage(bindMsg)
 	if err != nil {
-		logs.Error("send join msg to remote conn.", err)
+		panic(err)
 		return
 	}
 
 	go tunnel.Bind(localConn, remoteConn)
+}
+
+func (c *Client) Run() {
+	conn, err := tunnel.Dial(c.RemoteAddr, c.RemotePort)
+	if err != nil {
+		return
+	}
+	c.conn = conn
+
+	err = c.sendInitAppMsg()
+	if err != nil {
+		return
+	}
+
+	for {
+		msg, err := c.conn.ReadMessage()
+		if err != nil {
+			if err == io.EOF {
+				logs.Info("Name [%s], client is dead!", c.Name)
+				return
+			}
+			logs.Error("Read message from server error.", err)
+			break
+		}
+
+		switch msg.Type {
+		case tunnel.ServerHeartbeat:
+			c.heartbeatChan <- msg
+		case tunnel.AppMsg:
+			c.storeServerApp(msg)
+		case tunnel.AppWaitBind:
+			go c.handleBindMsg(msg)
+		}
+	}
+}
+func (c *Client) Close() {
+	if c.conn != nil {
+		c.conn.Close()
+	}
 }
