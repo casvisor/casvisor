@@ -276,13 +276,13 @@ func setConfig(propertyMap map[string]string, asset *object.Asset, configuration
 		configuration.Protocol = "vnc"
 	}
 
-	if asset.RemotePort != 0 {
+	if asset.GatewayPort != 0 {
 		if conf.GatewayAddr != nil {
 			configuration.SetParameter("hostname", conf.GatewayAddr.IP.String())
 		} else {
 			configuration.SetParameter("hostname", "localhost")
 		}
-		configuration.SetParameter("port", strconv.Itoa(asset.RemotePort))
+		configuration.SetParameter("port", strconv.Itoa(asset.GatewayPort))
 	} else {
 		configuration.SetParameter("hostname", asset.Endpoint)
 		configuration.SetParameter("port", strconv.Itoa(asset.Port))

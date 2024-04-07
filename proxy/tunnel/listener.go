@@ -42,7 +42,6 @@ func (l *Listener) close() {
 			}
 		}
 	}
-	l.Close()
 }
 
 func (l *Listener) StartListen() {

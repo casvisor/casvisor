@@ -14,8 +14,6 @@
 
 package tunnel
 
-import "encoding/json"
-
 const (
 	ServerHeartbeat = iota
 	ClientHeartbeat
@@ -25,6 +23,7 @@ const (
 
 	AppWaitBind // server notifies client to connect to app port
 	ClientBind  // client connects to the app port
+	ClientRestart
 )
 
 type Message struct {
@@ -34,14 +33,6 @@ type Message struct {
 	Meta    interface{} `json:"mate"`
 }
 
-func NewMessage(typ uint, msg string, name string, meta interface{}) *Message {
-	return &Message{Type: typ, Content: msg, Name: name, Meta: meta}
-}
-
-func UnmarshalMsg(msgBytes []byte) (msg *Message, err error) {
-	msg = &Message{}
-	if err = json.Unmarshal(msgBytes, msg); err != nil {
-		return
-	}
-	return
+func NewMessage(typ uint, content string, name string, meta interface{}) *Message {
+	return &Message{Type: typ, Content: content, Name: name, Meta: meta}
 }

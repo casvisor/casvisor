@@ -57,8 +57,7 @@ func main() {
 
 	task.NewTicker().SetupTicker()
 
-	go proxy.StartProxyClient()
-	go proxy.StartProxyServer()
+	go proxy.NewStarter(object.RestartClientChan).Start()
 
 	beego.Run()
 }

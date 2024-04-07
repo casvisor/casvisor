@@ -23,7 +23,7 @@ import (
 const (
 	HeartbeatInterval = 10 * time.Second
 	HeartbeatTimeout  = 30 * time.Second
-	BindConnTimeout   = 30 * time.Second
+	BindConnTimeout   = 10 * time.Second
 
 	RetryTimes = 5
 )
@@ -37,7 +37,8 @@ type AppInfo struct {
 
 func AssetToAppInfo(asset *object.Asset) *AppInfo {
 	return &AppInfo{
-		Name:         asset.GetId(),
+		Name:         asset.Name,
+		ListenPort:   asset.GatewayPort,
 		LocalAddress: asset.Endpoint,
 		LocalPort:    asset.Port,
 	}

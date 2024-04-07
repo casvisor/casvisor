@@ -21,31 +21,29 @@ import (
 	"time"
 
 	"github.com/beego/beego/logs"
-	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/proxy/tunnel"
 )
 
-type ServerStatus int
-
 const (
-	Idle ServerStatus = iota
+	Idle = iota
 	Ready
 	Work
 )
 
-// commonServer: Used to establish connection and keep heartbeat。
+// Server commonServer: Used to establish connection and keep heartbeat。
 // appServer(appProxyServer): Used to proxy data
 type Server struct {
-	Name string
+	Name       string
+	listenPort int
 
-	listenPort    int
-	listener      *tunnel.Listener
-	status        ServerStatus         // used in appServer only
-	heartbeatChan chan *tunnel.Message // when get heartbeat msg, put msg in, used in commonServer only
+	listener          *tunnel.Listener
+	status            int                  // used in appServer only
+	heartbeatChan     chan *tunnel.Message // when get heartbeat msg, put msg in, used in commonServer only
+	RestartClientChan chan string
 
-	wantProxyApps map[string]*tunnel.AppInfo
-	onProxyApps   map[string]*Server // appServer which is listening its own port, used in commonServer only
-	userConnMap   sync.Map           // map[appServerName]UserConn, used in appServer only
+	proxyServer map[string]*Server      // appServer which is listening its own port, used in commonServer only
+	clientConn  map[string]*tunnel.Conn // used in commonServer only
+	userConnMap sync.Map                // map[appServerName]UserConn, used in appServer only
 }
 
 func NewProxyServer(name string, listenPort int) (*Server, error) {
@@ -59,91 +57,58 @@ func NewProxyServer(name string, listenPort int) (*Server, error) {
 		listenPort:    listenPort,
 		status:        Idle,
 		listener:      listener,
-		onProxyApps:   make(map[string]*Server),
+		proxyServer:   make(map[string]*Server),
+		clientConn:    make(map[string]*tunnel.Conn),
 		heartbeatChan: make(chan *tunnel.Message, 1),
 	}
 	return server, nil
 }
 
-func (s *Server) SetStatus(status ServerStatus) {
-	s.status = status
-}
-
-func (s *Server) GetStatus() ServerStatus {
-	return s.status
-}
-
-func (s *Server) SetWantProxyApps(apps []*tunnel.AppInfo) {
-	s.wantProxyApps = make(map[string]*tunnel.AppInfo, len(apps))
-	for _, app := range apps {
-		s.wantProxyApps[app.Name] = app
-	}
-}
-
 func (s *Server) CloseClient(clientConn *tunnel.Conn) {
 	logs.Info("close conn: ", clientConn.String())
 	clientConn.Close()
-	for _, app := range s.onProxyApps {
+	for _, app := range s.proxyServer {
 		app.listener.Close()
 	}
 
-	s.onProxyApps = make(map[string]*Server, len(s.onProxyApps))
+	s.proxyServer = make(map[string]*Server)
 }
 
-func (s *Server) checkApp(msg *tunnel.Message) (map[string]*tunnel.AppInfo, error) {
+func (s *Server) GetProxyApps(msg *tunnel.Message) (map[string]*tunnel.AppInfo, error) {
 	if msg.Meta == nil {
 		return nil, errors.New("has no app to proxy")
 	}
 
-	wantProxyApps := make(map[string]*tunnel.AppInfo)
+	proxyApps := make(map[string]*tunnel.AppInfo)
 	for name, app := range msg.Meta.(map[string]interface{}) {
 		App := app.(map[string]interface{})
-		wantProxyApps[name] = &tunnel.AppInfo{
-			Name:      App["Name"].(string),
-			LocalPort: int(App["LocalPort"].(float64)),
+
+		proxyApps[name] = &tunnel.AppInfo{
+			Name:       App["Name"].(string),
+			ListenPort: int(App["ListenPort"].(float64)),
+			LocalPort:  int(App["LocalPort"].(float64)),
 		}
 	}
-
-	waitToProxyAppsInfo := make(map[string]*tunnel.AppInfo)
-	for _, appInfo := range wantProxyApps {
-		port, err := tunnel.TryGetFreePort(tunnel.RetryTimes)
-		if err != nil {
-			return nil, err
-		}
-
-		appInfo.ListenPort = port
-		waitToProxyAppsInfo[appInfo.Name] = appInfo
-
-		asset, err := object.GetAsset(appInfo.Name)
-		if err != nil {
-			return nil, err
-		}
-		asset.RemotePort = port
-		_, err = object.UpdateAsset(appInfo.Name, asset)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return waitToProxyAppsInfo, nil
+	return proxyApps, nil
 }
 
 func (s *Server) initApp(clientConn *tunnel.Conn, msg *tunnel.Message) {
-	waitToProxyAppsInfo, err := s.checkApp(msg)
+	proxyApps, err := s.GetProxyApps(msg)
 	if err != nil {
 		logs.Error(err)
 		s.CloseClient(clientConn)
 		return
 	}
 
-	for _, app := range waitToProxyAppsInfo {
+	for _, app := range proxyApps {
 		go s.startProxyApp(clientConn, app)
 	}
 
 	// send app info to client
-	resp := tunnel.NewMessage(tunnel.AppMsg, "", s.Name, waitToProxyAppsInfo)
+	resp := tunnel.NewMessage(tunnel.AppMsg, "", s.Name, proxyApps)
 	err = clientConn.SendMessage(resp)
 	if err != nil {
-		logs.Error(err.Error())
+		logs.Error("send app info to client failed: ", err)
 		s.CloseClient(clientConn)
 		return
 	}
@@ -156,11 +121,10 @@ func (s *Server) initApp(clientConn *tunnel.Conn, msg *tunnel.Message) {
 				resp := tunnel.NewMessage(tunnel.ServerHeartbeat, "", s.Name, nil)
 				err := clientConn.SendMessage(resp)
 				if err != nil {
-					logs.Error(err.Error())
+					s.CloseClient(clientConn)
 					return
 				}
 			case <-time.After(tunnel.HeartbeatTimeout):
-				logs.Error("Name [%s], user conn [%s] Heartbeat timeout", s.Name, clientConn.GetRemoteAddr())
 				if clientConn != nil {
 					s.CloseClient(clientConn)
 				}
@@ -171,33 +135,42 @@ func (s *Server) initApp(clientConn *tunnel.Conn, msg *tunnel.Message) {
 }
 
 func (s *Server) startProxyApp(clientConn *tunnel.Conn, app *tunnel.AppInfo) {
-	if ps, ok := s.onProxyApps[app.Name]; ok {
+	if ps, ok := s.proxyServer[app.Name]; ok {
 		ps.listener.Close()
 	}
 
 	appProxyServer, err := NewProxyServer(app.Name, app.ListenPort)
 	if err != nil {
-		logs.Error(err.Error())
+		logs.Error(err)
 		return
 	}
-	s.onProxyApps[app.Name] = appProxyServer
+	s.proxyServer[app.Name] = appProxyServer
+	s.clientConn[app.Name] = clientConn
 
 	for {
 		conn, err := appProxyServer.listener.GetConn()
 		if err != nil {
-			logs.Error(err)
+			logs.Error("appProxyServer get conn err:", err)
+			ps, ok := s.proxyServer[app.Name]
+			if ok {
+				ps.listener.Close()
+			}
 			return
 		}
 		logs.Info("user connect success:", conn.String())
 
 		// connection from client
-		if appProxyServer.GetStatus() == Ready && conn.GetRemoteIP() == clientConn.GetRemoteIP() {
+		if appProxyServer.status == Ready && conn.GetRemoteIP() == clientConn.GetRemoteIP() {
 			msg, err := conn.ReadMessage()
 			if err != nil {
-				logs.Warn("proxy client read err:", err.Error())
+				logs.Warn("proxy client read err:", err)
 				if err == io.EOF {
 					logs.Error("Name [%s], server is dead!", appProxyServer.Name)
 					s.CloseClient(conn)
+					ps, ok := s.proxyServer[app.Name]
+					if ok {
+						ps.listener.Close()
+					}
 					return
 				}
 				continue
@@ -207,61 +180,71 @@ func (s *Server) startProxyApp(clientConn *tunnel.Conn, app *tunnel.AppInfo) {
 				continue
 			}
 
-			appProxyPort := msg.Content
-			newClientConn, ok := s.userConnMap.Load(appProxyPort)
+			appName := msg.Content
+			newClientConn, ok := s.userConnMap.Load(appName)
 			if !ok {
-				logs.Error("userConnMap load failed. appProxyAddrEny:", appProxyPort)
+				logs.Error("userConnMap load failed. appProxyAddrEny:", appName)
 				continue
 			}
-			s.userConnMap.Delete(appProxyPort)
+			s.userConnMap.Delete(appName)
 
 			waitToJoinClientConn := conn
 			waitToJoinUserConn := newClientConn.(*tunnel.Conn)
 			go tunnel.Bind(waitToJoinUserConn, waitToJoinClientConn)
-			appProxyServer.SetStatus(Work)
+			appProxyServer.status = Work
 		} else {
 			// connection from user
 			s.userConnMap.Store(app.Name, conn)
 			time.AfterFunc(tunnel.BindConnTimeout, func() {
 				uc, ok := s.userConnMap.Load(app.Name)
 				if !ok || uc == nil {
+					ps, ok := s.proxyServer[app.Name]
+					if ok {
+						ps.listener.Close()
+					}
 					return
 				}
 				if conn == uc.(*tunnel.Conn) {
 					logs.Error("Name [%s], user conn [%s], join connections timeout", s.Name, conn.GetRemoteAddr())
 					conn.Close()
 				}
-				appProxyServer.SetStatus(Idle)
+				appProxyServer.status = Idle
 			})
 
 			// notify client to connect
 			msg := tunnel.NewMessage(tunnel.AppWaitBind, app.Name, app.Name, nil)
 			err := clientConn.SendMessage(msg)
 			if err != nil {
-				logs.Error(err)
+				ps, ok := s.proxyServer[app.Name]
+				if ok {
+					ps.listener.Close()
+				}
 				return
 			}
-			appProxyServer.SetStatus(Ready)
+			appProxyServer.status = Ready
 		}
 	}
 }
 
-func (s *Server) Serve() {
+func (s *Server) Start(clientRestartChan chan string) {
+	s.RestartClientChan = clientRestartChan
+	go s.handleRestartChan()
+
 	for {
 		clientConn, err := s.listener.GetConn()
 		if err != nil {
 			logs.Warn("proxy get conn err:", err.Error())
 			continue
 		}
-		go s.process(clientConn)
+
+		go s.handleConn(clientConn)
 	}
 }
 
-func (s *Server) process(clientConn *tunnel.Conn) {
+func (s *Server) handleConn(clientConn *tunnel.Conn) {
 	for {
 		msg, err := clientConn.ReadMessage()
 		if err != nil {
-			logs.Error(err.Error())
 			if err == io.EOF {
 				logs.Info("Name [%s], client is dead!", s.Name)
 				s.CloseClient(clientConn)
@@ -274,6 +257,22 @@ func (s *Server) process(clientConn *tunnel.Conn) {
 			go s.initApp(clientConn, msg)
 		case tunnel.ClientHeartbeat:
 			s.heartbeatChan <- msg
+		}
+	}
+}
+
+func (s *Server) handleRestartChan() {
+	for {
+		appName := <-s.RestartClientChan
+
+		if clientConn, ok := s.clientConn[appName]; ok {
+			msg := tunnel.NewMessage(tunnel.ClientRestart, appName, appName, nil)
+			err := clientConn.SendMessage(msg)
+			if err != nil {
+				logs.Error("send restart msg to client failed: ", err)
+				continue
+			}
+			s.CloseClient(clientConn)
 		}
 	}
 }

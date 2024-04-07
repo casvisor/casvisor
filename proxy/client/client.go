@@ -17,7 +17,6 @@ package client
 import (
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/casvisor/casvisor/proxy/tunnel"
@@ -28,8 +27,7 @@ type Client struct {
 	LocalPort     int
 	RemoteAddr    string
 	RemotePort    int
-	wantProxyApps map[string]*tunnel.AppInfo
-	onProxyApps   map[string]*tunnel.AppInfo
+	proxyApps     map[string]*tunnel.AppInfo
 	heartbeatChan chan *tunnel.Message // when get heartbeat msg, put msg in
 	conn          *tunnel.Conn
 }
@@ -40,44 +38,31 @@ func NewClient(name string, remoteAddr string, remotePort int, appInfo *tunnel.A
 		RemoteAddr:    remoteAddr,
 		RemotePort:    remotePort,
 		heartbeatChan: make(chan *tunnel.Message, 1),
-		onProxyApps:   make(map[string]*tunnel.AppInfo),
-		wantProxyApps: make(map[string]*tunnel.AppInfo),
+		proxyApps:     make(map[string]*tunnel.AppInfo),
 	}
 
 	if appInfo != nil {
-		client.wantProxyApps[appInfo.Name] = appInfo
+		client.proxyApps[appInfo.Name] = appInfo
 	}
 	return client
 }
 
 func (c *Client) sendInitAppMsg() error {
-	if c.wantProxyApps == nil {
-		return errors.New("wantProxyApps is nil")
+	if c.proxyApps == nil {
+		return errors.New("proxyApps is nil")
 	}
 
-	msg := tunnel.NewMessage(tunnel.InitApp, "", c.Name, c.wantProxyApps)
+	msg := tunnel.NewMessage(tunnel.InitApp, "", c.Name, c.proxyApps)
 	if err := c.conn.SendMessage(msg); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Client) storeServerApp(msg *tunnel.Message) {
-	if msg.Meta == nil {
-		panic("server app info is nil")
-	}
-
-	for name, app := range msg.Meta.(map[string]interface{}) {
-		appServer := app.(map[string]interface{})
-		c.onProxyApps[name] = &tunnel.AppInfo{
-			Name:       appServer["Name"].(string),
-			ListenPort: int(appServer["ListenPort"].(float64)),
-		}
-	}
-
+func (c *Client) storeAppServer(msg *tunnel.Message) {
 	println("---------- Sever ----------")
-	for name, app := range c.onProxyApps {
-		fmt.Printf("[%s]:\t%s:%d", name, c.conn.GetRemoteIP(), app.ListenPort)
+	for name, app := range c.proxyApps {
+		fmt.Printf("[%s]:\t%s:%d\n", name, c.conn.GetRemoteIP(), app.ListenPort)
 	}
 	println("---------------------------")
 
@@ -110,23 +95,20 @@ func (c *Client) handleBindMsg(msg *tunnel.Message) {
 	if appProxyName == "" {
 		return
 	}
-	appServer, ok := c.onProxyApps[appProxyName]
-	if !ok {
-		return
-	}
-	appClient, ok := c.wantProxyApps[appProxyName]
+
+	appInfo, ok := c.proxyApps[appProxyName]
 	if !ok {
 		return
 	}
 
-	localConn, err := tunnel.Dial(appClient.LocalAddress, appClient.LocalPort)
+	localConn, err := tunnel.Dial(appInfo.LocalAddress, appInfo.LocalPort)
 	if err != nil {
 		defer localConn.Close()
 		panic(err)
 		return
 	}
 
-	remoteConn, err := tunnel.Dial(c.RemoteAddr, appServer.ListenPort)
+	remoteConn, err := tunnel.Dial(c.RemoteAddr, appInfo.ListenPort)
 	if err != nil {
 		defer remoteConn.Close()
 		panic(err)
@@ -143,12 +125,13 @@ func (c *Client) handleBindMsg(msg *tunnel.Message) {
 	go tunnel.Bind(localConn, remoteConn)
 }
 
-func (c *Client) Run() {
+func (c *Client) Start(startClientChan chan string) {
 	conn, err := tunnel.Dial(c.RemoteAddr, c.RemotePort)
 	if err != nil {
 		return
 	}
 	c.conn = conn
+	defer c.conn.Close()
 
 	err = c.sendInitAppMsg()
 	if err != nil {
@@ -158,19 +141,20 @@ func (c *Client) Run() {
 	for {
 		msg, err := c.conn.ReadMessage()
 		if err != nil {
-			if err == io.EOF {
-				return
-			}
-			break
+			return
 		}
 
 		switch msg.Type {
 		case tunnel.ServerHeartbeat:
 			c.heartbeatChan <- msg
 		case tunnel.AppMsg:
-			c.storeServerApp(msg)
+			c.storeAppServer(msg)
 		case tunnel.AppWaitBind:
 			go c.handleBindMsg(msg)
+		case tunnel.ClientRestart:
+			c.conn.Close()
+			startClientChan <- msg.Name
+			return
 		}
 	}
 }

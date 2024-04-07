@@ -15,8 +15,6 @@
 package proxy
 
 import (
-	"time"
-
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/proxy/client"
@@ -25,46 +23,100 @@ import (
 	"github.com/casvisor/casvisor/util"
 )
 
-func StartProxyServer() {
-	if conf.GatewayAddr == nil {
-		return
-	}
+const (
+	clientMode = iota
+	serverMode
+)
 
-	proxyServer, err := server.NewProxyServer("Casvisor Proxy Server", conf.GatewayAddr.Port)
-	if err != nil {
-		panic(err)
-		return
-	}
-	proxyServer.Serve()
+type Starter struct {
+	mode   int
+	Server *server.Server
+	Client *client.Client
+
+	gatewayPort int
+	gatewayHost string
+
+	restartClientChan chan string
+	startClientChan   chan string
 }
 
-func StartProxyClient() {
+func NewStarter(restartClientChan chan string) *Starter {
 	if conf.GatewayAddr == nil {
-		return
+		return nil
+	}
+
+	starter := &Starter{
+		Client:            nil,
+		Server:            nil,
+		gatewayPort:       conf.GatewayAddr.Port,
+		gatewayHost:       conf.GatewayAddr.IP.String(),
+		restartClientChan: restartClientChan,
+		startClientChan:   make(chan string, 1),
 	}
 
 	asset, err := object.GetAsset(util.GetIdFromOwnerAndName(conf.GetConfigString("casdoorOrganization"), util.GetHostname()))
 	if err != nil {
 		panic(err)
 	}
-	if asset == nil {
-		panic("asset not found")
+
+	if asset != nil {
+		starter.mode = clientMode
+	} else {
+		starter.mode = serverMode
 	}
 
-	count := 0
-	for {
-		println("Connecting to proxy server...")
-		client.NewClient(asset.Name,
-			conf.GatewayAddr.IP.String(),
-			conf.GatewayAddr.Port,
-			tunnel.AssetToAppInfo(asset),
-		).Run()
+	return starter
+}
 
-		time.Sleep(5 * time.Second)
-		count++
-		if count >= tunnel.RetryTimes {
-			panic("failed to connect to proxy server,  no additional retries will be attempted")
-			return
+func (s *Starter) Start() {
+	if s == nil {
+		return
+	}
+
+	s.initServer()
+	go s.Server.Start(s.restartClientChan)
+
+	if s.mode == clientMode {
+		s.initClient()
+		go s.Client.Start(s.startClientChan)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-s.startClientChan:
+				s.RestartClient()
+			}
 		}
+	}()
+}
+
+func (s *Starter) initServer() {
+	proxyServer, err := server.NewProxyServer("Casvisor Proxy Server", s.gatewayPort)
+	if err != nil {
+		panic(err)
 	}
+	s.Server = proxyServer
+}
+
+func (s *Starter) initClient() {
+	asset, err := object.GetAsset(util.GetIdFromOwnerAndName(conf.GetConfigString("casdoorOrganization"), util.GetHostname()))
+	if err != nil {
+		panic(err)
+	}
+	if asset == nil {
+		panic("asset is nil")
+	}
+
+	proxyClient := client.NewClient(asset.Name,
+		s.gatewayHost,
+		s.gatewayPort,
+		tunnel.AssetToAppInfo(asset),
+	)
+	s.Client = proxyClient
+}
+
+func (s *Starter) RestartClient() {
+	s.initClient()
+	go s.Client.Start(s.startClientChan)
 }

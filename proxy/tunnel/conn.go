@@ -23,6 +23,8 @@ import (
 	"net"
 	"strings"
 	"sync"
+
+	"github.com/casvisor/casvisor/util"
 )
 
 const (
@@ -33,6 +35,7 @@ type Conn struct {
 	net.Conn
 	Reader    *bufio.Reader
 	closeFlag bool
+	Id        string
 }
 
 func NewConn(tcpConn net.Conn) *Conn {
@@ -40,6 +43,7 @@ func NewConn(tcpConn net.Conn) *Conn {
 		Conn:      tcpConn,
 		closeFlag: false,
 		Reader:    bufio.NewReader(tcpConn),
+		Id:        util.GenerateId(),
 	}
 	return c
 }
@@ -133,31 +137,6 @@ func Bind(c1 *Conn, c2 *Conn) {
 	go pipe(c2, c1)
 	wait.Wait()
 	return
-}
-
-func GetFreePort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-func TryGetFreePort(try int) (int, error) {
-	for count := 0; count != try; count++ {
-		port, err := GetFreePort()
-		if err != nil {
-			continue
-		}
-		return port, nil
-	}
-	return 0, fmt.Errorf("try too much time")
 }
 
 func Dial(remoteAddr string, remotePort int) (*Conn, error) {
