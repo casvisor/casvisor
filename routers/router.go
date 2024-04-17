@@ -64,4 +64,5 @@ func initAPI() {
 	beego.Router("/api/add-command", &controllers.ApiController{}, "POST:AddCommand")
 	beego.Router("/api/delete-command", &controllers.ApiController{}, "POST:DeleteCommand")
 	beego.Router("/api/exec-command", &controllers.ApiController{}, "GET:ExecCommand")
+	beego.Router("/api/get-exec-output", &controllers.ApiController{}, "GET:GetExecOutput")
 }

@@ -257,3 +257,31 @@ func (c *ApiController) ExecCommand() {
 		return
 	}
 }
+
+func (c *ApiController) GetExecOutput() {
+	id := c.Input().Get("id")
+
+	command, err := object.GetCommand(id)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if command == nil {
+		c.ResponseError("Command not found")
+		return
+	}
+
+	output, err := object.GetExecOutput(command)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	outputJSON, err := json.Marshal(output)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.ResponseOk(string(outputJSON))
+}

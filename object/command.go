@@ -15,8 +15,14 @@
 package object
 
 import (
-	"github.com/casvisor/casvisor/util"
+	"context"
+	"fmt"
+	"log"
+	"time"
 
+	"github.com/casvisor/casvisor/conf"
+	"github.com/casvisor/casvisor/util"
+	"github.com/yahoo/vssh"
 	"xorm.io/core"
 )
 
@@ -115,4 +121,57 @@ func DeleteCommand(command *Command) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func GetExecOutput(command *Command) (map[string]string, error) {
+	assets := command.Assets
+	outputMap := make(map[string]string)
+	nameMap := make(map[string]string)
+	vs := vssh.New().Start()
+
+	for _, assetName := range assets {
+		asset, err := getAsset(command.Owner, assetName)
+		if err != nil {
+			return outputMap, err
+		}
+		if asset == nil {
+			outputMap[asset.Name] = "Asset not found"
+		}
+
+		var addr string
+		config := vssh.GetConfigUserPass(asset.Username, asset.Password)
+		if asset.GatewayPort != 0 {
+			addr = fmt.Sprintf("%s:%d", conf.GatewayAddr.IP, asset.GatewayPort)
+		} else {
+			addr = fmt.Sprintf("%s:%d", asset.Endpoint, asset.Port)
+		}
+		nameMap[addr] = asset.Name
+
+		err = vs.AddClient(addr, config, vssh.SetMaxSessions(4))
+		if err != nil {
+			outputMap[assetName] = err.Error()
+		}
+	}
+
+	_, err := vs.Wait()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd := command.Command
+	timeout, _ := time.ParseDuration("10s")
+	respChan := vs.Run(ctx, cmd, timeout)
+
+	for resp := range respChan {
+		if err := resp.Err(); err != nil {
+			log.Println(err)
+			continue
+		}
+
+		outTxt, errTxt, _ := resp.GetText(vs)
+		outputMap[nameMap[resp.ID()]] = outTxt + errTxt
+	}
+	return outputMap, nil
 }
