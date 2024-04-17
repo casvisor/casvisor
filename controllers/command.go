@@ -209,7 +209,7 @@ func (c *ApiController) ExecCommand() {
 	defer cancel()
 
 	cmd := command.Command
-	timeout, _ := time.ParseDuration("6s")
+	timeout, _ := time.ParseDuration("10s")
 	respChan := vs.Run(ctx, cmd, timeout)
 
 	resp := <-respChan
@@ -225,11 +225,11 @@ func (c *ApiController) ExecCommand() {
 
 	for stream.ScanStdout() {
 		txt := stream.TextStdout()
-		writer.Flush()
 		if _, err = fmt.Fprintf(writer, "event: message\ndata: %s\n\n", txt); err != nil {
 			c.ResponseErrorStream(err.Error())
 			return
 		}
+		writer.Flush()
 	}
 
 	if writer.writerCleaner.cleaned == false {

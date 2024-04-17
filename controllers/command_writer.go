@@ -17,7 +17,6 @@ package controllers
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/beego/beego/context"
@@ -88,26 +87,6 @@ func (c *Cleaner) GetCleanedData() string {
 }
 
 func cleanString(data string) string {
-	img := regexp.MustCompile(`<img[^>]+>`)
-	if img.MatchString(data) {
-		return data
-	}
-
-	data = strings.Replace(data, "?", "", -1)
-	data = strings.Replace(data, "？", "", -1)
-	data = strings.Replace(data, "-", "", -1)
-	data = strings.Replace(data, "——", "", -1)
-
-	keywords := []string{"问", "用户", "q", "user", "question"}
-
-	if strings.Contains(data, ":") {
-		parts := strings.Split(data, ":")
-		data = checkFirstPart(parts[0], parts[len(parts)-1], keywords)
-	} else if strings.Contains(data, "：") {
-		parts := strings.Split(data, "：")
-		data = checkFirstPart(parts[0], parts[len(parts)-1], keywords)
-	}
-
 	return data
 }
 

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import React from "react";
-import {Button, Card, Col, Input, List, Row, Select, Spin} from "antd";
+import {Button, Card, Col, Input, List, Row, Select} from "antd";
 import * as CommandBackend from "./backend/CommandBackend";
 import * as Setting from "./Setting";
 import i18next from "i18next";
@@ -31,7 +31,6 @@ class CommandEditPage extends React.Component {
       owner: props.account.owner,
       commandName: props.match.params.commandName !== undefined ? props.match.params.commandName : "",
       mode: props.location.mode !== undefined ? props.location.mode : "edit",
-      executing: [],
       result: [],
     };
   }
@@ -144,7 +143,7 @@ class CommandEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general:Assets"), i18next.t("general:Assets - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Select virtual={false} style={{width: "100%"}} mode="multiple" value={command.assets} disabled={this.state.executing.length > 0}
+            <Select virtual={false} style={{width: "100%"}} mode="multiple" value={command.assets}
               options={this.state.assets.filter(asset => asset.type === "SSH").map(asset => Setting.getOption(asset.displayName, asset.name))}
               onChange={value => {
                 const result = [];
@@ -168,10 +167,7 @@ class CommandEditPage extends React.Component {
             {Setting.getLabel(i18next.t("command:Run"), i18next.t("command:Run - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Button disabled={this.state.executing.length > 0} onClick={() => {
-              this.setState({
-                executing: [...command.assets],
-              });
+            <Button onClick={() => {
               command.assets.forEach((asset) => {
                 CommandBackend.execCommand(this.state.owner, this.state.commandName, asset, (data) => {
                   const jsonData = JSON.parse(data);
@@ -182,10 +178,9 @@ class CommandEditPage extends React.Component {
                   if (this.state.result.find(item => item.title === asset) === undefined) {
                     result.push({title: asset, text: jsonData.text});
                   } else {
-                    result.find(item => item.title === asset).text += jsonData.text;
+                    result.find(item => item.title === asset).text += jsonData.text + "\n";
                   }
                   this.setState({
-                    executing: this.state.executing.filter(item => item !== asset),
                     result: result,
                   });
                 }, (error) => {
@@ -196,7 +191,6 @@ class CommandEditPage extends React.Component {
                     result.find(item => item.title === asset).text += error;
                   }
                   this.setState({
-                    executing: this.state.executing.filter(item => item !== asset),
                     result: result,
                   });
                 });
@@ -220,11 +214,9 @@ class CommandEditPage extends React.Component {
               dataSource={this.state.result}
               renderItem={(item) => (
                 <List.Item>
-                  <Spin spinning={this.state.executing.some(asset => asset === item.title)}>
-                    <Card title={item.title}>
-                      <TextArea value={item.text} rows={8} readOnly />
-                    </Card>
-                  </Spin>
+                  <Card title={item.title}>
+                    <TextArea value={item.text} rows={8} readOnly />
+                  </Card>
                 </List.Item>
               )}
             />
