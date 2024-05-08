@@ -400,28 +400,7 @@ class FileTree extends React.Component {
           }
         };
 
-        const key = info.node.key;
-        const filename = info.node.title;
-        if (this.getCacheApp(filename) !== "") {
-          FileBackend.activateFile(key, filename)
-            .then((res) => {
-              if (res.status === "ok") {
-                if (res.data === true) {
-                  // Setting.showMessage("success", `File activated successfully`);
-                  fetchFile();
-                } else {
-                  Setting.showMessage("error", "File failed to activate: server side failure");
-                }
-              } else {
-                Setting.showMessage("error", `File failed to activate: ${res.msg}`);
-              }
-            })
-            .catch(error => {
-              Setting.showMessage("error", `File failed to activate: ${error}`);
-            });
-        } else {
-          fetchFile();
-        }
+        fetchFile();
       }
 
       this.setState({

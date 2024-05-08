@@ -14,16 +14,6 @@
 
 import * as Setting from "../Setting";
 
-export function activateFile(key, filename) {
-  return fetch(`${Setting.ServerUrl}/api/activate-file?key=${key}&filename=${filename}`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Accept-Language": Setting.getAcceptLanguage(),
-    },
-  }).then(res => res.json());
-}
-
 export function getFiles(id, key, mode = "") {
   return fetch(`${Setting.ServerUrl}/api/get-files?id=${id}&key=${key}&mode=${mode}`, {
     method: "POST",
