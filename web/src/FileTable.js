@@ -80,12 +80,8 @@ class FileTable extends React.Component {
     FileBackend.deleteFile(storeId, file.key, isLeaf)
       .then((res) => {
         if (res.status === "ok") {
-          if (res.data === true) {
-            Setting.showMessage("success", "File deleted successfully");
-            this.props.onRefresh();
-          } else {
-            Setting.showMessage("error", `File failed to delete: ${res.msg}`);
-          }
+          Setting.showMessage("success", "File deleted successfully");
+          this.props.refreshFileTree(file.parent.key);
         } else {
           Setting.showMessage("error", `File failed to delete: ${res.msg}`);
         }
@@ -240,7 +236,7 @@ class FileTable extends React.Component {
     return (
       <div>
         {
-          this.renderTable(this.props.file.children)
+          this.renderTable(this.props.file.children ?? [])
         }
       </div>
     );

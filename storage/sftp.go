@@ -17,6 +17,7 @@ package storage
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"path"
 
@@ -26,6 +27,7 @@ import (
 
 type SftpProvider struct {
 	sftpClient *sftp.Client
+	sessionId  string
 }
 
 func NewSftpProvider(sessionId string) (*SftpProvider, error) {
@@ -34,7 +36,7 @@ func NewSftpProvider(sessionId string) (*SftpProvider, error) {
 		return nil, err
 	}
 
-	return &SftpProvider{sftpClient: sftpClient}, nil
+	return &SftpProvider{sftpClient: sftpClient, sessionId: sessionId}, nil
 }
 
 func GetSftpClient(sessionId string) (*sftp.Client, error) {
@@ -69,6 +71,7 @@ func (p *SftpProvider) ListObjects(dir string) ([]*Object, error) {
 			Size:         fileInfo.Size(),
 			IsDir:        fileInfo.IsDir(),
 			Mode:         fileInfo.Mode().String(),
+			Url:          fmt.Sprintf("/api/get-file?id=%s&key=%s", p.sessionId, path.Join(dir, fileInfo.Name())),
 		}
 		files = append(files, Object)
 	}

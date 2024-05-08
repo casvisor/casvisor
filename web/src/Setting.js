@@ -90,6 +90,17 @@ export function goToLinkSoft(ths, link) {
   ths.props.history.push(link);
 }
 
+export function downloadFile(filename, blob) {
+  const url = window.URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+
+  window.URL.revokeObjectURL(url);
+}
+
 export function showMessage(type, text) {
   if (type === "") {
     return;
@@ -425,7 +436,7 @@ export function getFriendlyFileSize(size) {
 
 export function getTreeWithParents(tree) {
   const res = deepCopy(tree);
-  res.children = tree.children.map((file, index) => {
+  res.children = tree.children?.map((file, index) => {
     file.parent = tree;
     return getTreeWithParents(file);
   });

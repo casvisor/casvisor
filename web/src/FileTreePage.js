@@ -30,6 +30,7 @@ class FileTreePage extends React.Component {
       session: null,
       store: null,
       spinning: false,
+      key: "/",
       msg: "",
     };
   }
@@ -67,8 +68,8 @@ class FileTreePage extends React.Component {
   }
 
   getStore() {
-    const {session} = this.state;
-    FileBackend.lsFiles(`${session.owner}/${session.name}`, "/", "store").then((res) => {
+    const {session, key} = this.state;
+    FileBackend.getFiles(`${session.owner}/${session.name}`, key, "store").then((res) => {
       if (res.status === "ok") {
         const store = res.data;
         this.setState({
@@ -112,7 +113,12 @@ class FileTreePage extends React.Component {
       <div>
         <Row>
           <Col span={24}>
-            <FileTree account={this.props.account} store={store}
+            <FileTree account={this.props.account} store={store} session={this.state.session}
+              onUpdateStore={(store) => {
+                this.setState({
+                  store: store,
+                });
+              }}
               onRefresh={() => {
                 this.getStore();
               }} />

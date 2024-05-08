@@ -24,8 +24,8 @@ export function activateFile(key, filename) {
   }).then(res => res.json());
 }
 
-export function lsFiles(id, key, mode = "") {
-  return fetch(`${Setting.ServerUrl}/api/ls-files?id=${id}&key=${key}&mode=${mode}`, {
+export function getFiles(id, key, mode = "") {
+  return fetch(`${Setting.ServerUrl}/api/get-files?id=${id}&key=${key}&mode=${mode}`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -34,21 +34,13 @@ export function lsFiles(id, key, mode = "") {
   }).then(res => res.json());
 }
 
-export function mkdirFile(id, key) {
-  return fetch(`${Setting.ServerUrl}/api/mkdir-file?id=${id}&key=${key}`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Accept-Language": Setting.getAcceptLanguage(),
-    },
-  }).then(res => res.json());
-}
-
-export function uploadFile(id, key, file) {
+export function addFile(id, key, file, isLeaf) {
   const formData = new FormData();
-  formData.append("file", file, file.name);
+  if (isLeaf) {
+    formData.append("file", file, file.name);
+  }
 
-  return fetch(`${Setting.ServerUrl}/api/upload-file?id=${id}&key=${key}`, {
+  return fetch(`${Setting.ServerUrl}/api/add-file?id=${id}&key=${key}&file=${file}&isLeaf=${isLeaf ? 1 : 0}`, {
     method: "POST",
     credentials: "include",
     body: formData,
@@ -58,14 +50,14 @@ export function uploadFile(id, key, file) {
   }).then(res => res.json());
 }
 
-export function downloadFile(id, key) {
-  return fetch(`${Setting.ServerUrl}/api/download-file?id=${id}&key=${key}`, {
+export function getFile(id, key) {
+  return fetch(`${Setting.ServerUrl}/api/get-file?id=${id}&key=${key}`, {
     method: "GET",
     credentials: "include",
     headers: {
       "Accept-Language": Setting.getAcceptLanguage(),
     },
-  }).then(res => res.blob());
+  });
 }
 
 export function deleteFile(id, key) {

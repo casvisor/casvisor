@@ -25,6 +25,11 @@ func getUrlFromPath(path string, origin string) (string, error) {
 		return path, nil
 	}
 
+	if strings.HasPrefix(path, "/api/get-file") {
+		res, err := url.JoinPath(origin, path)
+		return res, err
+	}
+
 	res := strings.Replace(path, ":", "|", 1)
 	res = fmt.Sprintf("storage/%s", res)
 	res, err := url.JoinPath(origin, res)

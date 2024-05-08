@@ -68,10 +68,9 @@ func initAPI() {
 
 	beego.Router("/api/update-file", &controllers.ApiController{}, "POST:UpdateFile")
 	beego.Router("/api/delete-file", &controllers.ApiController{}, "POST:DeleteFile")
-	beego.Router("/api/download-file", &controllers.ApiController{}, "GET:DownloadFile")
-	beego.Router("/api/upload-file", &controllers.ApiController{}, "POST:UploadFile")
-	beego.Router("/api/ls-files", &controllers.ApiController{}, "POST:LsFiles")
-	beego.Router("/api/mkdir-file", &controllers.ApiController{}, "POST:MkdirFile")
+	beego.Router("/api/get-file", &controllers.ApiController{}, "GET:DownloadFile")
+	beego.Router("/api/add-file", &controllers.ApiController{}, "POST:AddFile")
+	beego.Router("/api/get-files", &controllers.ApiController{}, "POST:GetFiles")
 	beego.Router("/api/activate-file", &controllers.ApiController{}, "POST:ActivateFile")
 	beego.Router("/api/get-active-file", &controllers.ApiController{}, "GET:GetActiveFile")
 

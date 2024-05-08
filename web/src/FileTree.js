@@ -44,7 +44,7 @@ class FileTree extends React.Component {
     super(props);
     this.state = {
       classes: props,
-      expandedKeys: ["0-0", "0-0-0", "0-0-0-0"],
+      expandedKeys: ["/"],
       checkedKeys: [],
       checkedFiles: [],
       selectedKeys: [],
@@ -80,7 +80,7 @@ class FileTree extends React.Component {
         this.uploadedFileIdMap[uploadedFile.originFileObj.uid] = 1;
       }
 
-      promises.push(FileBackend.uploadFile(storeId, file.key, uploadedFile.originFileObj));
+      promises.push(FileBackend.addFile(storeId, file.key, uploadedFile.originFileObj, true));
     });
 
     Promise.all(promises)
@@ -88,7 +88,7 @@ class FileTree extends React.Component {
         const res = values[0];
         if (res.status === "ok") {
           Setting.showMessage("success", "File added successfully");
-          this.props.onRefresh();
+          this.refreshFileTree(file.key);
         } else {
           Setting.showMessage("error", `File failed to add: ${res.msg}`);
         }
@@ -98,12 +98,28 @@ class FileTree extends React.Component {
       });
   }
 
+  addFile(file, newFolder) {
+    const storeId = `${this.props.store.owner}/${this.props.store.name}`;
+    FileBackend.addFile(storeId, file.key + "/" + newFolder, false)
+      .then((res) => {
+        if (res.status === "ok") {
+          Setting.showMessage("success", "Folder created successfully");
+          this.refreshFileTree(file.key);
+        } else {
+          Setting.showMessage("error", `Folder failed to create: ${res.msg}`);
+        }
+      })
+      .catch(error => {
+        Setting.showMessage("error", `Folder failed to create: ${error}`);
+      });
+  }
+
   deleteFile(file) {
     const storeId = `${this.props.store.owner}/${this.props.store.name}`;
     FileBackend.deleteFile(storeId, file.key)
       .then((res) => {
         if (res.status === "ok") {
-          this.props.onRefresh();
+          this.refreshFileTree(file.parent.key);
         } else {
           Setting.showMessage("error", `File failed to delete: ${res.msg}`);
         }
@@ -113,35 +129,37 @@ class FileTree extends React.Component {
       });
   }
 
-  lsFiles(file) {
+  refreshFileTree(key) {
     const storeId = `${this.props.store.owner}/${this.props.store.name}`;
-    FileBackend.lsFiles(storeId, file.key)
+    FileBackend.getFiles(storeId, key)
       .then((res) => {
         if (res.status === "ok") {
-          this.setState({
-            fileInfos: res.data,
-          });
+          const newTree = this.updateTreeData([this.props.store.fileTree], key, res.data);
+          const newStore = Setting.deepCopy(this.props.store);
+          newStore.fileTree = newTree[0];
+          this.props.onUpdateStore(newStore);
         } else {
           Setting.showMessage("error", `Failed to get files: ${res.msg}`);
         }
       });
   }
 
-  mkdirFile(file, newFolder) {
-    const storeId = `${this.props.store.owner}/${this.props.store.name}`;
-    FileBackend.mkdirFile(storeId, file.key + "/" + newFolder)
-      .then((res) => {
-        if (res.status === "ok") {
-          Setting.showMessage("success", "Folder created successfully");
-          this.props.onRefresh();
-        } else {
-          Setting.showMessage("error", `Folder failed to create: ${res.msg}`);
-        }
-      })
-      .catch(error => {
-        Setting.showMessage("error", `Folder failed to create: ${error}`);
-      });
-  }
+  updateTreeData = (list, key, children) =>
+    list.map((node) => {
+      if (node.key === key) {
+        return {
+          ...node,
+          children,
+        };
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: this.updateTreeData(node.children, key, children),
+        };
+      }
+      return node;
+    });
 
   getPermissionMap(permissions) {
     const permissionMap = {};
@@ -358,15 +376,27 @@ class FileTree extends React.Component {
                 loading: true,
               });
 
-              fetch(url, {method: "GET"})
-                .then(res => res.text())
-                .then(res => {
-                  this.setState({
-                    text: res,
-                    loading: false,
+              if (this.props?.session.protocol === "SSH") {
+                FileBackend.getFile(`${this.props.store.owner}/${this.props.store.name}`, info.node.key)
+                  .then(res => res.text())
+                  .then((res => {
+                    this.setState({
+                      text: res,
+                      loading: false,
+                    });
+                  }));
+              } else {
+                fetch(url, {method: "GET"})
+                  .then(res => res.text())
+                  .then(res => {
+                    this.setState({
+                      text: res,
+                      loading: false,
+                    });
                   });
-                });
+              }
             }
+
           }
         };
 
@@ -416,6 +446,28 @@ class FileTree extends React.Component {
       fileTree = Setting.getTreeWithSearch(fileTree, this.state.searchValue);
     }
 
+    const onLoadData = ({key, children}) =>
+      new Promise((resolve) => {
+        if (children) {
+          resolve();
+          return;
+        }
+
+        FileBackend.getFiles(`${this.props.store.owner}/${this.props.store.name}`, key).then((res) => {
+          if (res.status === "ok") {
+            const data = res.data;
+            const newTree = this.updateTreeData([fileTree], key, data);
+            const newStore = Setting.deepCopy(this.props.store);
+            newStore.fileTree = newTree[0];
+            this.props.onUpdateStore(newStore);
+            resolve();
+          } else {
+            Setting.showMessage("error", `Failed to get files: ${res.msg}`);
+            resolve();
+          }
+        });
+      });
+
     return (
       <Tree
         height={"calc(100vh - 220px)"}
@@ -423,8 +475,8 @@ class FileTree extends React.Component {
         className="draggable-tree"
         multiple={false}
         checkable
-        defaultExpandAll={true}
-        // defaultExpandedKeys={tree.children.map(file => file.key)}
+        defaultExpandAll={this.props.session === null}
+        defaultExpandedKeys={this.state.expandedKeys}
         draggable={false}
         blockNode
         showLine={true}
@@ -432,6 +484,7 @@ class FileTree extends React.Component {
         onCheck={onCheck}
         checkedKeys={this.state.checkedKeys}
         onSelect={onSelect}
+        loadData={onLoadData}
         selectedKeys={this.state.selectedKeys}
         treeData={[fileTree]}
         titleRender={(file) => {
@@ -529,7 +582,7 @@ class FileTree extends React.Component {
                                 });
                               }} />
                               <Button type="primary" onClick={(e) => {
-                                this.mkdirFile(file, this.state.newFolder);
+                                this.addFile(file, this.state.newFolder);
                                 e.stopPropagation();
                               }}
                               >
@@ -652,7 +705,8 @@ class FileTree extends React.Component {
     if (this.state.checkedFiles.length !== 0) {
       const outerFile = {children: this.state.checkedFiles};
       return (
-        <FileTable account={this.props.account} store={this.props.store} onRefresh={() => this.props.onRefresh()} file={outerFile} isCheckMode={true} />
+        <FileTable account={this.props.account} store={this.props.store} onRefresh={() => this.props.onRefresh()} file={outerFile} isCheckMode={true}
+          refreshFileTree={(key) => this.refreshFileTree(key)} />
       );
     }
 

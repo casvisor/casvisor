@@ -15,6 +15,7 @@
 package object
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/casvisor/casvisor/storage"
@@ -77,18 +78,12 @@ func (store *Store) createPathIfNotExisted(tokens []string, size int64, url stri
 			continue
 		}
 
-		isLeafTmp := false
-		if i == len(tokens)-1 {
-			isLeafTmp = isLeaf
-		}
-
 		key := strings.Join(tokens[:i+1], "/")
 		newFile := &File{
 			Key:         "/" + key,
 			Title:       token,
-			IsLeaf:      isLeafTmp,
+			IsLeaf:      isLeaf,
 			Url:         url,
-			Children:    []*File{},
 			ChildrenMap: map[string]*File{},
 		}
 
@@ -119,15 +114,14 @@ func isObjectLeaf(object *File) bool {
 	return isLeaf
 }
 
-func (store *Store) Populate(origin string, objects []*storage.Object) error {
+func (store *Store) Populate(origin string, key string, objects []*storage.Object) error {
 	if store.FileTree == nil {
 		store.FileTree = &File{
-			Key:         "/",
+			Key:         key,
 			Title:       store.DisplayName,
 			CreatedTime: store.CreatedTime,
 			IsLeaf:      false,
 			Url:         "",
-			Children:    []*File{},
 			ChildrenMap: map[string]*File{},
 		}
 	}
@@ -159,4 +153,17 @@ func (store *Store) Populate(origin string, objects []*storage.Object) error {
 	}
 
 	return nil
+}
+
+func (store *Store) GetStorageProviderObj() (storage.StorageProvider, error) {
+	session, err := GetConnSession(store.StorageProvider)
+	if err != nil {
+		return nil, err
+	}
+	if session == nil {
+		return nil, fmt.Errorf("session not found")
+	}
+
+	provider, err := storage.GetStorageProvider(session.Protocol, store.StorageProvider, "")
+	return provider, nil
 }

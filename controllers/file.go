@@ -37,29 +37,19 @@ func (c *ApiController) UpdateFile() {
 	c.ResponseOk()
 }
 
-// UploadFile
-// @Title UploadFile
+// AddFile
+// @Title AddFile
 // @Tag File API
 // @Description add file
 // @Param key query string true "The directory of the file"
 // @Param sessionId query string true "The id of the session"
 // @Success 200 {object} controllers.Response The Response object
-// @router /upload-file [post]
-func (c *ApiController) UploadFile() {
+// @router /add-file [post]
+func (c *ApiController) AddFile() {
 	userName := c.GetSessionUsername()
 	sessionId := c.Input().Get("id")
 	key := c.Input().Get("key")
-	_, file, err := c.GetFile("file")
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
-
-	srcFile, err := file.Open()
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
+	isLeaf := c.Input().Get("isLeaf") == "1"
 
 	session, err := object.GetConnSession(sessionId)
 	if err != nil {
@@ -77,22 +67,45 @@ func (c *ApiController) UploadFile() {
 		return
 	}
 
-	var fileBuffer *bytes.Buffer
-	fileBuffer = bytes.NewBuffer(nil)
-	_, err = io.Copy(fileBuffer, srcFile)
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
+	if isLeaf {
+		_, file, err := c.GetFile("file")
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
 
-	_, err = provider.PutObject(userName, key, file.Filename, fileBuffer)
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
+		srcFile, err := file.Open()
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
 
-	addRecordForFile(c, userName, "Upload", sessionId, key, file.Filename, false)
-	c.ResponseOk()
+		var fileBuffer *bytes.Buffer
+		fileBuffer = bytes.NewBuffer(nil)
+		_, err = io.Copy(fileBuffer, srcFile)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+
+		_, err = provider.PutObject(userName, key, file.Filename, fileBuffer)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+
+		addRecordForFile(c, userName, "Upload", sessionId, key, file.Filename, false)
+		c.ResponseOk()
+	} else {
+		err = provider.Mkdir(key)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+
+		addRecordForFile(c, userName, "MkDir", sessionId, key, "", false)
+		c.ResponseOk()
+	}
 }
 
 // DownloadFile
@@ -102,7 +115,7 @@ func (c *ApiController) UploadFile() {
 // @Param sessionId query string true "The id of the session"
 // @Param key query string true "The direction of the file"
 // @Success 200 {object} controllers.Response The Response object
-// @router /download-file [get]
+// @router /get-file [get]
 func (c *ApiController) DownloadFile() {
 	userName := c.GetSessionUsername()
 	sessionId := c.Input().Get("id")
@@ -119,23 +132,26 @@ func (c *ApiController) DownloadFile() {
 	}
 
 	sftpClient, err := storage.GetSftpClient(sessionId)
-	dstFile, err := sftpClient.Open(key)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
 
-	defer dstFile.Close()
-	var buff bytes.Buffer
-	if _, err := dstFile.WriteTo(&buff); err != nil {
+	dstFile, err := sftpClient.Open(key)
+	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
+	defer dstFile.Close()
+
 	addRecordForFile(c, userName, "Download", sessionId, key, "", false)
 	filenameWithSuffix := path.Base(key)
 	c.Ctx.ResponseWriter.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filenameWithSuffix))
 	c.Ctx.ResponseWriter.Header().Set("Content-Type", "application/octet-stream")
-	c.Ctx.ResponseWriter.Write(buff.Bytes())
+	if _, err := dstFile.WriteTo(c.Ctx.ResponseWriter); err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
 }
 
 // DeleteFile
@@ -177,15 +193,15 @@ func (c *ApiController) DeleteFile() {
 	c.ResponseOk()
 }
 
-// LsFiles
-// @Title LsFiles
+// GetFiles
+// @Title GetFiles
 // @Tag File API
 // @Description list files
 // @Param sessionId query string true "The id of the session"
 // @Param key query string true "The direction of the file"
 // @Success 200 {object} controllers.Response The Response object
-// @router /ls-files [get]
-func (c *ApiController) LsFiles() {
+// @router /get-files [get]
+func (c *ApiController) GetFiles() {
 	userName := c.GetSessionUsername()
 	sessionId := c.Input().Get("id")
 	key := c.Input().Get("key")
@@ -206,8 +222,7 @@ func (c *ApiController) LsFiles() {
 		c.ResponseError(err.Error())
 		return
 	}
-
-	files, err := provider.ListObjects(key)
+	objects, err := provider.ListObjects(key)
 
 	if mode == "store" {
 		store := object.Store{
@@ -219,7 +234,7 @@ func (c *ApiController) LsFiles() {
 
 		host := c.Ctx.Request.Host
 		origin := getOriginFromHost(host)
-		err := store.Populate(origin, files)
+		err := store.Populate(origin, key, objects)
 		if err != nil {
 			c.ResponseError(err.Error())
 			return
@@ -227,45 +242,20 @@ func (c *ApiController) LsFiles() {
 		addRecordForFile(c, userName, "Ls", sessionId, key, "", false)
 		c.ResponseOk(store)
 	} else {
+		files := []*object.File{}
+		for _, o := range objects {
+			file := object.File{
+				Key:         o.Key,
+				Title:       o.Name,
+				Size:        o.Size,
+				CreatedTime: o.LastModified,
+				IsLeaf:      !o.IsDir,
+				Url:         o.Url,
+			}
+			files = append(files, &file)
+		}
+
 		addRecordForFile(c, userName, "Ls", sessionId, key, "", false)
 		c.ResponseOk(files)
 	}
-}
-
-// MkdirFile
-// @Title MkdirFile
-// @Tag File API
-// @Description make directory
-// @Param key query string true "The direction of the file"
-// @Success 200 {object} controllers.Response The Response object
-// @router /mkdir-file [post]
-func (c *ApiController) MkdirFile() {
-	userName := c.GetSessionUsername()
-	sessionId := c.Input().Get("id")
-	key := c.Input().Get("key")
-
-	session, err := object.GetConnSession(sessionId)
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
-	if session == nil {
-		c.ResponseError("session not found")
-		return
-	}
-
-	provider, err := storage.GetStorageProvider(session.Protocol, sessionId, "")
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
-
-	err = provider.Mkdir(key)
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
-
-	addRecordForFile(c, userName, "MkDir", sessionId, key, "", false)
-	c.ResponseOk()
 }
