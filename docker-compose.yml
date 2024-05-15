@@ -3,7 +3,7 @@ services:
     restart: always
     image: casbin/casvisor
     ports:
-      - "16001:16001"
+      - "19000:19000"
     depends_on:
       - db
     environment:
@@ -14,7 +14,7 @@ services:
       update_config:
         order: start-first
         failure_action: rollback
-        delay: 30s # Ensures casvisor starts 30 seconds after db
+        delay: 15s
         parallelism: 1
     networks:
       - default
