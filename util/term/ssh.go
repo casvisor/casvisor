@@ -35,10 +35,10 @@ func NewSshClient(addr, username, password string) (*ssh.Client, error) {
 	return ssh.Dial("tcp", addr, config)
 }
 
-func RunCommand(client *ssh.Client, command string) (stdout string, err error) {
+func RunCommand(client *ssh.Client, command string) (string, error) {
 	session, err := client.NewSession()
 	if err != nil {
-		return
+		return "", err
 	}
 	defer session.Close()
 
@@ -46,9 +46,9 @@ func RunCommand(client *ssh.Client, command string) (stdout string, err error) {
 	session.Stdout = &buf
 	err = session.Run(command)
 	if err != nil {
-		return
+		return "", err
 	}
-	stdout = string(buf.Bytes())
+	stdout := string(buf.Bytes())
 
-	return
+	return stdout, nil
 }

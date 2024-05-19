@@ -15,7 +15,6 @@
 package object
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -52,17 +51,17 @@ func UpdateAssetMetric(asset *Asset) error {
 	client, err := GetSshClient(asset)
 	if err != nil {
 		asset.IsActive = false
-		return errors.New(fmt.Sprintf("%s: %s", asset.GetId(), err.Error()))
+		return fmt.Errorf("%s: %s", asset.GetId(), err.Error())
 	}
 	asset.IsActive = true
 
-	stats := &metric.Stats{}
-	stats, err = metric.GetAllStats(client, stats)
+	stat := &metric.Stat{}
+	stat, err = metric.GetAllStat(client, stat)
 	if err != nil {
 		return err
 	}
 
-	LoadAssetState(asset, stats)
+	LoadAssetStat(asset, stat)
 	_, err = adapter.Engine.ID(core.PK{asset.Owner, asset.Name}).Update(asset)
 	if err != nil {
 		return err
@@ -91,17 +90,17 @@ func GetSshClient(asset *Asset) (*ssh.Client, error) {
 	return client, nil
 }
 
-func LoadAssetState(asset *Asset, stats *metric.Stats) {
-	if len(stats.FSInfos) > 0 {
-		fsInfo := stats.FSInfos[0]
+func LoadAssetStat(asset *Asset, stat *metric.Stat) {
+	if len(stat.FsInfos) > 0 {
+		fsInfo := stat.FsInfos[0]
 		asset.DiskTotal = int64(fsInfo.Used + fsInfo.Free)
 		asset.DiskCurrent = int64(fsInfo.Used)
 	}
 
-	asset.MemTotal = stats.MemTotal
-	asset.MemCurrent = stats.MemTotal - stats.MemAvailable
-	asset.CpuTotal = stats.CPU.CoreNum
-	asset.CpuCurrent = 100 - stats.CPU.Idle
+	asset.MemTotal = stat.MemTotal
+	asset.MemCurrent = stat.MemTotal - stat.MemAvailable
+	asset.CpuTotal = stat.Cpu.CoreNum
+	asset.CpuCurrent = 100 - stat.Cpu.Idle
 }
 
 func CloseSshClients() {
@@ -115,5 +114,5 @@ func CloseSshClients() {
 		return true
 	})
 
-	metric.CleanupPreCPUMap()
+	metric.CleanupPreCpuMap()
 }

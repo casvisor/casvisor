@@ -93,7 +93,7 @@ func isIpAddress(host string) bool {
 		hostWithoutPort = host
 	}
 
-	// Attempt to parse the host as an IP address (both IPv4 and IPv6)
+	// Attempt to parse the host as an IP address (both Ipv4 and Ipv6)
 	ip := net.ParseIP(hostWithoutPort)
 	// if host is not nil is an IP address else is not an IP address
 	return ip != nil

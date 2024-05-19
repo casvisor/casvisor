@@ -24,15 +24,15 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type FSInfo struct {
+type FsInfo struct {
 	MountPoint string `json:"mountPoint"`
 	Used       uint64 `json:"used"`
 	Free       uint64 `json:"free"`
 }
 
 type Network struct {
-	IPv4 string `json:"iPv4"`
-	IPv6 string `json:"iPv6"`
+	Ipv4 string `json:"ipv4"`
+	Ipv6 string `json:"ipv6"`
 	Rx   uint64 `json:"rx"`
 	Tx   uint64 `json:"tx"`
 }
@@ -46,11 +46,11 @@ type cpuRaw struct {
 	Irq     int64 // time spent servicing  interrupts  (since  2.6.0-test4)
 	SoftIrq int64 // time spent servicing softirqs (since 2.6.0-test4)
 	Steal   int64 // time spent in other OSes when running in a virtualized environment
-	Guest   int64 // time spent running a virtual CPU for guest operating systems under the control of the Linux kernel.
+	Guest   int64 // time spent running a virtual Cpu for guest operating systems under the control of the Linux kernel.
 	Total   int64 // total of all time fields
 }
 
-type CPUInfo struct {
+type CpuInfo struct {
 	User    float32 `json:"user"`
 	Nice    float32 `json:"nice"`
 	System  float32 `json:"system"`
@@ -63,7 +63,7 @@ type CPUInfo struct {
 	CoreNum int     `json:"coreNum"`
 }
 
-type Stats struct {
+type Stat struct {
 	Uptime         int64              `json:"uptime"`
 	Hostname       string             `json:"hostname"`
 	Load1          string             `json:"load1"`
@@ -78,33 +78,33 @@ type Stats struct {
 	MemCached      int64              `json:"memCached"`
 	SwapTotal      int64              `json:"swapTotal"`
 	SwapFree       int64              `json:"swapFree"`
-	FSInfos        []FSInfo           `json:"fsInfos"`
+	FsInfos        []FsInfo           `json:"fsInfos"`
 	Network        map[string]Network `json:"network"`
-	CPU            CPUInfo            `json:"cpu"`
+	Cpu            CpuInfo            `json:"cpu"`
 }
 
-func GetAllStats(client *ssh.Client, stats *Stats) (*Stats, error) {
+func GetAllStat(client *ssh.Client, stats *Stat) (*Stat, error) {
 	runner := Runner{}
 
 	runner.Add(func() error {
 		return getMemInfo(client, stats)
 	})
 	runner.Add(func() error {
-		return getFSInfo(client, stats)
+		return getFsInfo(client, stats)
 	})
 
 	runner.Add(func() error {
-		return getCPU(client, stats)
+		return getCpu(client, stats)
 	})
 
 	runner.Wait()
 	return stats, nil
 }
 
-func getMemInfo(client *ssh.Client, stats *Stats) (err error) {
+func getMemInfo(client *ssh.Client, stats *Stat) error {
 	lines, err := term.RunCommand(client, "/bin/cat /proc/meminfo")
 	if err != nil {
-		return
+		return err
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(lines))
@@ -136,13 +136,13 @@ func getMemInfo(client *ssh.Client, stats *Stats) (err error) {
 		}
 	}
 
-	return
+	return nil
 }
 
-func getFSInfo(client *ssh.Client, stats *Stats) (err error) {
+func getFsInfo(client *ssh.Client, stats *Stat) error {
 	lines, err := term.RunCommand(client, "/bin/df -B1")
 	if err != nil {
-		return
+		return err
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(lines))
@@ -165,16 +165,16 @@ func getFSInfo(client *ssh.Client, stats *Stats) (err error) {
 			if err != nil {
 				continue
 			}
-			stats.FSInfos = append(stats.FSInfos, FSInfo{
+			stats.FsInfos = append(stats.FsInfos, FsInfo{
 				parts[5-i], used, free,
 			})
 		}
 	}
 
-	return
+	return nil
 }
 
-func parseCPUFields(fields []string, stat *cpuRaw) {
+func parseCpuFields(fields []string, stat *cpuRaw) {
 	numFields := len(fields)
 	for i := 1; i < numFields; i++ {
 		val, err := strconv.ParseInt(fields[i], 10, 64)
@@ -206,13 +206,13 @@ func parseCPUFields(fields []string, stat *cpuRaw) {
 	}
 }
 
-// PreCPUMap stores the previous CPU stats for each client
-var preCPUMap sync.Map
+// PreCPUMap stores the previous Cpu stats for each client
+var preCpuMap sync.Map
 
-func getCPU(client *ssh.Client, stats *Stats) (err error) {
+func getCpu(client *ssh.Client, stats *Stat) error {
 	lines, err := term.RunCommand(client, "/bin/cat /proc/stat")
 	if err != nil {
-		return
+		return err
 	}
 
 	var (
@@ -226,46 +226,46 @@ func getCPU(client *ssh.Client, stats *Stats) (err error) {
 		line := scanner.Text()
 		fields := strings.Fields(line)
 		if len(fields) > 0 && fields[0] == "cpu" { // changing here if want to get every cpu-core's stats
-			parseCPUFields(fields, &nowCPU)
+			parseCpuFields(fields, &nowCPU)
 			continue
 		}
 		if len(fields) > 0 && strings.HasPrefix(fields[0], "cpu") {
 			core++
 		}
 	}
-	stats.CPU.CoreNum = core
+	stats.Cpu.CoreNum = core
 
-	// Fetch the previous CPU stats for this client
-	value, ok := preCPUMap.Load(client)
+	// Fetch the previous Cpu stats for this client
+	value, ok := preCpuMap.Load(client)
 	var preCPU cpuRaw
 	if ok {
 		preCPU = value.(cpuRaw)
 	} else {
 		// If this is the first time, initialize preCPU
 		preCPU = nowCPU
-		preCPUMap.Store(client, preCPU)
+		preCpuMap.Store(client, preCPU)
 		goto END
 	}
 
 	total = float32(nowCPU.Total - preCPU.Total)
-	stats.CPU.User = float32(nowCPU.User-preCPU.User) / total * 100
-	stats.CPU.Nice = float32(nowCPU.Nice-preCPU.Nice) / total * 100
-	stats.CPU.System = float32(nowCPU.System-preCPU.System) / total * 100
-	stats.CPU.Idle = float32(nowCPU.Idle-preCPU.Idle) / total * 100
-	stats.CPU.IoWait = float32(nowCPU.IoWait-preCPU.IoWait) / total * 100
-	stats.CPU.Irq = float32(nowCPU.Irq-preCPU.Irq) / total * 100
-	stats.CPU.SoftIrq = float32(nowCPU.SoftIrq-preCPU.SoftIrq) / total * 100
-	stats.CPU.Guest = float32(nowCPU.Guest-preCPU.Guest) / total * 100
+	stats.Cpu.User = float32(nowCPU.User-preCPU.User) / total * 100
+	stats.Cpu.Nice = float32(nowCPU.Nice-preCPU.Nice) / total * 100
+	stats.Cpu.System = float32(nowCPU.System-preCPU.System) / total * 100
+	stats.Cpu.Idle = float32(nowCPU.Idle-preCPU.Idle) / total * 100
+	stats.Cpu.IoWait = float32(nowCPU.IoWait-preCPU.IoWait) / total * 100
+	stats.Cpu.Irq = float32(nowCPU.Irq-preCPU.Irq) / total * 100
+	stats.Cpu.SoftIrq = float32(nowCPU.SoftIrq-preCPU.SoftIrq) / total * 100
+	stats.Cpu.Guest = float32(nowCPU.Guest-preCPU.Guest) / total * 100
 
 END:
-	// Store the new CPU stats for this client
-	preCPUMap.Store(client, nowCPU)
-	return
+	// Store the new Cpu stats for this client
+	preCpuMap.Store(client, nowCPU)
+	return nil
 }
 
-func CleanupPreCPUMap() {
-	preCPUMap.Range(func(key, value interface{}) bool {
-		preCPUMap.Delete(key)
+func CleanupPreCpuMap() {
+	preCpuMap.Range(func(key, value interface{}) bool {
+		preCpuMap.Delete(key)
 		return true
 	})
 }
