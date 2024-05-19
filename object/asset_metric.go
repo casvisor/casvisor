@@ -62,7 +62,7 @@ func UpdateAssetMetric(asset *Asset) error {
 	}
 
 	LoadAssetStat(asset, stat)
-	_, err = adapter.Engine.ID(core.PK{asset.Owner, asset.Name}).Update(asset)
+	_, err = adapter.Engine.ID(core.PK{asset.Owner, asset.Name}).AllCols().Update(asset)
 	if err != nil {
 		return err
 	}

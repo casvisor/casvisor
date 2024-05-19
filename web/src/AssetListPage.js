@@ -236,7 +236,7 @@ class AssetListPage extends BaseListPage {
         key: "cpuCurrent",
         width: "150px",
         render: (text, record, index) => {
-          if (!record.isActive) {
+          if (!record.isActive || record.cpuCurrent === 0) {
             return "";
           }
           return <Progress steps={20} size={"small"}
@@ -250,7 +250,7 @@ class AssetListPage extends BaseListPage {
         key: "memory",
         width: "150px",
         render: (text, record, index) => {
-          if (!record.isActive) {
+          if (!record.isActive || record.memTotal === 0) {
             return "";
           }
 
@@ -265,7 +265,7 @@ class AssetListPage extends BaseListPage {
         key: "disk",
         width: "150px",
         render: (text, record, index) => {
-          if (!record.isActive) {
+          if (!record.isActive || record.diskTotal === 0) {
             return "";
           }
 
