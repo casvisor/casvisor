@@ -259,7 +259,7 @@ class AssetListPage extends BaseListPage {
         width: "150px",
         render: (text, record, index) => {
           return <Progress steps={20} size={"small"}
-            percent={(record.fsCurrent * 100 / record.fsTotal).toFixed(2)}
+            percent={(record.diskCurrent * 100 / record.diskTotal).toFixed(2)}
           />;
         },
       },

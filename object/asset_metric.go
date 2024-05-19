@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/casvisor/casvisor/util/taskrunner"
+	"github.com/casvisor/casvisor/metric"
 	"github.com/casvisor/casvisor/util/term"
 	"golang.org/x/crypto/ssh"
 	"xorm.io/core"
@@ -37,7 +37,7 @@ func RunUpdateAssetMetrics() {
 		return
 	}
 
-	runner := taskrunner.Runner{}
+	runner := metric.Runner{}
 	for _, asset := range assets {
 		// use a copy of asset to avoid data race
 		a := asset
@@ -51,13 +51,13 @@ func RunUpdateAssetMetrics() {
 func UpdateAssetMetric(asset *Asset) error {
 	client, err := GetSshClient(asset)
 	if err != nil {
-		asset.Active = false
+		asset.IsActive = false
 		return errors.New(fmt.Sprintf("%s: %s", asset.GetId(), err.Error()))
 	}
-	asset.Active = true
+	asset.IsActive = true
 
-	stats := &Stats{}
-	stats, err = GetAllStats(client, stats)
+	stats := &metric.Stats{}
+	stats, err = metric.GetAllStats(client, stats)
 	if err != nil {
 		return err
 	}
@@ -69,24 +69,6 @@ func UpdateAssetMetric(asset *Asset) error {
 	}
 
 	return err
-}
-
-func GetAllStats(client *ssh.Client, stats *Stats) (*Stats, error) {
-	runner := taskrunner.Runner{}
-
-	runner.Add(func() error {
-		return getMemInfo(client, stats)
-	})
-	runner.Add(func() error {
-		return getFSInfo(client, stats)
-	})
-
-	runner.Add(func() error {
-		return getCPU(client, stats)
-	})
-
-	runner.Wait()
-	return stats, nil
 }
 
 func GetSshClient(asset *Asset) (*ssh.Client, error) {
@@ -109,11 +91,11 @@ func GetSshClient(asset *Asset) (*ssh.Client, error) {
 	return client, nil
 }
 
-func LoadAssetState(asset *Asset, stats *Stats) {
+func LoadAssetState(asset *Asset, stats *metric.Stats) {
 	if len(stats.FSInfos) > 0 {
 		fsInfo := stats.FSInfos[0]
-		asset.FsTotal = fsInfo.Used + fsInfo.Free
-		asset.FsCurrent = fsInfo.Used
+		asset.DiskTotal = int64(fsInfo.Used + fsInfo.Free)
+		asset.DiskCurrent = int64(fsInfo.Used)
 	}
 
 	asset.MemTotal = stats.MemTotal
@@ -133,5 +115,5 @@ func CloseSshClients() {
 		return true
 	})
 
-	cleanupPreCPUMap()
+	metric.CleanupPreCPUMap()
 }

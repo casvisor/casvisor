@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package object
+package metric
 
 import (
 	"bufio"
@@ -38,16 +38,16 @@ type Network struct {
 }
 
 type cpuRaw struct {
-	User    uint64 // time spent in user mode
-	Nice    uint64 // time spent in user mode with low priority (nice)
-	System  uint64 // time spent in system mode
-	Idle    uint64 // time spent in the idle task
-	IoWait  uint64 // time spent waiting for I/O to complete (since Linux 2.5.41)
-	Irq     uint64 // time spent servicing  interrupts  (since  2.6.0-test4)
-	SoftIrq uint64 // time spent servicing softirqs (since 2.6.0-test4)
-	Steal   uint64 // time spent in other OSes when running in a virtualized environment
-	Guest   uint64 // time spent running a virtual CPU for guest operating systems under the control of the Linux kernel.
-	Total   uint64 // total of all time fields
+	User    int64 // time spent in user mode
+	Nice    int64 // time spent in user mode with low priority (nice)
+	System  int64 // time spent in system mode
+	Idle    int64 // time spent in the idle task
+	IoWait  int64 // time spent waiting for I/O to complete (since Linux 2.5.41)
+	Irq     int64 // time spent servicing  interrupts  (since  2.6.0-test4)
+	SoftIrq int64 // time spent servicing softirqs (since 2.6.0-test4)
+	Steal   int64 // time spent in other OSes when running in a virtualized environment
+	Guest   int64 // time spent running a virtual CPU for guest operating systems under the control of the Linux kernel.
+	Total   int64 // total of all time fields
 }
 
 type CPUInfo struct {
@@ -71,16 +71,34 @@ type Stats struct {
 	Load10         string             `json:"load10"`
 	RunningProcess string             `json:"runningProcess"`
 	TotalProcess   string             `json:"totalProcess"`
-	MemTotal       uint64             `json:"memTotal"`
-	MemFree        uint64             `json:"memFree"`
-	MemBuffers     uint64             `json:"memBuffers"`
-	MemAvailable   uint64             `json:"memAvailable"`
-	MemCached      uint64             `json:"memCached"`
-	SwapTotal      uint64             `json:"swapTotal"`
-	SwapFree       uint64             `json:"swapFree"`
+	MemTotal       int64              `json:"memTotal"`
+	MemFree        int64              `json:"memFree"`
+	MemBuffers     int64              `json:"memBuffers"`
+	MemAvailable   int64              `json:"memAvailable"`
+	MemCached      int64              `json:"memCached"`
+	SwapTotal      int64              `json:"swapTotal"`
+	SwapFree       int64              `json:"swapFree"`
 	FSInfos        []FSInfo           `json:"fsInfos"`
 	Network        map[string]Network `json:"network"`
 	CPU            CPUInfo            `json:"cpu"`
+}
+
+func GetAllStats(client *ssh.Client, stats *Stats) (*Stats, error) {
+	runner := Runner{}
+
+	runner.Add(func() error {
+		return getMemInfo(client, stats)
+	})
+	runner.Add(func() error {
+		return getFSInfo(client, stats)
+	})
+
+	runner.Add(func() error {
+		return getCPU(client, stats)
+	})
+
+	runner.Wait()
+	return stats, nil
 }
 
 func getMemInfo(client *ssh.Client, stats *Stats) (err error) {
@@ -94,7 +112,7 @@ func getMemInfo(client *ssh.Client, stats *Stats) (err error) {
 		line := scanner.Text()
 		parts := strings.Fields(line)
 		if len(parts) == 3 {
-			val, err := strconv.ParseUint(parts[1], 10, 64)
+			val, err := strconv.ParseInt(parts[1], 10, 64)
 			if err != nil {
 				continue
 			}
@@ -159,7 +177,7 @@ func getFSInfo(client *ssh.Client, stats *Stats) (err error) {
 func parseCPUFields(fields []string, stat *cpuRaw) {
 	numFields := len(fields)
 	for i := 1; i < numFields; i++ {
-		val, err := strconv.ParseUint(fields[i], 10, 64)
+		val, err := strconv.ParseInt(fields[i], 10, 64)
 		if err != nil {
 			continue
 		}
@@ -245,7 +263,7 @@ END:
 	return
 }
 
-func cleanupPreCPUMap() {
+func CleanupPreCPUMap() {
 	preCPUMap.Range(func(key, value interface{}) bool {
 		preCPUMap.Delete(key)
 		return true

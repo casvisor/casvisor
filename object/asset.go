@@ -77,11 +77,11 @@ type Asset struct {
 	Services        []*Service   `json:"services"`
 	GatewayPort     int          `json:"gatewayPort"`
 	EnableSsh       bool         `json:"enableSsh"`
-	Active          bool         `json:"active"`
-	FsCurrent       uint64       `json:"fsCurrent"`
-	FsTotal         uint64       `json:"fsTotal"`
-	MemCurrent      uint64       `json:"memCurrent"`
-	MemTotal        uint64       `json:"memTotal"`
+	IsActive        bool         `json:"isActive"`
+	DiskCurrent     int64        `json:"diskCurrent"`
+	DiskTotal       int64        `json:"diskTotal"`
+	MemCurrent      int64        `json:"memCurrent"`
+	MemTotal        int64        `json:"memTotal"`
 	CpuCurrent      float32      `json:"cpuCurrent"`
 	CpuTotal        int          `json:"cpuTotal"`
 	Id              string       `xorm:"varchar(100)" json:"id"`
