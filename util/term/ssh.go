@@ -15,6 +15,7 @@
 package term
 
 import (
+	"bytes"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -25,11 +26,29 @@ func NewSshClient(addr, username, password string) (*ssh.Client, error) {
 	authMethod = ssh.Password(password)
 
 	config := &ssh.ClientConfig{
-		Timeout:         3 * time.Second,
+		Timeout:         5 * time.Second,
 		User:            username,
 		Auth:            []ssh.AuthMethod{authMethod},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
 	return ssh.Dial("tcp", addr, config)
+}
+
+func RunCommand(client *ssh.Client, command string) (stdout string, err error) {
+	session, err := client.NewSession()
+	if err != nil {
+		return
+	}
+	defer session.Close()
+
+	var buf bytes.Buffer
+	session.Stdout = &buf
+	err = session.Run(command)
+	if err != nil {
+		return
+	}
+	stdout = string(buf.Bytes())
+
+	return
 }
