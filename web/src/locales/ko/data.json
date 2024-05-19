@@ -15,14 +15,14 @@
     "Edit Asset": "Edit Asset",
     "Enable SSH": "Enable SSH",
     "Enable SSH - Tooltip": "Enable SSH - Tooltip",
+    "Files": "Files",
     "Gatewat port": "Gatewat port",
     "Gatewat port - Tooltip": "Gatewat port - Tooltip",
     "Memory": "Memory",
     "New Asset": "New Asset",
     "OS": "OS",
     "OS - Tooltip": "OS - Tooltip",
-    "Please select a asset": "Please select a asset",
-    "file": "file"
+    "Please select a asset": "Please select a asset"
   },
   "command": {
     "Edit Command": "Edit Command",

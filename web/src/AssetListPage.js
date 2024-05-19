@@ -236,6 +236,9 @@ class AssetListPage extends BaseListPage {
         key: "cpuCurrent",
         width: "150px",
         render: (text, record, index) => {
+          if (!record.isActive) {
+            return "";
+          }
           return <Progress steps={20} size={"small"}
             percent={(text).toFixed(2)}
           />;
@@ -247,6 +250,10 @@ class AssetListPage extends BaseListPage {
         key: "memory",
         width: "150px",
         render: (text, record, index) => {
+          if (!record.isActive) {
+            return "";
+          }
+
           return <Progress steps={20} size={"small"}
             percent={(record.memCurrent * 100 / record.memTotal).toFixed(2)}
           />;
@@ -258,6 +265,10 @@ class AssetListPage extends BaseListPage {
         key: "disk",
         width: "150px",
         render: (text, record, index) => {
+          if (!record.isActive) {
+            return "";
+          }
+
           return <Progress steps={20} size={"small"}
             percent={(record.diskCurrent * 100 / record.diskTotal).toFixed(2)}
           />;
@@ -297,7 +308,7 @@ class AssetListPage extends BaseListPage {
                   Setting.goToLink(link);
                 }}
               >
-                {i18next.t("asset:file")}
+                {i18next.t("asset:Files")}
               </Button>
               <Button
                 disabled={!Setting.isAdminUser(this.props.account) && (record.owner !== this.props.account.owner)}
