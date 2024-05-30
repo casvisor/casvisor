@@ -169,6 +169,26 @@ class AssetEditPage extends React.Component {
     return asset;
   }
 
+  downLoadRDPFile(asset) {
+    const rdpContent = `
+      full address:s:${asset.endpoint}
+      username:s:${asset.username}
+      prompt for credentials:i:1
+        `;
+
+    const blob = new Blob([rdpContent], {type: "application/x-rdp"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${asset.name}.rdp`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  }
+
   renderAsset() {
     const {asset} = this.state;
 
@@ -178,7 +198,12 @@ class AssetEditPage extends React.Component {
           {this.state.mode === "add" ? i18next.t("asset:New Asset") : i18next.t("asset:Edit Asset")}&nbsp;&nbsp;&nbsp;&nbsp;
           <Button onClick={() => this.submitAssetEdit(false)}>{i18next.t("general:Save")}</Button>
           <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.submitAssetEdit(true)}>{i18next.t("general:Save & Exit")}</Button>
-          {this.state.mode === "add" ? <Button style={{marginLeft: "20px"}} onClick={() => this.deleteAsset()}>{i18next.t("general:Cancel")}</Button> : null}
+          {asset.type === "RDP" ?
+            <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.downLoadRDPFile(asset)}>
+              {i18next.t("asset:Download RDP file")}
+            </Button>
+            : null}
+          {this.state.mode === "add" ? <Button style={{marginLeft: "20px"}} onClick={() => this.deleteAsset(asset)}>{i18next.t("general:Cancel")}</Button> : null}
         </div>
       } style={{marginLeft: "5px"}} type="inner">
         <Row style={{marginTop: "10px"}} >
@@ -289,7 +314,7 @@ class AssetEditPage extends React.Component {
           <Col span={22} >
             <Input
               value={asset.port}
-              defaultValue={this.getDefaultPort(asset.protocol)}
+              defaultValue={this.getDefaultPort(asset.type)}
               onChange={e => {
                 this.updateAssetField("port", e.target.value);
               }}
