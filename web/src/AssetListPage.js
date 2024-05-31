@@ -120,6 +120,21 @@ class AssetListPage extends BaseListPage {
       });
   }
 
+  addRdpAsset(newAsset) {
+    AssetBackend.addAsset(newAsset)
+      .then((res) => {
+        if (res.status === "ok") {
+          this.props.history.push({pathname: `/assets/${newAsset.owner}/${newAsset.name}`, mode: "add"});
+          Setting.showMessage("success", "Asset added successfully");
+        } else {
+          Setting.showMessage("error", `Failed to add Asset: ${res.msg}`);
+        }
+      })
+      .catch(error => {
+        Setting.showMessage("error", `Asset failed to add: ${error}`);
+      });
+  }
+
   deleteAsset(i) {
     AssetBackend.deleteAsset(this.state.data[i])
       .then((res) => {
@@ -142,21 +157,20 @@ class AssetListPage extends BaseListPage {
   }
 
   parseRdpFile = (content) => {
-    const lines = content.split(/\r?\n/);
-    let ip = "";
-    let username = "";
+    const ipMatch = /full address:s:(.*)/.exec(content);
+    const usernameMatch = /username:s:(.*)/.exec(content);
 
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (trimmedLine.startsWith("full address:s:")) {
-        ip = trimmedLine.substring("full address:s:".length);
-      }
-      if (trimmedLine.startsWith("username:s:")) {
-        username = trimmedLine.substring("username:s:".length);
-      }
+    const ip = ipMatch ? ipMatch[1].trim() : "";
+    const username = usernameMatch ? usernameMatch[1].trim() : "";
+    if (ip !== "" && username !== "") {
+      const asset = this.newAsset();
+      asset.endpoint = ip;
+      asset.username = username;
+      return asset;
+    } else {
+      Setting.showMessage("error", i18next.t("asset:Invalid RDP file"));
+      return null;
     }
-
-    return {ip, username};
   };
 
   beforeUpload = (file) => {
@@ -165,12 +179,11 @@ class AssetListPage extends BaseListPage {
       reader.onload = (e) => {
         const contents = e.target.result;
         const fileName = file.name.replace(/\.rdp$/i, "");
-        const {ip, username} = this.parseRdpFile(contents);
-        if (ip !== "" && username !== "") {
-          const newAsset = this.newAsset(ip, username, fileName, fileName);
-          this.addAsset(newAsset) ;
-        } else {
-          Setting.showMessage("error", i18next.t("asset:Invalid RDP file"));
+        const asset = this.parseRdpFile(contents);
+        if (asset !== null) {
+          asset.name = fileName;
+          asset.displayName = fileName;
+          this.addRdpAsset(asset);
         }
         this.handleFileRemove(file);
         resolve();
@@ -193,7 +206,7 @@ class AssetListPage extends BaseListPage {
     return (
       <Upload {...props} ref={(ref) => (this.uploadComponentRef = ref)}>
         <Button id="upload-button" type="primary" size="small">
-          <UploadOutlined /> {i18next.t("asset:Upload (.rdp)")}
+          <UploadOutlined /> {i18next.t("asset:Upload") + "(.rdp)"}
         </Button>
       </Upload>
     );
@@ -402,6 +415,10 @@ class AssetListPage extends BaseListPage {
             <div>
               {i18next.t("general:Assets")}&nbsp;&nbsp;&nbsp;&nbsp;
               <Button type="primary" size="small" disabled={!Setting.isAdminUser(this.props.account)} onClick={this.addAsset.bind(this)}>{i18next.t("general:Add")}</Button>
+              &nbsp;&nbsp;
+              {
+                this.renderUpload()
+              }
             </div>
           )}
           loading={this.state.loading}

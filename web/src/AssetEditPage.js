@@ -169,7 +169,7 @@ class AssetEditPage extends React.Component {
     return asset;
   }
 
-  downLoadRDPFile(asset) {
+  downLoadRdpFile(asset) {
     const rdpContent = `
       full address:s:${asset.endpoint}
       username:s:${asset.username}
@@ -198,12 +198,12 @@ class AssetEditPage extends React.Component {
           {this.state.mode === "add" ? i18next.t("asset:New Asset") : i18next.t("asset:Edit Asset")}&nbsp;&nbsp;&nbsp;&nbsp;
           <Button onClick={() => this.submitAssetEdit(false)}>{i18next.t("general:Save")}</Button>
           <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.submitAssetEdit(true)}>{i18next.t("general:Save & Exit")}</Button>
+          {this.state.mode === "add" ? <Button style={{marginLeft: "20px"}} onClick={() => this.deleteAsset(asset)}>{i18next.t("general:Cancel")}</Button> : null}
           {(asset.type === "RDP" && this.state.mode !== "add") ?
-            <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.downLoadRDPFile(asset)}>
+            <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.downLoadRdpFile(asset)}>
               {i18next.t("asset:Download RDP file")}
             </Button>
             : null}
-          {this.state.mode === "add" ? <Button style={{marginLeft: "20px"}} onClick={() => this.deleteAsset(asset)}>{i18next.t("general:Cancel")}</Button> : null}
         </div>
       } style={{marginLeft: "5px"}} type="inner">
         <Row style={{marginTop: "10px"}} >
