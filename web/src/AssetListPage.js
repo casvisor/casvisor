@@ -83,12 +83,13 @@ class AssetListPage extends BaseListPage {
       });
   };
 
-  newAsset(ip = "127.0.0.1", username = "Administrator") {
+  newAsset(ip = "127.0.0.1", username = "Administrator",
+    name = `machine_${Setting.getRandomName()}`, displayName = `New Machine - ${Setting.getRandomName()}`) {
     return {
       owner: this.props.account.owner,
-      name: `machine_${Setting.getRandomName()}`,
+      name: name,
       createdTime: moment().format(),
-      displayName: `New Machine - ${Setting.getRandomName()}`,
+      displayName: displayName,
       category: "Machine",
       type: "RDP",
       endpoint: ip,
@@ -163,9 +164,10 @@ class AssetListPage extends BaseListPage {
       const reader = new FileReader();
       reader.onload = (e) => {
         const contents = e.target.result;
+        const fileName = file.name.replace(/\.rdp$/i, "");
         const {ip, username} = this.parseRdpFile(contents);
         if (ip !== "" && username !== "") {
-          const newAsset = this.newAsset(ip, username);
+          const newAsset = this.newAsset(ip, username, fileName, fileName);
           this.addAsset(newAsset) ;
         } else {
           Setting.showMessage("error", i18next.t("asset:Invalid RDP file"));
