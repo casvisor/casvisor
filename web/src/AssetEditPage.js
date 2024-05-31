@@ -201,7 +201,7 @@ class AssetEditPage extends React.Component {
           {this.state.mode === "add" ? <Button style={{marginLeft: "20px"}} onClick={() => this.deleteAsset()}>{i18next.t("general:Cancel")}</Button> : null}
           {(asset.type === "RDP" && this.state.mode !== "add") ?
             <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.downLoadRdpFile(asset)}>
-              {i18next.t("asset:Download Rdp file")}
+              {i18next.t("asset:Download RDP file")}
             </Button>
             : null}
         </div>

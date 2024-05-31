@@ -166,9 +166,11 @@ class AssetListPage extends BaseListPage {
       const asset = this.newAsset();
       asset.endpoint = ip;
       asset.username = username;
+      asset.type = "RDP";
+      asset.port = 3389;
       return asset;
     } else {
-      Setting.showMessage("error", i18next.t("asset:Invalid Rdp file"));
+      Setting.showMessage("error", i18next.t("asset:Invalid RDP file"));
       return null;
     }
   };
