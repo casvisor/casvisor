@@ -91,7 +91,7 @@ class AssetListPage extends BaseListPage {
       displayName: `New Machine - ${Setting.getRandomName()}`,
       category: "Machine",
       protocol: "rdp",
-      ip: "127.0.0.1",
+      endpoint: "127.0.0.1",
       port: 3389,
       username: "Administrator",
       password: "123",
