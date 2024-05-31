@@ -83,18 +83,17 @@ class AssetListPage extends BaseListPage {
       });
   };
 
-  newAsset(ip = "127.0.0.1", username = "Administrator",
-    name = `machine_${Setting.getRandomName()}`, displayName = `New Machine - ${Setting.getRandomName()}`) {
+  newAsset() {
     return {
       owner: this.props.account.owner,
-      name: name,
+      name: `machine_${Setting.getRandomName()}`,
       createdTime: moment().format(),
-      displayName: displayName,
+      displayName: `New Machine - ${Setting.getRandomName()}`,
       category: "Machine",
-      type: "RDP",
-      endpoint: ip,
+      protocol: "rdp",
+      ip: "127.0.0.1",
       port: 3389,
-      username: username,
+      username: "Administrator",
       password: "123",
       language: "zh",
       Os: "Windows",
@@ -105,7 +104,8 @@ class AssetListPage extends BaseListPage {
     };
   }
 
-  addAsset(newAsset) {
+  addAsset() {
+    const newAsset = this.newAsset();
     AssetBackend.addAsset(newAsset)
       .then((res) => {
         if (res.status === "ok") {
@@ -401,10 +401,7 @@ class AssetListPage extends BaseListPage {
           title={() => (
             <div>
               {i18next.t("general:Assets")}&nbsp;&nbsp;&nbsp;&nbsp;
-              <Button type="primary" size="small" disabled={!Setting.isAdminUser(this.props.account)} onClick={() => this.addAsset(this.newAsset())}>{i18next.t("general:Add")}</Button>&nbsp;&nbsp;&nbsp;
-              {
-                this.renderUpload()
-              }
+              <Button type="primary" size="small" disabled={!Setting.isAdminUser(this.props.account)} onClick={this.addAsset.bind(this)}>{i18next.t("general:Add")}</Button>
             </div>
           )}
           loading={this.state.loading}

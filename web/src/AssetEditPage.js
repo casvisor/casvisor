@@ -314,7 +314,7 @@ class AssetEditPage extends React.Component {
           <Col span={22} >
             <Input
               value={asset.port}
-              defaultValue={this.getDefaultPort(asset.type)}
+              defaultValue={this.getDefaultPort(asset.protocol)}
               onChange={e => {
                 this.updateAssetField("port", e.target.value);
               }}
