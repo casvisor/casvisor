@@ -198,7 +198,7 @@ class AssetEditPage extends React.Component {
           {this.state.mode === "add" ? i18next.t("asset:New Asset") : i18next.t("asset:Edit Asset")}&nbsp;&nbsp;&nbsp;&nbsp;
           <Button onClick={() => this.submitAssetEdit(false)}>{i18next.t("general:Save")}</Button>
           <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.submitAssetEdit(true)}>{i18next.t("general:Save & Exit")}</Button>
-          {this.state.mode === "add" ? <Button style={{marginLeft: "20px"}} onClick={() => this.deleteAsset(asset)}>{i18next.t("general:Cancel")}</Button> : null}
+          {this.state.mode === "add" ? <Button style={{marginLeft: "20px"}} onClick={() => this.deleteAsset()}>{i18next.t("general:Cancel")}</Button> : null}
           {(asset.type === "RDP" && this.state.mode !== "add") ?
             <Button style={{marginLeft: "20px"}} type="primary" onClick={() => this.downLoadRdpFile(asset)}>
               {i18next.t("asset:Download Rdp file")}
