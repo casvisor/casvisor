@@ -168,7 +168,7 @@ class AssetListPage extends BaseListPage {
       asset.username = username;
       return asset;
     } else {
-      Setting.showMessage("error", i18next.t("asset:Invalid RDP file"));
+      Setting.showMessage("error", i18next.t("asset:Invalid Rdp file"));
       return null;
     }
   };
