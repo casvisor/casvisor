@@ -23,8 +23,8 @@ import i18next from "i18next";
 import PopconfirmModal from "./common/modal/PopconfirmModal";
 import {UploadOutlined} from "@ant-design/icons";
 
-const AssetStatusRunning = "running";
-const AssetStatusStopped = "stopped";
+const AssetStatusRunning = "Running";
+const AssetStatusStopped = "Stopped";
 
 class AssetListPage extends BaseListPage {
   constructor(props) {
