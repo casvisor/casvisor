@@ -30,8 +30,8 @@ var (
 )
 
 const (
-	AssetStatusRunning = "running"
-	AssetStatusStopped = "stopped"
+	AssetStatusRunning = "Running"
+	AssetStatusStopped = "Stopped"
 )
 
 func init() {
