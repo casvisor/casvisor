@@ -61,3 +61,10 @@ export function checkDbgate() {
     credentials: "include",
   }).then(res => res.json());
 }
+
+export function checkAssetStatus() {
+  return fetch(`${Setting.ServerUrl}/api/check-asset-status`, {
+    method: "GET",
+    credentials: "include",
+  }).then(res => res.json());
+}

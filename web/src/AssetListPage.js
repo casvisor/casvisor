@@ -31,22 +31,29 @@ class AssetListPage extends BaseListPage {
     super(props);
     this.state = {
       ...this.state,
-      intervalId: null,
+      assetMetricsTimer: null,
+      assetStatusChecker: null,
     };
   }
 
   componentDidMount() {
-    const id = setInterval(() => {
+    const assetMetricsTimer = setInterval(() => {
       this.fetch({pagination: this.state.pagination, searchedColumn: this.state.searchedColumn, searchText: this.state.searchText, sortField: this.state.sortField, sortOrder: this.state.sortOrder}, true);
     }, 1000);
 
-    this.setState({intervalId: id});
+    const assetStatusChecker = setInterval(() => {
+      AssetBackend.checkAssetStatus();
+    }, 5000);
+
+    this.setState({
+      assetMetricsTimer: assetMetricsTimer,
+      assetStatusChecker: assetStatusChecker,
+    });
   }
 
   componentWillUnmount() {
-    if (this.state.intervalId !== null) {
-      clearInterval(this.state.intervalId);
-    }
+    clearInterval(this.state.assetMetricsTimer);
+    clearInterval(this.state.assetStatusChecker);
   }
 
   fetchAssets = (params = {}) => {
@@ -313,7 +320,7 @@ class AssetListPage extends BaseListPage {
         key: "status",
         width: "100px",
         render: (text, record, index) => {
-          if (record.category !== "Machine" || (record.type === "RDP" && !record.enableSsh)) {
+          if (record.category !== "Machine") {
             return "";
           }
           return <Tag color={text === AssetStatusRunning ? "green" : "red"}>{text}</Tag>;
@@ -374,7 +381,7 @@ class AssetListPage extends BaseListPage {
           return (
             <div>
               <Button
-                disabled={!Setting.isAdminUser(this.props.account) && (record.owner !== this.props.account.owner)}
+                disabled={!Setting.isAdminUser(this.props.account) && (record.owner !== this.props.account.owner) || record.status === AssetStatusStopped}
                 style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}
                 type="primary"
                 onClick={() => {
@@ -389,17 +396,20 @@ class AssetListPage extends BaseListPage {
               >
                 {i18next.t("general:Connect")}
               </Button>
-              <Button
-                disabled={record.category !== "Machine" || record.status === AssetStatusStopped}
-                style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}
-                type="primary"
-                onClick={() => {
-                  const link = `/assets/${record.owner}/${record.name}/view`;
-                  Setting.goToLink(link);
-                }}
-              >
-                {i18next.t("asset:Files")}
-              </Button>
+              {
+                record.category === "Machine" &&
+                <Button
+                  disabled={record.sshStatus !== AssetStatusRunning}
+                  style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}
+                  type="primary"
+                  onClick={() => {
+                    const link = `/assets/${record.owner}/${record.name}/view`;
+                    Setting.goToLink(link);
+                  }}
+                >
+                  {i18next.t("asset:Files")}
+                </Button>
+              }
               <Button
                 disabled={!Setting.isAdminUser(this.props.account) && (record.owner !== this.props.account.owner)}
                 style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}
