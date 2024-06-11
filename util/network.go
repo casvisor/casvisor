@@ -15,10 +15,7 @@
 package util
 
 import (
-	"fmt"
-	"net"
 	"os"
-	"time"
 )
 
 var hostname = ""
@@ -34,13 +31,4 @@ func init() {
 
 func GetHostname() string {
 	return hostname
-}
-
-func IsPortOpen(host string, port int) bool {
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, port), 5*time.Second)
-	if err != nil {
-		return false
-	}
-	defer conn.Close()
-	return true
 }

@@ -16,8 +16,10 @@ package object
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func getUrlFromPath(path string, origin string) (string, error) {
@@ -34,4 +36,13 @@ func getUrlFromPath(path string, origin string) (string, error) {
 	res = fmt.Sprintf("storage/%s", res)
 	res, err := url.JoinPath(origin, res)
 	return res, err
+}
+
+func isPortOpen(host string, port int) bool {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, port), 5*time.Second)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	return true
 }
