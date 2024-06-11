@@ -14,9 +14,7 @@
 
 package util
 
-import (
-	"os"
-)
+import "os"
 
 var hostname = ""
 
