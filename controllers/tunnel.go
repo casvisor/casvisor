@@ -66,6 +66,7 @@ func (c *ApiController) AddAssetTunnel() {
 		c.ResponseError("please sign in first")
 		return
 	}
+
 	session := &object.Session{
 		Creator:       user.Name,
 		ClientIp:      c.getClientIp(),
