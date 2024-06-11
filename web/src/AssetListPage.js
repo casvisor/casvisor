@@ -31,29 +31,22 @@ class AssetListPage extends BaseListPage {
     super(props);
     this.state = {
       ...this.state,
-      assetMetricsTimer: null,
-      assetStatusChecker: null,
     };
   }
 
   componentDidMount() {
-    const assetMetricsTimer = setInterval(() => {
+    this.assetMetricsTimer = setInterval(() => {
       this.fetch({pagination: this.state.pagination, searchedColumn: this.state.searchedColumn, searchText: this.state.searchText, sortField: this.state.sortField, sortOrder: this.state.sortOrder}, true);
     }, 1000);
 
-    const assetStatusChecker = setInterval(() => {
-      AssetBackend.checkAssetStatus();
+    this.assetStatusTimer = setInterval(() => {
+      AssetBackend.RefreshAssetStatus();
     }, 5000);
-
-    this.setState({
-      assetMetricsTimer: assetMetricsTimer,
-      assetStatusChecker: assetStatusChecker,
-    });
   }
 
   componentWillUnmount() {
-    clearInterval(this.state.assetMetricsTimer);
-    clearInterval(this.state.assetStatusChecker);
+    clearInterval(this.assetMetricsTimer);
+    clearInterval(this.assetStatusTimer);
   }
 
   fetchAssets = (params = {}) => {

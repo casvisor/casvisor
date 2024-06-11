@@ -16,8 +16,8 @@ package controllers
 
 import "github.com/casvisor/casvisor/object"
 
-func (c *ApiController) CheckAssetStatus() {
-	err := object.RunCheckAssetStatus()
+func (c *ApiController) RefreshAssetStatus() {
+	err := object.RunRefreshAssetStatus()
 	if err != nil {
 		c.ResponseError(err.Error())
 	}

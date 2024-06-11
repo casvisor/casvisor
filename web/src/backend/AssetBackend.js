@@ -62,9 +62,9 @@ export function checkDbgate() {
   }).then(res => res.json());
 }
 
-export function checkAssetStatus() {
-  return fetch(`${Setting.ServerUrl}/api/check-asset-status`, {
-    method: "GET",
+export function RefreshAssetStatus() {
+  return fetch(`${Setting.ServerUrl}/api/refresh-asset-status`, {
+    method: "POST",
     credentials: "include",
   }).then(res => res.json());
 }
