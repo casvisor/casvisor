@@ -192,6 +192,27 @@ func (c *ApiController) GetAssetTunnel() {
 	for {
 		_, message, err := ws.ReadMessage()
 		if err != nil {
+			session := util.GlobalSessionManager.Get(sessionId)
+			if session != nil {
+				record, err := object.NewRecord(c.Ctx)
+				record.Action = "end-session"
+				record.Method = "POST"
+				record.RequestUri = "/api/end-session?id=" + sessionId
+				if err != nil {
+					logs.Info("Record message error: %s\n", err.Error())
+					return
+				}
+				userId := c.Ctx.Input.Params()["recordUserId"]
+				if userId != "" {
+					record.Organization, record.User = util.GetOwnerAndNameFromId(userId)
+				}
+				util.SafeGoroutine(func() {
+					_, err = object.AddRecord(record)
+					if err != nil {
+						panic(err)
+					}
+				})
+			}
 			_ = tunnel.Close()
 			err := object.CloseSession(sessionId, Normal, "Normal user exit")
 			if err != nil {
