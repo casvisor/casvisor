@@ -16,6 +16,8 @@ package controllers
 
 import (
 	"encoding/json"
+	"net"
+	"strconv"
 
 	"github.com/beego/beego/utils/pagination"
 	"github.com/casvisor/casvisor/object"
@@ -154,4 +156,37 @@ func (c *ApiController) DeleteAsset() {
 
 	c.Data["json"] = wrapActionResponse(object.DeleteAsset(&asset))
 	c.ServeJSON()
+}
+
+// DetectAssets
+// @Title DetectAssets
+// @Tag Asset API
+// @Description detect assets in LAN automatically
+// @Success 200 {object} controllers.Response The Response object
+// @router /detect-assets [post]
+func (c *ApiController) DetectAssets() {
+	localNetworks, err := getLocalNetworkInfo()
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	var detectedAssets []string
+	for _, localNetwork := range localNetworks {
+		detectedAssets = append(detectedAssets, scanIPsAndPortsInNetwork(localNetwork)...)
+	}
+	for _, detectedAsset := range detectedAssets {
+		IP, port, err := net.SplitHostPort(detectedAsset)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		portInt, _ := strconv.Atoi(port)
+		asset, err := object.CreateAssetByIPAndPort(IP, portInt)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		object.AddAsset(asset)
+	}
+	c.ResponseOk()
 }

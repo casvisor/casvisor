@@ -43,11 +43,18 @@ class AssetListPage extends BaseListPage {
     this.assetStatusTimer = setInterval(() => {
       AssetBackend.RefreshAssetStatus();
     }, 5000);
+
+    this.assetDetectTimer = setInterval(() => {
+      AssetBackend.DetectAssets();
+    }, 30000);
+
+    AssetBackend.DetectAssets();
   }
 
   componentWillUnmount() {
     clearInterval(this.assetMetricsTimer);
     clearInterval(this.assetStatusTimer);
+    clearInterval(this.assetDetectTimer);
   }
 
   newAsset() {

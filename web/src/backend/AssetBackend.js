@@ -68,3 +68,10 @@ export function RefreshAssetStatus() {
     credentials: "include",
   }).then(res => res.json());
 }
+
+export function DetectAssets() {
+  return fetch(`${Setting.ServerUrl}/api/detect-assets`, {
+    method: "POST",
+    credentials: "include",
+  }).then(res => res.json());
+}

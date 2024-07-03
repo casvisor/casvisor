@@ -100,6 +100,38 @@ type Asset struct {
 	IsReadOnly      bool         `json:"isReadOnly"`
 }
 
+func CreateAssetByIPAndPort(IP string, port int) (*Asset, error) {
+	assetCnt, err := GetAssetCount("casbin", "", "")
+	if err != nil {
+		return nil, err
+	}
+	asset := Asset{
+		Owner:       "casbin",
+		Name:        IP + ":" + strconv.Itoa(port),
+		CreatedTime: util.GetCurrentTime(),
+		DisplayName: "New Machine - " + fmt.Sprintf("%d", assetCnt),
+		Category:    "Machine",
+		Language:    "zh",
+		AutoQuery:   false,
+		IsPermanent: true,
+		RemoteApps:  []*RemoteApp{},
+		Services:    []*Service{},
+	}
+	asset.Endpoint = IP
+	asset.Port = port
+	if port == 22 {
+		asset.Type = "SSH"
+		asset.Os = "Linux"
+	} else if port == 3389 {
+		asset.Type = "RDP"
+		asset.Os = "Windows"
+	} else {
+		asset.Type = ""
+		asset.Os = ""
+	}
+	return &asset, nil
+}
+
 func GetAssetCount(owner, field, value string) (int64, error) {
 	session := GetSession(owner, -1, -1, field, value, "", "")
 	return session.Count(&Asset{})

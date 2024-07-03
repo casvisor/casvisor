@@ -82,6 +82,7 @@ p, *, *, GET, /api/get-asset-tunnel, *, *
 p, *, *, POST, /api/add-asset-tunnel, *, *
 p, *, *, POST, /api/start-session, *, *
 p, *, *, POST, /api/refresh-asset-status, *, *
+p, *, *, POST, /api/detect-assets, *, *
 `
 
 		sa := stringadapter.NewAdapter(ruleText)
