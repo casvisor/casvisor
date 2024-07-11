@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/beego/beego v1.12.12
 	github.com/casbin/casbin/v2 v2.82.0
-	github.com/casdoor/casdoor-go-sdk v0.35.1
+	github.com/casdoor/casdoor-go-sdk v0.47.0
 	github.com/casdoor/xorm-adapter/v3 v3.1.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.6.0
@@ -16,7 +16,7 @@ require (
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/ua-parser/uap-go v0.0.0-20240113215029-33f8e6d47f38
 	github.com/yahoo/vssh v0.0.0-20201122023451-bfa903e660fc
-	golang.org/x/crypto v0.21.0
+	golang.org/x/crypto v0.23.0
 	xorm.io/core v0.7.3
 	xorm.io/xorm v1.3.8
 )
@@ -55,8 +55,8 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect

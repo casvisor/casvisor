@@ -17,12 +17,12 @@ package object
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/metric"
 	"github.com/casvisor/casvisor/util/term"
@@ -160,31 +160,17 @@ func newHTTPClient() *http.Client {
 func getMetrics(asset *Asset) (*SystemInfo, error) {
 	url := fmt.Sprintf("http://%s:%s/agent/get-system-info", asset.Endpoint, conf.GetConfigString("httpport"))
 
-	req, err := http.NewRequest("GET", url, nil)
+	casdoorsdk.SetHttpClient(httpClient)
+	res, err := casdoorsdk.DoGetBytes(url)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	req.SetBasicAuth(conf.GetConfigString("clientId"), conf.GetConfigString("clientSecret"))
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
+	var systemInfo *SystemInfo
+	err = json.Unmarshal(res, &systemInfo)
 	if err != nil {
 		return nil, err
 	}
 
-	var systemInfo SystemInfo
-	if err := json.Unmarshal(body, &systemInfo); err != nil {
-		return nil, err
-	}
-
-	return &systemInfo, nil
+	return systemInfo, nil
 }

@@ -23,6 +23,5 @@ func (c *RootController) GetSystemInfo() {
 		return
 	}
 
-	c.Data["json"] = systemInfo
-	c.ServeJSON()
+	c.ResponseOk(systemInfo)
 }
