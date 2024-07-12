@@ -138,6 +138,13 @@ func getAsset(owner string, name string) (*Asset, error) {
 	}
 
 	if existed {
+		vaultClient, err := util.InitVaultClient()
+		if err == nil {
+			asset.Password, err = util.DecryPassword(vaultClient, asset.Password)
+			if err != nil {
+				return nil, err
+			}
+		}
 		return &asset, nil
 	} else {
 		return nil, nil
@@ -204,6 +211,13 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		asset.SshStatus = AssetStatusStopped
 	}
 
+	vaultClient, err := util.InitVaultClient()
+	if err == nil {
+		asset.Password, err = util.EncryPassword(vaultClient, asset.Password)
+		if err != nil {
+			return false, err
+		}
+	}
 	affected, err := adapter.Engine.ID(core.PK{owner, name}).AllCols().Update(asset)
 	if err != nil {
 		return false, err
@@ -221,6 +235,12 @@ func AddAsset(asset *Asset) (bool, error) {
 	if asset.Id == "" {
 		asset.Id = util.GenerateId()
 	}
+
+	vaultClient, err := util.InitVaultClient()
+	if err == nil {
+		asset.Password, _ = util.EncryPassword(vaultClient, asset.Password)
+	}
+
 	affected, err := adapter.Engine.Insert(asset)
 	if err != nil {
 		return false, err
