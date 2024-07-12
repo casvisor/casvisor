@@ -17,9 +17,10 @@ package util
 import (
 	"encoding/base64"
 	"fmt"
+	"regexp"
+
 	"github.com/beego/beego"
 	vault "github.com/hashicorp/vault/api"
-	"regexp"
 )
 
 func InitVaultClient() (*vault.Client, error) {
