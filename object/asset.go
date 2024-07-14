@@ -267,6 +267,68 @@ func AddAsset(asset *Asset) (bool, error) {
 	return affected != 0, nil
 }
 
+func GetDetectedAssets(owner string) ([]*Asset, error) {
+	assets := []*Asset{}
+	err := adapter.Engine.Table("DetectedAsset").Desc("created_time").Find(&assets, &Asset{Owner: owner})
+	if err != nil {
+		return assets, err
+	}
+
+	return assets, nil
+}
+
+func GetDetectedPaginationAssets(owner string, offset, limit int, field, value, sortField, sortOrder string) ([]*Asset, error) {
+	assets := []*Asset{}
+	session := GetSession(owner, offset, limit, field, value, sortField, sortOrder)
+	err := session.Table("DetectedAsset").Find(&assets)
+	if err != nil {
+		return assets, err
+	}
+
+	return assets, nil
+}
+
+func GetDetectedAssetByOwnerAndName(owner, name string) (*Asset, error) {
+	var asset Asset
+	affected, err := adapter.Engine.Table("DetectedAsset").Where("owner = ? AND name = ?", owner, name).Get(&asset)
+	if err != nil {
+		return nil, err
+	}
+	if !affected {
+		return nil, nil
+	}
+	return &asset, nil
+}
+
+func AddDetectedAsset(asset *Asset) (bool, error) {
+	if asset.Id == "" {
+		asset.Id = util.GenerateId()
+	}
+	affected, err := adapter.Engine.Table("DetectedAsset").Insert(asset)
+	if err != nil {
+		return false, err
+	}
+
+	err = AssetHook(asset, nil, "insert")
+	if err != nil {
+		return false, err
+	}
+
+	return affected != 0, nil
+}
+
+func DeleteDetectedAssets() (bool, error) {
+	result, err := adapter.Engine.Exec("DELETE FROM DetectedAsset")
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected != 0, nil
+}
+
 func DeleteAsset(asset *Asset) (bool, error) {
 	affected, err := adapter.Engine.ID(core.PK{asset.Owner, asset.Name}).Delete(&Asset{})
 	if err != nil {
