@@ -36,7 +36,7 @@ func initVaultClient() (*Client, error) {
 	vaultToken := beego.AppConfig.String("vaultToken")
 
 	if vaultEndpoint == "" {
-		return nil, errors.New("vault address is empty")
+		return nil, nil
 	}
 
 	client := &Client{
@@ -203,7 +203,7 @@ func (client *Client) decryptPassword(ciphertext string) (string, error) {
 
 func GetEncryptedPassword(password string) (string, error) {
 	vaultClient, err := initVaultClient()
-	if err != nil {
+	if err != nil || vaultClient == nil {
 		return password, err
 	}
 
@@ -217,7 +217,7 @@ func GetEncryptedPassword(password string) (string, error) {
 
 func GetDecryptedPassword(password string) (string, error) {
 	vaultClient, err := initVaultClient()
-	if err != nil {
+	if err != nil || vaultClient == nil {
 		return password, err
 	}
 

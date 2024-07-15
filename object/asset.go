@@ -140,7 +140,10 @@ func getAsset(owner string, name string) (*Asset, error) {
 	}
 
 	if existed {
-		asset.Password, _ = vault.GetDecryptedPassword(asset.Password)
+		asset.Password, err = vault.GetDecryptedPassword(asset.Password)
+		if err != nil {
+			return nil, err
+		}
 		return &asset, nil
 	} else {
 		return nil, nil
@@ -207,7 +210,10 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		asset.SshStatus = AssetStatusStopped
 	}
 
-	asset.Password, _ = vault.GetEncryptedPassword(asset.Password)
+	asset.Password, err = vault.GetEncryptedPassword(asset.Password)
+	if err != nil {
+		return false, err
+	}
 
 	affected, err := adapter.Engine.ID(core.PK{owner, name}).AllCols().Update(asset)
 	if err != nil {
@@ -227,7 +233,11 @@ func AddAsset(asset *Asset) (bool, error) {
 		asset.Id = util.GenerateId()
 	}
 
-	asset.Password, _ = vault.GetEncryptedPassword(asset.Password)
+	Password, err := vault.GetEncryptedPassword(asset.Password)
+	if err != nil {
+		return false, err
+	}
+	asset.Password = Password
 
 	affected, err := adapter.Engine.Insert(asset)
 	if err != nil {
