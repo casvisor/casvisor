@@ -15,106 +15,60 @@
 package object
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/casvisor/casvisor/patch"
 )
 
-func installPatch(patchItem *Patch) error {
-	output, err := patch.InstallPatch(patchItem.Name)
-	if err != nil {
-		return err
-	}
-	if strings.Contains(output, "Failed") {
-		patchItem.Status = "Failed"
-		patchItem.Message = fmt.Sprintf("update failure: %v", err)
-		return fmt.Errorf("update failure: %v", err)
-	} else {
-		patchItem.Status = "Installed"
-	}
-	return err
-}
-
-func uninstallPatch(patchItem *Patch) error {
-	out, err := patch.UninstallPatch(patchItem.Name)
-	if err != nil {
-		return err
-	}
-	if strings.Contains(out, "Failed") {
-		patchItem.Status = "Failed"
-		patchItem.Message = fmt.Sprintf("uninstall failure: %v", err)
-		return fmt.Errorf("uninstall failure: %v", err)
-	} else {
-		patchItem.Status = "Uninstall"
-	}
-	return nil
-}
-
-func getPatches() ([]*Patch, error) {
-	patchesOutput, err := patch.GetPatches()
-	jsonOutput := strings.ReplaceAll(patchesOutput, "\r\n", "")
-	var patches []*Patch
-	err = json.Unmarshal([]byte(jsonOutput), &patches)
-	if err != nil {
-		return nil, err
-	}
-	var patchesOut []*Patch
-	for _, patchItem := range patches {
-		if patchItem.Name != "" {
-			patchesOut = append(patchesOut, patchItem)
-		}
-	}
-	return patchesOut, nil
-}
-
-func mergeTwoPatch(oldpatch *Patch, newPatch *Patch) (*Patch, error) {
-	mergedpatch := newPatch
-	if mergedpatch.Name == "" {
-		mergedpatch.Name = oldpatch.Name
-	}
-	if mergedpatch.Category == "" {
-		mergedpatch.Category = oldpatch.Category
-	}
-	if mergedpatch.Title == "" {
-		mergedpatch.Title = oldpatch.Title
-	}
-	if mergedpatch.Url == "" {
-		mergedpatch.Url = oldpatch.Url
-	}
-	if mergedpatch.Size == "" {
-		mergedpatch.Size = oldpatch.Size
-	}
-	if mergedpatch.ExpectedStatus == "" {
-		mergedpatch.ExpectedStatus = oldpatch.ExpectedStatus
-	}
-	if mergedpatch.Status == "" {
-		mergedpatch.Status = oldpatch.Status
-	}
-	if mergedpatch.Message == "" {
-		mergedpatch.Message = oldpatch.Message
-	}
-	if mergedpatch.InstallTime == "" {
-		mergedpatch.InstallTime = oldpatch.InstallTime
-	}
-	return mergedpatch, nil
-}
-
-func checkHostname(asset *Asset) (bool, error) {
+func isHostSelf(asset *Asset) (bool, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return false, err
 	}
-	if asset.Name == hostname {
-		return true, nil
+	return asset.Name == hostname, nil
+}
+
+func deepCopyPatches(patchesIn []*Patch) []*patch.Patch {
+	var outputPatch []*patch.Patch
+	for _, patchIn := range patchesIn {
+		patchOut := &patch.Patch{
+			Category:       patchIn.Category,
+			ExpectedStatus: patchIn.ExpectedStatus,
+			InstallTime:    patchIn.InstallTime,
+			Message:        patchIn.Message,
+			Name:           patchIn.Name,
+			Size:           patchIn.Size,
+			Status:         patchIn.Status,
+			Title:          patchIn.Title,
+			Url:            patchIn.Url,
+		}
+		outputPatch = append(outputPatch, patchOut)
 	}
-	return false, nil
+	return outputPatch
+}
+
+func deepCopyPatches2(patchses []*patch.Patch) []*Patch {
+	var outputPatch []*Patch
+	for _, patchIn := range patchses {
+		patchOut := &Patch{
+			Category:       patchIn.Category,
+			ExpectedStatus: patchIn.ExpectedStatus,
+			InstallTime:    patchIn.InstallTime,
+			Message:        patchIn.Message,
+			Name:           patchIn.Name,
+			Size:           patchIn.Size,
+			Status:         patchIn.Status,
+			Title:          patchIn.Title,
+			Url:            patchIn.Url,
+		}
+		outputPatch = append(outputPatch, patchOut)
+	}
+	return outputPatch
 }
 
 func UpdatePatches(asset *Asset) error {
-	ifHostname, err := checkHostname(asset)
+	ifHostname, err := isHostSelf(asset)
 	if err != nil {
 		return err
 	}
@@ -122,25 +76,15 @@ func UpdatePatches(asset *Asset) error {
 		return fmt.Errorf("hostname not match")
 	}
 	patches := asset.Patches
-	for _, patchItem := range patches {
-		if patchItem.ExpectedStatus == "Install" && patchItem.Status == "Uninstall" {
-			err := installPatch(patchItem)
-			if err != nil {
-				return err
-			}
-		}
-		if patchItem.ExpectedStatus == "Uninstall" && patchItem.Status == "Install" {
-			err := uninstallPatch(patchItem)
-			if err != nil {
-				return err
-			}
-		}
+	err = patch.UpdatePatches(deepCopyPatches(patches))
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 func RefreshPatches(asset *Asset) error {
-	ifHostname, err := checkHostname(asset)
+	ifHostname, err := isHostSelf(asset)
 	if err != nil {
 		return err
 	}
@@ -148,31 +92,10 @@ func RefreshPatches(asset *Asset) error {
 		return fmt.Errorf("hostname not match")
 	}
 	patches := asset.Patches
-	newPatches, err := getPatches()
+	outputPatches, err := patch.RefreshPatches(deepCopyPatches(patches))
 	if err != nil {
 		return err
 	}
-	patchMap := make(map[string]*Patch)
-	for _, patchItem := range patches {
-		patchMap[patchItem.Name] = patchItem
-	}
-
-	for _, newPatch := range newPatches {
-		oldpatch, ok := patchMap[newPatch.Name]
-		if ok {
-			mergedpatch, err := mergeTwoPatch(oldpatch, newPatch)
-			if err != nil {
-				return err
-			}
-			patchMap[newPatch.Name] = mergedpatch
-		} else {
-			patchMap[newPatch.Name] = newPatch
-		}
-	}
-	var outputPatches []*Patch
-	for _, patchItem := range patchMap {
-		outputPatches = append(newPatches, patchItem)
-	}
-	asset.Patches = outputPatches
+	asset.Patches = deepCopyPatches2(outputPatches)
 	return nil
 }

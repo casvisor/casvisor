@@ -16,12 +16,25 @@ package patch
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 )
+
+type Patch struct {
+	Name           string `json:"name"`
+	Category       string `json:"category"`
+	Title          string `json:"title"`
+	Url            string `json:"url"`
+	Size           string `json:"size"`
+	ExpectedStatus string `json:"expectedStatus"`
+	Status         string `json:"status"`
+	InstallTime    string `json:"installTime"`
+	Message        string `json:"message"`
+}
 
 func decodePowerShellOutput(input []byte) (string, error) {
 	if utf8Output := string(input); strings.HasPrefix(utf8Output, "\uFEFF") {
@@ -98,35 +111,35 @@ func checkAndInstallModule() error {
 	return nil
 }
 
-func checkIfKBArticle(input string) bool {
+func checkIfKbArticle(input string) bool {
 	re := regexp.MustCompile(`^KB.*\d$`)
 	return re.MatchString(input)
 }
 
-func InstallPatch(Kb string) (string, error) {
-	if checkIfKBArticle(Kb) {
-		err := checkAndInstallModule()
-		if err != nil {
-			return "", err
-		}
-		updateCmd := fmt.Sprintf(`Get-WindowsUpdate -KBArticleID %s -Install -AcceptAll -AutoReboot -ErrorAction Stop`, Kb)
-
-		output, err := executePowerShellCommand(updateCmd)
-		if err != nil {
-			return "", err
-		}
-		return output, nil
+func installPatch(kb string) (string, error) {
+	if !checkIfKbArticle(kb) {
+		return "", fmt.Errorf("not have a valid KB article, please install manually")
 	}
-	return "", fmt.Errorf("not have a valid KB article, please install manually")
+	err := checkAndInstallModule()
+	if err != nil {
+		return "", err
+	}
+	updateCmd := fmt.Sprintf(`Get-WindowsUpdate -KBArticleID %s -Install -AcceptAll -AutoReboot -ErrorAction Stop`, kb)
+
+	output, err := executePowerShellCommand(updateCmd)
+	if err != nil {
+		return "", err
+	}
+	return output, nil
 }
 
-func UninstallPatch(Kb string) (string, error) {
-	if checkIfKBArticle(Kb) {
+func uninstallPatch(kb string) (string, error) {
+	if checkIfKbArticle(kb) {
 		err := checkAndInstallModule()
 		if err != nil {
 			return "", err
 		}
-		stopCmd := fmt.Sprintf(`Import-Module PSWindowsUpdate; Remove-WindowsUpdate -KBArticleID %s`, Kb)
+		stopCmd := fmt.Sprintf(`Import-Module PSWindowsUpdate; Remove-WindowsUpdate -KBArticleID %s`, kb)
 		out, err := executePowerShellCommand(stopCmd)
 		if err != nil {
 			return "", err
@@ -136,10 +149,42 @@ func UninstallPatch(Kb string) (string, error) {
 	return "", fmt.Errorf("not have a valid KB article, please uninstall manually")
 }
 
-func GetPatches() (string, error) {
+func mergeTwoPatches(oldpatch *Patch, newPatch *Patch) (*Patch, error) {
+	mergedpatch := newPatch
+	if mergedpatch.Name == "" {
+		mergedpatch.Name = oldpatch.Name
+	}
+	if mergedpatch.Category == "" {
+		mergedpatch.Category = oldpatch.Category
+	}
+	if mergedpatch.Title == "" {
+		mergedpatch.Title = oldpatch.Title
+	}
+	if mergedpatch.Url == "" {
+		mergedpatch.Url = oldpatch.Url
+	}
+	if mergedpatch.Size == "" {
+		mergedpatch.Size = oldpatch.Size
+	}
+	if mergedpatch.ExpectedStatus == "" {
+		mergedpatch.ExpectedStatus = oldpatch.ExpectedStatus
+	}
+	if mergedpatch.Status == "" {
+		mergedpatch.Status = oldpatch.Status
+	}
+	if mergedpatch.Message == "" {
+		mergedpatch.Message = oldpatch.Message
+	}
+	if mergedpatch.InstallTime == "" {
+		mergedpatch.InstallTime = oldpatch.InstallTime
+	}
+	return mergedpatch, nil
+}
+
+func getPatches() ([]*Patch, error) {
 	err := checkAndInstallModule()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	PatchesInfoCmd := `
 	# Get—Installed patches
@@ -188,9 +233,21 @@ func GetPatches() (string, error) {
 	jsonEnd := strings.LastIndex(patchOutput, "]")
 
 	if jsonStart == -1 || jsonEnd == -1 || jsonStart > jsonEnd {
-		return "", fmt.Errorf("no JSON array found in the input")
+		return nil, fmt.Errorf("no JSON array found in the input")
 	}
 
-	jsonPart := patchOutput[jsonStart : jsonEnd+1]
-	return jsonPart, nil
+	patchesOutput := patchOutput[jsonStart : jsonEnd+1]
+	jsonOutput := strings.ReplaceAll(patchesOutput, "\r\n", "")
+	var newPatch []*Patch
+	err = json.Unmarshal([]byte(jsonOutput), &newPatch)
+	if err != nil {
+		return nil, err
+	}
+	var patchesOut []*Patch
+	for _, patchItem := range newPatch {
+		if patchItem.Name != "" {
+			patchesOut = append(patchesOut, patchItem)
+		}
+	}
+	return patchesOut, nil
 }
