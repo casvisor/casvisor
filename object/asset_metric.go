@@ -16,7 +16,6 @@ package object
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -161,7 +160,7 @@ func newHTTPClient() *http.Client {
 func getMetrics(asset *Asset) (*SystemInfo, error) {
 	endpoint := asset.Endpoint
 	if endpoint == "" || asset.GatewayPort != 0 {
-		return nil, errors.New("the asset system info is not available")
+		return nil, fmt.Errorf("the asset system info is not available")
 	}
 
 	url := fmt.Sprintf("http://%s:%s/agent/get-system-info", endpoint, conf.GetConfigString("httpport"))
