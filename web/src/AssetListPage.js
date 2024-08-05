@@ -55,7 +55,7 @@ class AssetListPage extends BaseListPage {
       owner: this.props.account.owner,
       name: `machine_${Setting.getRandomName()}`,
       createdTime: moment().format(),
-      displayName: `New Machine - ${this.state.data.length}`,
+      displayName: `New Machine - ${Setting.getRandomName()}`,
       category: "Machine",
       type: "RDP",
       endpoint: "127.0.0.1",
