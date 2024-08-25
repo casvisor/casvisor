@@ -2,20 +2,29 @@ package cloudpods
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/beego/beego"
 )
 
-var apiInstance *Api
+var (
+	apiInstance *Api
+	accessKey   string // Fetched from app configuration
+	secretKey   string // Fetched from app configuration
+)
 
 type Api struct {
 	BaseURL string
 }
 
-// CloudResource requestBody and responseBody
+// CloudResource request and response structure
 type CloudResource struct {
 	ID           string `json:"id,omitempty"`
 	Name         string `json:"name"`
@@ -26,116 +35,119 @@ func init() {
 	initCloudPodsApi()
 }
 
+// Initialize CloudPods API and set the service's BaseURL
 func initCloudPodsApi() {
-	BaseURL := beego.AppConfig.String("cloudpodsEndpoint")
 	apiInstance = &Api{
-		BaseURL: BaseURL,
+		BaseURL: beego.AppConfig.String("cloudpodsEndpoint") + "/api/s/identity/v3", // Replace with actual endpoint
 	}
+	accessKey = beego.AppConfig.String("cloudpodsAccessKey")
+	secretKey = beego.AppConfig.String("cloudpodsSecretKey")
 }
 
-func CreateResource(resource CloudResource) (*CloudResource, error) {
-	url := fmt.Sprintf("%s/v1/resources", apiInstance.BaseURL)
-	jsonData, err := json.Marshal(resource)
+// Generate signature
+func signString(secret, stringToSign string) string {
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte(stringToSign))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// General API call function
+func callAPI(method, url string, body []byte) ([]byte, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	// Add authentication information
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+	stringToSign := method + "\n" + url + "\n" + timestamp
+	signature := signString(secretKey, stringToSign)
+
+	req.Header.Set("X-Auth-Timestamp", timestamp)
+	req.Header.Set("X-Auth-Key", accessKey)
+	req.Header.Set("X-Auth-Signature", signature)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	var createdResource CloudResource
-	if err := json.NewDecoder(resp.Body).Decode(&createdResource); err != nil {
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 
-	return &createdResource, nil
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("API call failed with status code %d: %s", resp.StatusCode, string(responseBody))
+	}
+
+	return responseBody, nil
+}
+
+// Create, Update, and Delete Cloud Resource
+func CreateResource(resource CloudResource) (*CloudResource, error) {
+	return modifyResource(http.MethodPost, resource)
+}
+
+func UpdateResource(resource CloudResource) (*CloudResource, error) {
+	resource.ID = fmt.Sprintf("%s", resource.ID) // Ensure ID is set
+	return modifyResource(http.MethodPut, resource)
+}
+
+func modifyResource(method string, resource CloudResource) (*CloudResource, error) {
+	url := fmt.Sprintf("%s/v1/resources%s%s", apiInstance.BaseURL, func() string {
+		if method == http.MethodPut {
+			return "/" + resource.ID
+		}
+		return ""
+	}(), "")
+
+	jsonData, err := json.Marshal(resource)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := callAPI(method, url, jsonData)
+	if err != nil {
+		return nil, err
+	}
+
+	var modifiedResource CloudResource
+	if err := json.Unmarshal(responseBody, &modifiedResource); err != nil {
+		return nil, err
+	}
+
+	return &modifiedResource, nil
 }
 
 func DeleteResource(resourceID string) error {
 	url := fmt.Sprintf("%s/v1/resources/%s", apiInstance.BaseURL, resourceID)
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
-	if err != nil {
-		return err
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("failed to delete resource, status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	_, err := callAPI(http.MethodDelete, url, nil)
+	return err
 }
 
-func UpdateResource(resource CloudResource) (*CloudResource, error) {
-	url := fmt.Sprintf("%s/v1/resources/%s", apiInstance.BaseURL, resource.ID)
-	jsonData, err := json.Marshal(resource)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var updatedResource CloudResource
-	if err := json.NewDecoder(resp.Body).Decode(&updatedResource); err != nil {
-		return nil, err
-	}
-
-	return &updatedResource, nil
-}
-
+// Get Cloud Resource
 func GetResource(resourceID string) (*CloudResource, error) {
 	url := fmt.Sprintf("%s/v1/resources/%s", apiInstance.BaseURL, resourceID)
-	resp, err := http.Get(url)
+	responseBody, err := callAPI(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	var resource CloudResource
-	if err := json.NewDecoder(resp.Body).Decode(&resource); err != nil {
+	if err := json.Unmarshal(responseBody, &resource); err != nil {
 		return nil, err
 	}
 
 	return &resource, nil
 }
 
+// Restart Cloud Resource
 func RestartResource(resourceID string) error {
 	url := fmt.Sprintf("%s/v1/resources/%s/restart", apiInstance.BaseURL, resourceID)
-	req, err := http.NewRequest(http.MethodPost, url, nil)
-	if err != nil {
-		return err
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to restart resource, status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	_, err := callAPI(http.MethodPost, url, nil)
+	return err
 }
