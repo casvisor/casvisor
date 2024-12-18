@@ -14,7 +14,11 @@
 
 package service
 
-import "time"
+import (
+	"path/filepath"
+	"strings"
+	"time"
+)
 
 func getLocalTimestamp(input string) string {
 	if input == "" {
@@ -29,4 +33,16 @@ func getLocalTimestamp(input string) string {
 
 	res := utcTime.Local().Format(time.RFC3339)
 	return res
+}
+
+func ExtractFileName(path string) string {
+	baseName := filepath.Base(path)
+
+	if baseName == "" {
+		lastSlashIndex := strings.LastIndex(path, "\\")
+		if lastSlashIndex != -1 {
+			baseName = path[lastSlashIndex+1:]
+		}
+	}
+	return baseName
 }

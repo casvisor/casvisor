@@ -21,11 +21,16 @@ type MachineClientInterface interface {
 	GetMachine(name string) (*Machine, error)
 }
 
-func NewMachineClient(providerType string, accessKeyId string, accessKeySecret string, region string) (*MachineAliyunClient, error) {
+func NewMachineClient(providerType string, accessKeyId string, accessKeySecret string, region string) (*MachineClientInterface, error) {
+	var client MachineClientInterface
+	var err error
 	switch providerType {
 	case "Aliyun":
-		client, err := NewMachineAliyunClient(accessKeyId, accessKeySecret, region)
-		return client, err
+		client, err = NewMachineAliyunClient(accessKeyId, accessKeySecret, region)
+		return &client, err
+	case "VMware":
+		client, err = NewMachineVMwareClient(accessKeyId, accessKeySecret, region)
+		return &client, err
 	}
 
 	return nil, fmt.Errorf("unsupported provider type: %s", providerType)
