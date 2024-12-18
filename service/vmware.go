@@ -45,9 +45,10 @@ func NewMachineVMwareClient(accessKeyId string, accessKeySecret string, region s
 	client := MachineVMwareClient{
 		&http.Client{},
 		accessKeyId,
-		accessKeySecret, //Here is the credential for VMware Workstation Pro REST service, in the form of {username}:{password}
+		accessKeySecret,
 		region,
 	}
+	// accessKeySecret is the credential for VMware Workstation Pro REST service, in the form of {username}:{password}
 	return client, nil
 }
 
