@@ -26,7 +26,6 @@ type MachineKvmClient struct {
 }
 
 func (client MachineKvmClient) UpdateMachineState(name string, state string) (bool, string, error) {
-	//TODO implement me
 	panic("implement me")
 }
 
