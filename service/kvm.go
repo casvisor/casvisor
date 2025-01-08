@@ -25,6 +25,11 @@ type MachineKvmClient struct {
 	L *libvirt.Libvirt
 }
 
+func (client MachineKvmClient) UpdateMachineState(name string, state string) (bool, string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 // The URI format is "driver[+transport]://[username @][hostname][:post]/[path][?Extraparameters]", for example "kvm+ssh://root @192.168.1.100/system ".
 // Use TCP connection method here: “kvm+tcp://192.168.1.100/system”.
 func newMachineKvmClient(username string, hostname string) (MachineKvmClient, error) {
