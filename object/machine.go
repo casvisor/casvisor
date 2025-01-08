@@ -17,7 +17,6 @@ package object
 import (
 	"fmt"
 
-	"github.com/casvisor/casvisor/service"
 	"github.com/casvisor/casvisor/util"
 	"xorm.io/core"
 )
@@ -46,32 +45,12 @@ type Machine struct {
 	PrivateIp string `xorm:"varchar(100)" json:"privateIp"`
 	CpuSize   string `xorm:"varchar(100)" json:"cpuSize"`
 	MemSize   string `xorm:"varchar(100)" json:"memSize"`
-}
 
-func getMachineFromService(owner string, provider string, clientMachine *service.Machine) *Machine {
-	return &Machine{
-		Owner:       owner,
-		Name:        clientMachine.Name,
-		Id:          clientMachine.Id,
-		Provider:    provider,
-		CreatedTime: clientMachine.CreatedTime,
-		UpdatedTime: clientMachine.UpdatedTime,
-		ExpireTime:  clientMachine.ExpireTime,
-		DisplayName: clientMachine.DisplayName,
-		Region:      clientMachine.Region,
-		Zone:        clientMachine.Zone,
-		Category:    clientMachine.Category,
-		Type:        clientMachine.Type,
-		Size:        clientMachine.Size,
-		Tag:         clientMachine.Tag,
-		State:       clientMachine.State,
-		Image:       clientMachine.Image,
-		Os:          clientMachine.Os,
-		PublicIp:    clientMachine.PublicIp,
-		PrivateIp:   clientMachine.PrivateIp,
-		CpuSize:     clientMachine.CpuSize,
-		MemSize:     clientMachine.MemSize,
-	}
+	// DB info
+	RemoteProtocol string `xorm:"varchar(100)" json:"remoteProtocol"`
+	RemotePort     int    `json:"remotePort"`
+	RemoteUsername string `xorm:"varchar(100)" json:"remoteUsername"`
+	RemotePassword string `xorm:"varchar(100)" json:"remotePassword"`
 }
 
 func GetMachineCount(owner, field, value string) (int64, error) {
@@ -81,69 +60,40 @@ func GetMachineCount(owner, field, value string) (int64, error) {
 
 func GetMachines(owner string) ([]*Machine, error) {
 	machines := []*Machine{}
-	providers, err := getActiveCloudProviders(owner)
+	err := adapter.engine.Desc("created_time").Find(&machines, &Machine{Owner: owner})
 	if err != nil {
 		return machines, err
 	}
+	return machines, nil
+}
 
-	for _, provider := range providers {
-		client, err2 := service.NewMachineClient(provider.Type, provider.ClientId, provider.ClientSecret, provider.Region)
-		if err2 != nil {
-			return machines, err2
-		}
-
-		clientMachines, err2 := client.GetMachines()
-		if err2 != nil {
-			return machines, err2
-		}
-
-		for _, clientMachine := range clientMachines {
-			machine := getMachineFromService(owner, provider.Name, clientMachine)
-			machines = append(machines, machine)
-		}
+func GetPaginationMachines(owner string, offset, limit int, field, value, sortField, sortOrder string) ([]*Machine, error) {
+	machines := []*Machine{}
+	session := GetSession(owner, offset, limit, field, value, sortField, sortOrder)
+	err := session.Find(&machines)
+	if err != nil {
+		return machines, err
 	}
 
 	return machines, nil
 }
 
-func GetPaginationMachines(owner string, offset, limit int, field, value, sortField, sortOrder string) ([]*Machine, error) {
-	return GetMachines(owner)
-
-	// machines := []*Machine{}
-	// session := GetSession(owner, offset, limit, field, value, sortField, sortOrder)
-	// err := session.Find(&machines)
-	// if err != nil {
-	//	return machines, err
-	// }
-	//
-	// return machines, nil
-}
-
 func getMachine(owner string, name string) (*Machine, error) {
-	providers, err := getActiveCloudProviders(owner)
+	if owner == "" || name == "" {
+		return nil, nil
+	}
+
+	machine := Machine{Owner: owner, Name: name}
+	existed, err := adapter.engine.Get(&machine)
 	if err != nil {
-		return nil, err
+		return &machine, err
 	}
 
-	for _, provider := range providers {
-		client, err2 := service.NewMachineClient(provider.Type, provider.ClientId, provider.ClientSecret, provider.Region)
-		if err2 != nil {
-			return nil, err2
-		}
-
-		clientMachine, err2 := client.GetMachine(name)
-		if err2 != nil {
-			return nil, err2
-		}
-		if clientMachine == nil {
-			continue
-		}
-
-		machine := getMachineFromService(owner, provider.Name, clientMachine)
-		return machine, nil
+	if existed {
+		return &machine, nil
+	} else {
+		return nil, nil
 	}
-
-	return nil, nil
 }
 
 func GetMachine(id string) (*Machine, error) {
@@ -160,9 +110,10 @@ func GetMaskedMachine(machine *Machine, errs ...error) (*Machine, error) {
 		return nil, nil
 	}
 
-	// if machine.ClientSecret != "" {
-	//	machine.ClientSecret = "***"
-	// }
+	if machine.RemotePassword != "" {
+		machine.RemotePassword = "***"
+	}
+
 	return machine, nil
 }
 
@@ -184,16 +135,21 @@ func GetMaskedMachines(machines []*Machine, errs ...error) ([]*Machine, error) {
 
 func UpdateMachine(id string, machine *Machine) (bool, error) {
 	owner, name := util.GetOwnerAndNameFromId(id)
-	p, err := getMachine(owner, name)
+	oldMachine, err := getMachine(owner, name)
 	if err != nil {
 		return false, err
-	} else if p == nil {
+	} else if oldMachine == nil {
 		return false, nil
 	}
 
-	// if machine.ClientSecret == "***" {
-	//	machine.ClientSecret = p.ClientSecret
-	// }
+	if machine.RemotePassword == "***" {
+		machine.RemotePassword = oldMachine.RemotePassword
+	}
+
+	_, err = updateMachineCloud(oldMachine, machine)
+	if err != nil {
+		return false, err
+	}
 
 	affected, err := adapter.engine.ID(core.PK{owner, name}).AllCols().Update(machine)
 	if err != nil {
@@ -212,6 +168,15 @@ func AddMachine(machine *Machine) (bool, error) {
 	return affected != 0, nil
 }
 
+func addMachines(machines []*Machine) (bool, error) {
+	affected, err := adapter.engine.Insert(machines)
+	if err != nil {
+		return false, err
+	}
+
+	return affected != 0, nil
+}
+
 func DeleteMachine(machine *Machine) (bool, error) {
 	affected, err := adapter.engine.ID(core.PK{machine.Owner, machine.Name}).Delete(&Machine{})
 	if err != nil {
@@ -221,6 +186,15 @@ func DeleteMachine(machine *Machine) (bool, error) {
 	return affected != 0, nil
 }
 
-func (machine *Machine) getId() string {
+func deleteMachines(owner string) (bool, error) {
+	affected, err := adapter.engine.Delete(&Machine{Owner: owner})
+	if err != nil {
+		return false, err
+	}
+
+	return affected != 0, nil
+}
+
+func (machine *Machine) GetId() string {
 	return fmt.Sprintf("%s/%s", machine.Owner, machine.Name)
 }
