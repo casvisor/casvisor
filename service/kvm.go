@@ -4,9 +4,9 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE/2.0
 //
-// Unless required by applicable law or agreed to in writing, software
+// Unless required by law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
@@ -16,29 +16,34 @@ package service
 
 import (
 	"fmt"
-	"github.com/libvirt/libvirt-go"
+	"github.com/digitalocean/go-libvirt"
+	"net/url"
 )
 
-// KvmUri is its uniform resource identifier, such as "qemu:///system"
 type MachineKvmClient struct {
-	kvmUri string
+	L *libvirt.Libvirt
 }
 
-func newMachineKvmClient(kvmUri string) (MachineKvmClient, error) {
-	client := MachineKvmClient{
-		kvmUri,
+// The URI format is "driver[+transport]://[username @][hostname][:post]/[path][?Extraparameters]", for example "kvm+ssh://root @192.168.1.100/system ".
+// Use TCP connection method here: “kvm+tcp://192.168.1.100/system”.
+func newMachineKvmClient(username string, hostname string) (MachineKvmClient, error) {
+	uri, _ := url.Parse("kvm+tcp://" + hostname + "/system")
+	l, err := libvirt.ConnectToURI(uri)
+	if err != nil {
+		return MachineKvmClient{}, err
 	}
-	return client, nil
+
+	return MachineKvmClient{L: l}, nil
 }
 
-func getMachineFromDom(dom libvirt.Domain) *Machine {
+func getMachineFromDom(l *libvirt.Libvirt, dom libvirt.Domain) *Machine {
 	machine := &Machine{}
 
-	name, _ := dom.GetName()
-	ID, _ := dom.GetID()
-	os, _ := dom.GetOSType()
-	cpuSize, _ := dom.GetMaxVcpus()
-	memSize, _ := dom.GetMaxMemory()
+	name := dom.Name
+	ID := dom.ID
+	os, _ := l.DomainGetOsType(dom)
+	cpuSize, _ := l.DomainGetMaxVcpus(dom)
+	memSize, _ := l.DomainGetMaxMemory(dom)
 
 	machine.Name = name
 	machine.Id = fmt.Sprintf("%d", ID)
@@ -50,20 +55,15 @@ func getMachineFromDom(dom libvirt.Domain) *Machine {
 }
 
 func (client MachineKvmClient) GetMachines() ([]*Machine, error) {
-	conn, err := libvirt.NewConnect(client.kvmUri)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
-	doms, err := conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE)
+	flags := libvirt.ConnectListDomainsActive | libvirt.ConnectListDomainsInactive
+	doms, _, err := client.L.ConnectListAllDomains(1, flags)
 	if err != nil {
 		return nil, err
 	}
 
 	machines := []*Machine{}
 	for _, dom := range doms {
-		machine := getMachineFromDom(dom)
+		machine := getMachineFromDom(client.L, dom)
 		machines = append(machines, machine)
 	}
 
@@ -71,18 +71,12 @@ func (client MachineKvmClient) GetMachines() ([]*Machine, error) {
 }
 
 func (client MachineKvmClient) GetMachine(name string) (*Machine, error) {
-	conn, err := libvirt.NewConnect(client.kvmUri)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
-	dom, err := conn.LookupDomainByName(name)
+	dom, err := client.L.DomainLookupByName(name)
 	if err != nil {
 		return nil, err
 	}
 
-	machine := getMachineFromDom(*dom)
+	machine := getMachineFromDom(client.L, dom)
 
 	return machine, nil
 }
