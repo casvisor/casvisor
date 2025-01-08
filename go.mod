@@ -10,10 +10,10 @@ require (
 	github.com/casbin/casbin/v2 v2.82.0
 	github.com/casdoor/casdoor-go-sdk v0.35.1
 	github.com/casdoor/xorm-adapter/v3 v3.1.0
+	github.com/digitalocean/go-libvirt v0.0.0-20241216201552-9fbdb61a21af
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
-	github.com/libvirt/libvirt-go v7.4.0+incompatible
 	github.com/qiangmzsx/string-adapter/v2 v2.2.0
 	github.com/ua-parser/uap-go v0.0.0-20240113215029-33f8e6d47f38
 	xorm.io/core v0.7.3
