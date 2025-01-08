@@ -16,8 +16,9 @@ package service
 
 import (
 	"fmt"
-	"github.com/digitalocean/go-libvirt"
 	"net/url"
+
+	"github.com/digitalocean/go-libvirt"
 )
 
 type MachineKvmClient struct {
