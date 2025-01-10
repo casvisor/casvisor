@@ -1,8 +1,6 @@
 module github.com/casvisor/casvisor
 
-go 1.21
-
-toolchain go1.23.2
+go 1.20
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
