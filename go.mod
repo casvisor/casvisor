@@ -1,6 +1,6 @@
 module github.com/casvisor/casvisor
 
-go 1.21
+go 1.20
 
 toolchain go1.23.2
 
