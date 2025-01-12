@@ -16,13 +16,12 @@ package service
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/luthermonson/go-proxmox"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"strconv"
-
-	"strings"
 )
 
 type MachinePveClient struct {
