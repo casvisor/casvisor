@@ -15,14 +15,11 @@
 package service
 
 import (
-	"context"
-
-	"errors"
-
 	"fmt"
 
 	"github.com/luthermonson/go-proxmox"
-
+	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 	"strconv"
 
 	"strings"
