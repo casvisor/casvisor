@@ -18,8 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/luthermonson/go-proxmox"
 	"strconv"
+
 	"strings"
 )
 
