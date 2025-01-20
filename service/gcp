@@ -36,6 +36,7 @@ func newMachineGcpClient(hostname string, projectID string, zone string) (Machin
 	if err != nil {
 		return MachineGcpClient{}, err
 	}
+
 	client := computepb.NewInstancesClient(conn)
 	return MachineGcpClient{Client: &client, ProjectID: projectID, Zone: zone}, nil
 }
