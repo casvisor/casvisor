@@ -1,15 +1,13 @@
 module github.com/casvisor/casvisor
 
-go 1.21
-
-toolchain go1.23.3
+go 1.20
 
 require (
 	cloud.google.com/go/compute v1.20.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute v1.0.0
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.51
-	github.com/aws/aws-sdk-go-v2 v1.21.0
+	github.com/aws/aws-sdk-go-v2 v1.20.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.0
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.20.0
 	github.com/beego/beego v1.12.12
