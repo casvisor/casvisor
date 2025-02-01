@@ -16,6 +16,7 @@ package object
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/casvisor/casvisor/util"
 	"xorm.io/core"
@@ -197,4 +198,17 @@ func deleteMachines(owner string) (bool, error) {
 
 func (machine *Machine) GetId() string {
 	return fmt.Sprintf("%s/%s", machine.Owner, machine.Name)
+}
+
+func (m *Machine) IsDefault() bool {
+	if m.PublicIp == "" && m.PrivateIp == "" {
+		if strings.HasPrefix(m.Name, "machine_") &&
+			strings.HasPrefix(m.DisplayName, "New Machine - ") {
+			return m.Provider == "provider_1" &&
+				m.State == "Active" &&
+				m.Tag == "" &&
+				m.ExpireTime == ""
+		}
+	}
+	return false
 }

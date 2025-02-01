@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/beego/beego/utils/pagination"
 	"github.com/casvisor/casvisor/object"
@@ -39,10 +40,26 @@ func (c *ApiController) GetMachines() {
 	sortField := c.Input().Get("sortField")
 	sortOrder := c.Input().Get("sortOrder")
 
-	_, err := object.SyncMachinesCloud(owner)
+	machines, err := object.GetMachines(owner)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
+	}
+
+	hasNonDefaultMachine := false
+	for _, machine := range machines {
+		if !machine.IsDefault() {
+			hasNonDefaultMachine = true
+			break
+		}
+	}
+
+	if hasNonDefaultMachine {
+		_, err := object.SyncMachinesCloud(owner)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
 	}
 
 	if limit == "" || page == "" {
@@ -82,20 +99,52 @@ func (c *ApiController) GetMachines() {
 func (c *ApiController) GetMachine() {
 	id := c.Input().Get("id")
 
-	owner, _ := util.GetOwnerAndNameFromId(id)
-	_, err := object.SyncMachinesCloud(owner)
+	machine, err := object.GetMachine(id)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
 
-	machine, err := object.GetMaskedMachine(object.GetMachine(id))
+	if machine.IsDefault() {
+		maskedMachine, err := object.GetMaskedMachine(machine)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		c.ResponseOk(maskedMachine)
+		return
+	}
+
+	owner, _ := util.GetOwnerAndNameFromId(id)
+	_, err = object.SyncMachinesCloud(owner)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	machine, err = object.GetMaskedMachine(object.GetMachine(id))
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
 
 	c.ResponseOk(machine)
+}
+
+func isDefaultMachine(machine *object.Machine) bool {
+	// 1. 检查关键字段是否为空
+	if machine.PublicIp == "" && machine.PrivateIp == "" {
+		// 2. 检查是否包含默认值前缀
+		if strings.HasPrefix(machine.Name, "machine_") &&
+			strings.HasPrefix(machine.DisplayName, "New Machine - ") {
+			// 3. 检查其他默认字段
+			return machine.Provider == "provider_1" &&
+				machine.State == "Active" &&
+				machine.Tag == "" &&
+				machine.ExpireTime == ""
+		}
+	}
+	return false
 }
 
 // UpdateMachine
