@@ -1,0 +1,6 @@
+.idea/
+*.iml
+.DS_Store
+docs/build
+site/
+temp.*.json
