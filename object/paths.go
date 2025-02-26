@@ -19,13 +19,13 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/casvisor/casvisor/bpmnpath"
 	"github.com/casvisor/casvisor/util"
 	"xorm.io/core"
-	"casvisor-med/bpmnpath"
 )
 
 type Bpmn struct {
-    Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
+	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
 	CreatedTime string `xorm:"varchar(100)" json:"createdTime"`
 	UpdatedTime string `xorm:"varchar(100)" json:"updatedTime"`
@@ -60,43 +60,42 @@ func GetPaginationBpmns(owner string, offset, limit int, field, value, sortField
 }
 
 func GetBpmn(standardContent []byte, unknownContent []byte) (string, error) {
-    // **检查是否为空**
-    if len(standardContent) == 0 || len(unknownContent) == 0 {
-        return "", fmt.Errorf("both standard and unknown BPMN files must be provided")
-    }
+	// **检查是否为空**
+	if len(standardContent) == 0 || len(unknownContent) == 0 {
+		return "", fmt.Errorf("both standard and unknown BPMN files must be provided")
+	}
 
-    // **创建临时文件存储标准 BPMN**
-    standardFile, err := ioutil.TempFile("", "standard_bpmn_*.bpmn")
-    if err != nil {
-        return "", fmt.Errorf("failed to create standard BPMN temp file: %v", err)
-    }
-    defer os.Remove(standardFile.Name()) // **函数执行完毕后删除临时文件**
+	// **创建临时文件存储标准 BPMN**
+	standardFile, err := ioutil.TempFile("", "standard_bpmn_*.bpmn")
+	if err != nil {
+		return "", fmt.Errorf("failed to create standard BPMN temp file: %v", err)
+	}
+	defer os.Remove(standardFile.Name()) // **函数执行完毕后删除临时文件**
 
-    if _, err := standardFile.Write(standardContent); err != nil {
-        standardFile.Close()
-        return "", fmt.Errorf("failed to write standard BPMN content to temp file: %v", err)
-    }
-    standardFile.Close()
+	if _, err := standardFile.Write(standardContent); err != nil {
+		standardFile.Close()
+		return "", fmt.Errorf("failed to write standard BPMN content to temp file: %v", err)
+	}
+	standardFile.Close()
 
-    // **创建临时文件存储未知 BPMN**
-    unknownFile, err := ioutil.TempFile("", "unknown_bpmn_*.bpmn")
-    if err != nil {
-        return "", fmt.Errorf("failed to create unknown BPMN temp file: %v", err)
-    }
-    defer os.Remove(unknownFile.Name()) // **函数执行完毕后删除临时文件**
+	// **创建临时文件存储未知 BPMN**
+	unknownFile, err := ioutil.TempFile("", "unknown_bpmn_*.bpmn")
+	if err != nil {
+		return "", fmt.Errorf("failed to create unknown BPMN temp file: %v", err)
+	}
+	defer os.Remove(unknownFile.Name()) // **函数执行完毕后删除临时文件**
 
-    if _, err := unknownFile.Write(unknownContent); err != nil {
-        unknownFile.Close()
-        return "", fmt.Errorf("failed to write unknown BPMN content to temp file: %v", err)
-    }
-    unknownFile.Close()
+	if _, err := unknownFile.Write(unknownContent); err != nil {
+		unknownFile.Close()
+		return "", fmt.Errorf("failed to write unknown BPMN content to temp file: %v", err)
+	}
+	unknownFile.Close()
 
-    // **调用 ComparePath 进行 BPMN 结构比对**
-    comparisonResult := bpmnpath.ComparePath(standardFile.Name(), unknownFile.Name())
+	// **调用 ComparePath 进行 BPMN 结构比对**
+	comparisonResult := bpmnpath.ComparePath(standardFile.Name(), unknownFile.Name())
 
-    return comparisonResult, nil
+	return comparisonResult, nil
 }
-
 
 // func GetMaskedBpmn(bpmn *Bpmn, errs ...error) (*Bpmn, error) {
 // 	if len(errs) > 0 && errs[0] != nil {
