@@ -16,10 +16,11 @@ package controllers
 
 import (
 	"encoding/json"
+	"io/ioutil"
 
-	"github.com/beego/beego/utils/pagination"
+	//"github.com/beego/beego/utils/pagination"
 	"github.com/casvisor/casvisor/object"
-	"github.com/casvisor/casvisor/util"
+	//"github.com/casvisor/casvisor/util"
 )
 
 // GetBpmns
@@ -31,34 +32,35 @@ import (
 // @Success 200 {object} object.Bpmn The Response object
 // @router /get-bpmns [get]
 func (c *ApiController) GetBpmns() {
-	owner := c.Input().Get("owner")
-	limit := c.Input().Get("pageSize")
-	page := c.Input().Get("p")
-
-	if limit == "" || page == "" {
-		bpmns, err := object.GetMaskedBpmns(object.GetBpmns(owner))
-		if err != nil {
-			c.ResponseError(err.Error())
-			return
-		}
-
-		c.ResponseOk(bpmns)
-	} else {
-		limit := util.ParseInt(limit)
-		count, err := object.GetBpmnCount(owner, field, value)
-		if err != nil {
-			c.ResponseError(err.Error())
-			return
-		}
-
-		paginator := pagination.SetPaginator(c.Ctx, limit, count)
-		bpmns, err := object.GetMaskedBpmns(object.GetPaginationBpmns(owner, paginator.Offset(), limit, field, value, sortField, sortOrder))
-		if err != nil {
-			c.ResponseError(err.Error())
-			return
-		}
-		c.ResponseOk(bpmns, paginator.Nums())
-	}
+	//owner := c.Input().Get("owner")
+	//limit := c.Input().Get("pageSize")
+	//page := c.Input().Get("p")
+	//
+	//if limit == "" || page == "" {
+	//	bpmns, err := object.GetMaskedBpmns(object.GetBpmns(owner))
+	//	if err != nil {
+	//		c.ResponseError(err.Error())
+	//		return
+	//	}
+	//
+	//	c.ResponseOk(bpmns)
+	//} else {
+	//	limit := util.ParseInt(limit)
+	//	count, err := object.GetBpmnCount(owner, field, value)
+	//	if err != nil {
+	//		c.ResponseError(err.Error())
+	//		return
+	//	}
+	//
+	//	paginator := pagination.SetPaginator(c.Ctx, limit, count)
+	//	bpmns, err := object.GetMaskedBpmns(object.GetPaginationBpmns(owner, paginator.Offset(), limit, field, value, sortField, sortOrder))
+	//	if err != nil {
+	//		c.ResponseError(err.Error())
+	//		return
+	//	}
+	//	c.ResponseOk(bpmns, paginator.Nums())
+	//}
+	c.ResponseOk()
 }
 
 // GetBpmn
@@ -70,38 +72,33 @@ func (c *ApiController) GetBpmns() {
 // @Success 200 {object} object.Bpmn The Response object
 // @router /compare-bpmn [post]
 func (c *ApiController) CompareBpmn() {
-    // **获取上传的标准 BPMN 文件**
-    standardFile, _, err := c.Ctx.Request.FormFile("standardBpmn")
-    if err != nil {
-        c.ResponseError("Failed to get standard BPMN file: " + err.Error())
-        return
-    }
-    defer standardFile.Close()
-    standardFileBytes, _ := ioutil.ReadAll(standardFile)
+	// **获取上传的标准 BPMN 文件**
+	standardFile, _, err := c.Ctx.Request.FormFile("standardBpmn")
+	if err != nil {
+		c.ResponseError("Failed to get standard BPMN file: " + err.Error())
+		return
+	}
+	defer standardFile.Close()
+	standardFileBytes, _ := ioutil.ReadAll(standardFile)
 
-    // **获取上传的未知 BPMN 文件**
-    unknownFile, _, err := c.Ctx.Request.FormFile("unknownBpmn")
-    if err != nil {
-        c.ResponseError("Failed to get unknown BPMN file: " + err.Error())
-        return
-    }
-    defer unknownFile.Close()
-    unknownFileBytes, _ := ioutil.ReadAll(unknownFile)
+	// **获取上传的未知 BPMN 文件**
+	unknownFile, _, err := c.Ctx.Request.FormFile("unknownBpmn")
+	if err != nil {
+		c.ResponseError("Failed to get unknown BPMN file: " + err.Error())
+		return
+	}
+	defer unknownFile.Close()
+	unknownFileBytes, _ := ioutil.ReadAll(unknownFile)
 
-    // **调用 GetBpmn 进行比对**
-    bpmn, comparisonResult, err := object.GetBpmn(standardFileBytes, unknownFileBytes)
-    if err != nil {
-        c.ResponseError("Comparison failed: " + err.Error())
-        return
-    }
+	// **调用 GetBpmn 进行比对**
+	bpmn, comparisonResult := object.GetBpmn(standardFileBytes, unknownFileBytes)
 
-    // **返回比对结果**
-    c.ResponseOk(map[string]interface{}{
-        "bpmn":   bpmn,
-        "result": comparisonResult,
-    })
+	// **返回比对结果**
+	c.ResponseOk(map[string]interface{}{
+		"bpmn":   bpmn,
+		"result": comparisonResult,
+	})
 }
-
 
 // UpdateBpmn
 // @Title UpdateBpmn

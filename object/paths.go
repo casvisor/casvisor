@@ -148,7 +148,23 @@ func UpdateBpmn(id string, bpmn *Bpmn) (bool, error) {
 
 	return affected != 0, nil
 }
+func getBpmn(owner string, name string) (*Bpmn, error) {
+	if owner == "" || name == "" {
+		return nil, nil
+	}
 
+	bpmn := Bpmn{Owner: owner, Name: name}
+	existed, err := adapter.engine.Get(&bpmn)
+	if err != nil {
+		return &bpmn, err
+	}
+
+	if existed {
+		return &bpmn, nil
+	} else {
+		return nil, nil
+	}
+}
 func AddBpmn(bpmn *Bpmn) (bool, error) {
 	affected, err := adapter.engine.Insert(bpmn)
 	if err != nil {

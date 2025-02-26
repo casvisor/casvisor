@@ -12,8 +12,8 @@ import (
 
 // 定义 BPMN 的结构体
 type Definitions struct {
-	XMLName   xml.Name   `xml:"definitions"`
-	Processes []Process  `xml:"process"`
+	XMLName   xml.Name  `xml:"definitions"`
+	Processes []Process `xml:"process"`
 }
 
 type Process struct {
@@ -38,11 +38,11 @@ type FlowElement struct {
 }
 
 type SequenceFlow struct {
-	XMLName            xml.Name `xml:"sequenceFlow"`
-	ID                 string   `xml:"id,attr"`
-	SourceRef          string   `xml:"sourceRef,attr"`
-	TargetRef          string   `xml:"targetRef,attr"`
-	ConditionExpression string  `xml:"conditionExpression,omitempty"`
+	XMLName             xml.Name `xml:"sequenceFlow"`
+	ID                  string   `xml:"id,attr"`
+	SourceRef           string   `xml:"sourceRef,attr"`
+	TargetRef           string   `xml:"targetRef,attr"`
+	ConditionExpression string   `xml:"conditionExpression,omitempty"`
 }
 
 type PathNode struct {
@@ -72,27 +72,30 @@ func (pn *PathNode) AddConcurrent(concurrent *PathNode) {
 	pn.Concurrent = append(pn.Concurrent, concurrent)
 }
 
-func PrintPath(node *PathNode, indent string) {
+func PathToString(node *PathNode, indent string) string {
 	if node == nil {
-		return
+		return ""
 	}
 
-	fmt.Printf("%sTask: %s (Name: %s, Delay: %d days, Executed at: %v)\n", indent, node.Task.ID, node.Task.Name, node.Delay, node.ActualExecTime)
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("%sTask: %s (Name: %s, Delay: %d days, Executed at: %v)\n", indent, node.Task.ID, node.Task.Name, node.Delay, node.ActualExecTime))
 
 	indent += "    "
 
-	// 如果有并行任务，先处理并行任务
+	// 处理并行任务
 	if len(node.Concurrent) > 0 {
 		for _, concurrent := range node.Concurrent {
-			fmt.Printf("%sConcurrent Task:\n", indent)
-			PrintPath(concurrent, indent+"    ")
+			sb.WriteString(fmt.Sprintf("%sConcurrent Task:\n", indent))
+			sb.WriteString(PathToString(concurrent, indent+"    "))
 		}
 	}
 
-	// 然后处理顺序任务
+	// 处理顺序任务
 	for _, next := range node.Next {
-		PrintPath(next, indent)
+		sb.WriteString(PathToString(next, indent))
 	}
+	return sb.String()
 }
 
 func ExecutePath(node *PathNode) {
@@ -157,9 +160,9 @@ func ParseBPMN(bpmnFilePath string) (map[string]Task, map[string][]SequenceFlow,
 				sourceRef := flowElement.SourceRef
 				targetRef := flowElement.TargetRef
 				seqFlow := SequenceFlow{
-					ID:                 flowElement.ID,
-					SourceRef:          sourceRef,
-					TargetRef:          targetRef,
+					ID:                  flowElement.ID,
+					SourceRef:           sourceRef,
+					TargetRef:           targetRef,
 					ConditionExpression: flowElement.Name,
 				}
 				sequenceFlows[sourceRef] = append(sequenceFlows[sourceRef], seqFlow)
@@ -279,9 +282,9 @@ func buildPathsHelper(currentTask string, tasks map[string]Task, sequenceFlows m
 	if _, isExclusiveGateway := exclusiveGateways[currentTask]; isExclusiveGateway {
 		//fmt.Printf("Evaluating exclusive gateway for task: %s (Name: %s)\n", task.ID, task.Name)
 		for _, flow := range nextFlows {
-		//	fmt.Printf("Evaluating condition: %s for flow to %s\n", flow.ConditionExpression, flow.TargetRef)
+			//	fmt.Printf("Evaluating condition: %s for flow to %s\n", flow.ConditionExpression, flow.TargetRef)
 			if evaluateCondition(flow.ConditionExpression, variables) {
-		//		fmt.Printf("Condition met, choosing path to %s (Condition: %s)\n", flow.TargetRef, flow.ConditionExpression)
+				//		fmt.Printf("Condition met, choosing path to %s (Condition: %s)\n", flow.TargetRef, flow.ConditionExpression)
 				newVisited := make(map[string]bool) // 每条路径使用全新的 visited
 				newPath := buildPathsHelper(flow.TargetRef, tasks, sequenceFlows, exclusiveGateways, parallelGateways, timerEvents, variables, newVisited)
 				for _, path := range newPath {
@@ -290,7 +293,7 @@ func buildPathsHelper(currentTask string, tasks map[string]Task, sequenceFlows m
 					allPaths = append(allPaths, pathWithStart)
 				}
 			} else {
-		//		fmt.Printf("Condition not met: %s (Condition: %s)\n", flow.TargetRef, flow.ConditionExpression)
+				//		fmt.Printf("Condition not met: %s (Condition: %s)\n", flow.TargetRef, flow.ConditionExpression)
 			}
 		}
 	} else if _, isParallelGateway := parallelGateways[currentTask]; isParallelGateway {
@@ -391,7 +394,7 @@ func ComparePaths(standardPath, actualPath *PathNode, variance *int, mandatoryTa
 			ComparePaths(standardPath.Concurrent[i], actualPath.Concurrent[i], variance, mandatoryTasks)
 		}
 	}
-	
+
 	// 处理实际路径中多余的并行任务
 	if len(actualPath.Concurrent) > len(standardPath.Concurrent) {
 		for _, concurrent := range actualPath.Concurrent[len(standardPath.Concurrent):] {
@@ -426,7 +429,7 @@ func CalculateRates(standardPath *PathNode, actualPaths []*PathNode, mandatoryTa
 
 	for _, actualPath := range actualPaths {
 		if actualPath == nil {
-			continue 
+			continue
 		}
 
 		if IsDischarged(actualPath) {
@@ -446,48 +449,49 @@ func CalculateRates(standardPath *PathNode, actualPaths []*PathNode, mandatoryTa
 }
 
 func ComparePath(standardBpmnFilePath string, unknownBpmnFilePath string) string {
-	tasks, sequenceFlows, exclusiveGateways, parallelGateways, timerEvents, startEvents, err := ParseBPMN(bpmnFilePath)
 	standardTasks, standardSequenceFlows, standardExclusiveGateways, standardParallelGateways, standardTimerEvents, standardStartEvents, err := ParseBPMN(standardBpmnFilePath)
-    if err != nil {
-        return fmt.Sprintf("Error parsing standard BPMN file: %v", err)
-    }
-    // 解析第二个BPMN
-    unknownTasks, unknownSequenceFlows, unknownExclusiveGateways, unknownParallelGateways, unknownTimerEvents, unknownStartEvents, err := ParseBPMN(unknownBpmnFilePath)
-    if err != nil {
-        return fmt.Sprintf("Error parsing clinical BPMN file: %v", err)
-    }
-
-	if len(startEvents) == 0 {
-		fmt.Println("No start events found in the BPMN file.")
-		return
+	if err != nil {
+		return fmt.Sprintf("Error parsing standard BPMN file: %v", err)
 	}
 
-	variables := map[string]float64{
-		"GLU_value":     7.5,
-		"BP_systolic":   120,
-		"HR":            80,
+	// 解析第二个BPMN
+	unknownTasks, unknownSequenceFlows, unknownExclusiveGateways, unknownParallelGateways, unknownTimerEvents, unknownStartEvents, err := ParseBPMN(unknownBpmnFilePath)
+	if err != nil {
+		return fmt.Sprintf("Error parsing clinical BPMN file: %v", err)
+	}
+
+	if len(standardStartEvents) == 0 || len(unknownStartEvents) == 0 {
+		return "No start events found in one of the BPMN files."
 	}
 
 	// 构建标准路径
-    standardPaths := buildPaths(standardStartEvents[0], standardTasks, standardSequenceFlows, standardExclusiveGateways, standardParallelGateways, standardTimerEvents, nil)
-    if len(standardPaths) == 0 {
-        return "No standard paths found."
-    }
-    standardPath := standardPaths[0]
+	standardPaths := buildPaths(standardStartEvents[0], standardTasks, standardSequenceFlows, standardExclusiveGateways, standardParallelGateways, standardTimerEvents, nil)
+	if len(standardPaths) == 0 {
+		return "No standard paths found."
+	}
+	standardPath := standardPaths[0]
 
-    // 构建真实临床路径
-    unknownPaths := buildPaths(unknownStartEvents[0], unknownTasks, unknownSequenceFlows, unknownExclusiveGateways, unknownParallelGateways, unknownTimerEvents, nil)
-    if len(unknownPaths) == 0 {
-        return "No unknown paths found."
-    }
-    unknownPath := unknownPaths[0]
+	// 构建真实临床路径
+	unknownPaths := buildPaths(unknownStartEvents[0], unknownTasks, unknownSequenceFlows, unknownExclusiveGateways, unknownParallelGateways, unknownTimerEvents, nil)
+	if len(unknownPaths) == 0 {
+		return "No unknown paths found."
+	}
+	unknownPath := unknownPaths[0]
 
-    var variance int
-    ComparePaths(standardPath, unknownPath, &variance, make(map[string]bool))
+	var variance int
+	ComparePaths(standardPath, unknownPath, &variance, make(map[string]bool))
 
-    if variance > 0 {
-        return fmt.Sprintf("Path has %d variance(s) compared to the standard path.\n", variance)
-    }
-    return "Paths match exactly!"
+	// 将路径转换为字符串
+	standardPathStr := PathToString(standardPath, "")
+	unknownPathStr := PathToString(unknownPath, "")
 
+	// 组装最终返回的字符串
+	result := fmt.Sprintf("Standard Path:\n%s\n\nUnknown Path:\n%s\n\n", standardPathStr, unknownPathStr)
+
+	if variance > 0 {
+		result += fmt.Sprintf("Path has %d variance(s) compared to the standard path.\n", variance)
+	} else {
+		result += "Paths match exactly!"
+	}
+	return result
 }
