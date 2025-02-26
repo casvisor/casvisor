@@ -2,6 +2,7 @@ import React from "react";
 import {Button, Card, Col, Input, message, Row, Upload} from "antd";
 import * as Setting from "./Setting";
 import i18next from "i18next";
+import moment from "moment";
 import * as PathsCompareBackend from "./backend/PathsCompareBackend";
 
 class PathsComparePage extends React.Component {
@@ -11,10 +12,12 @@ class PathsComparePage extends React.Component {
       standardBpmnFile: null,
       unknownBpmnFile: null,
       compareResult: "",  // 用来保存后端返回的路径对比结果
-      patientInfo: {
-        organization: "",
-        name: "",
-        hospital: "",
+      patient: {  // 新增 patient 字段
+        owner: this.props.account.owner,  // 默认值
+        name: `patient_${Setting.getRandomName()}`,  // 默认值
+        createdTime: moment().format(),  // 默认值
+        updatedTime: moment().format(),  // 默认值
+        displayName: `New Patient - ${Setting.getRandomName()}`,  // 默认值
       },
     };
   }
@@ -45,7 +48,14 @@ class PathsComparePage extends React.Component {
 
   // 提交路径对比请求
   submitPathsCompare = () => {
-    const {standardBpmnFile, unknownBpmnFile} = this.state;
+    const {standardBpmnFile, unknownBpmnFile, patient} = this.state;
+
+    // 检查必填字段
+    if (!patient.owner || !patient.name) {
+      message.error("Owner and Name must be filled!");
+      return;
+    }
+
     if (!standardBpmnFile || !unknownBpmnFile) {
       message.error(i18next.t("general:Please upload both BPMN files"));
       return;
@@ -58,9 +68,11 @@ class PathsComparePage extends React.Component {
 
     PathsCompareBackend.compareBpmn(formData)
       .then((res) => {
+        // console.log(res); // 打印返回的结果，查看是否正确
         if (res.status === "ok") {
           message.success(i18next.t("general:Paths compared successfully"));
-          this.setState({compareResult: res.result});
+          // 确保从 res.data.result 中获取正确的返回值
+          this.setState({compareResult: res.data.result});
         } else {
           message.error(`失败: ${res.msg}`);
         }
@@ -70,19 +82,22 @@ class PathsComparePage extends React.Component {
       });
   };
 
-  // 更新患者信息
-  handlePatientInfoChange = (field, value) => {
-    this.setState({
-      patientInfo: {
-        ...this.state.patientInfo,
-        [field]: value,
+  // 更新 patient 字段
+  updatePatientField = (key, value) => {
+    this.setState((prevState) => ({
+      patient: {
+        ...prevState.patient,
+        [key]: value,
       },
-    });
+    }));
   };
 
   render() {
+    const {patient} = this.state;
+
     return (
       <div>
+        {/* 上传文件部分 */}
         <Card size="small" title={i18next.t("pathsCompare:Compare Paths")} style={{marginLeft: "5px"}} type="inner">
           <Row style={{marginTop: "10px"}}>
             <Col style={{marginTop: "5px"}} span={4}>
@@ -115,47 +130,75 @@ class PathsComparePage extends React.Component {
               </Upload>
             </Col>
           </Row>
+        </Card>
 
-          {/* 患者信息 */}
-          <Row style={{marginTop: "20px"}}>
-            <Col span={4}>{i18next.t("general:Organization")}:</Col>
+        {/* 需要填写的 Patient 信息部分 */}
+        <Card size="small" title="Patient Information" style={{marginTop: "20px"}} type="inner">
+          <Row>
+            <Col span={4}>
+                            Owner:
+            </Col>
             <Col span={20}>
               <Input
-                value={this.state.patientInfo.organization}
-                onChange={(e) => this.handlePatientInfoChange("organization", e.target.value)}
-                placeholder={i18next.t("general:Enter Organization")}
+                value={patient.owner}
+                onChange={(e) => this.updatePatientField("owner", e.target.value)}
               />
             </Col>
           </Row>
           <Row style={{marginTop: "10px"}}>
-            <Col span={4}>{i18next.t("general:Name")}:</Col>
+            <Col span={4}>
+                            Name:
+            </Col>
             <Col span={20}>
               <Input
-                value={this.state.patientInfo.name}
-                onChange={(e) => this.handlePatientInfoChange("name", e.target.value)}
-                placeholder={i18next.t("general:Enter Name")}
+                value={patient.name}
+                onChange={(e) => this.updatePatientField("name", e.target.value)}
               />
             </Col>
           </Row>
           <Row style={{marginTop: "10px"}}>
-            <Col span={4}>{i18next.t("general:Hospital")}:</Col>
+            <Col span={4}>
+                            Created Time:
+            </Col>
             <Col span={20}>
               <Input
-                value={this.state.patientInfo.hospital}
-                onChange={(e) => this.handlePatientInfoChange("hospital", e.target.value)}
-                placeholder={i18next.t("general:Enter Hospital")}
+                value={patient.createdTime}
+                onChange={(e) => this.updatePatientField("createdTime", e.target.value)}
+              />
+            </Col>
+          </Row>
+          <Row style={{marginTop: "10px"}}>
+            <Col span={4}>
+                            Updated Time:
+            </Col>
+            <Col span={20}>
+              <Input
+                value={patient.updatedTime}
+                onChange={(e) => this.updatePatientField("updatedTime", e.target.value)}
+              />
+            </Col>
+          </Row>
+          <Row style={{marginTop: "10px"}}>
+            <Col span={4}>
+                            Display Name:
+            </Col>
+            <Col span={20}>
+              <Input
+                value={patient.displayName}
+                onChange={(e) => this.updatePatientField("displayName", e.target.value)}
               />
             </Col>
           </Row>
         </Card>
 
+        {/* 提交按钮 */}
         <div style={{marginTop: "20px", marginLeft: "40px"}}>
           <Button size="large" type="primary" onClick={this.submitPathsCompare}>
             {i18next.t("general:Submit")}
           </Button>
         </div>
 
-        {/* 结果显示框 */}
+        {/* 新增一个结果框 */}
         <Card
           title={i18next.t("pathsCompare:Comparison Result")}
           style={{marginTop: "20px", marginLeft: "5px"}}
@@ -165,16 +208,17 @@ class PathsComparePage extends React.Component {
             style={{
               maxHeight: "300px", // 限制最大高度
               overflowY: "auto",  // 启用滚动条
-              width: "50%",
-              backgroundColor: "#000",  // 黑色背景
-              color: "#fff",  // 白色文字
+              width: "70%",       // 设定宽度为50%
+              backgroundColor: "#000", // 黑色背景
+              color: "#fff",      // 白色文字
               padding: "10px",
-              fontFamily: "monospace",  // 等宽字体
-              whiteSpace: "pre-wrap",   // 保留换行
+              fontFamily: "monospace", // 等宽字体
+              whiteSpace: "pre-wrap",  // 保留换行
             }}
           >
-            {this.state.compareResult || "对比结果"}
+            {this.state.compareResult || "对比结果"} {/* 如果没有返回结果，显示"对比结果" */}
           </div>
+
         </Card>
       </div>
     );

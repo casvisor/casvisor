@@ -91,11 +91,11 @@ func (c *ApiController) CompareBpmn() {
 	unknownFileBytes, _ := ioutil.ReadAll(unknownFile)
 
 	// **调用 GetBpmn 进行比对**
-	bpmn, comparisonResult := object.GetBpmn(standardFileBytes, unknownFileBytes)
+	comparisonResult, _ := object.GetBpmn(standardFileBytes, unknownFileBytes)
 
 	// **返回比对结果**
 	c.ResponseOk(map[string]interface{}{
-		"bpmn":   bpmn,
+		//"bpmn":   bpmn,
 		"result": comparisonResult,
 	})
 }
