@@ -1,5 +1,5 @@
 FROM casbin/guacd:1.5.4 as guacd
-FROM --platform=$BUILDPLATFORM node:18.19.0 AS FRONT
+FROM --platform=$BUILDPLATFORM node:20 AS FRONT
 WORKDIR /web
 COPY ./web/package.json ./web/yarn.lock ./
 RUN yarn install --frozen-lockfile --network-timeout 1000000

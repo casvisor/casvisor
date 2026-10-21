@@ -48,10 +48,10 @@ https://casvisor.org
 
 Casvisor contains 2 parts:
 
-| Name     | Description                      | Language               | Source code                                          |
-|----------|----------------------------------|------------------------|------------------------------------------------------|
-| Frontend | Web frontend UI for Casvisor     | Javascript + React     | https://github.com/casvisor/casvisor/tree/master/web |
-| Backend  | RESTful API backend for Casvisor | Golang + Beego + MySQL | https://github.com/casvisor/casvisor                 |
+| Name     | Description                      | Language                       | Source code                                          |
+|----------|----------------------------------|--------------------------------|------------------------------------------------------|
+| Frontend | Web frontend UI for Casvisor     | TypeScript + React + shadcn/ui | https://github.com/casvisor/casvisor/tree/master/web |
+| Backend  | RESTful API backend for Casvisor | Golang + Beego + MySQL         | https://github.com/casvisor/casvisor                 |
 
 ## Installation
 
