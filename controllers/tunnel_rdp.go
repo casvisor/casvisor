@@ -25,9 +25,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/casvisor/casvisor/object"
 	gordp "github.com/casvisor/gordp"
 	"github.com/casvisor/gordp/bitmap"
-	"github.com/casvisor/casvisor/object"
 	"github.com/gorilla/websocket"
 )
 

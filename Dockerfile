@@ -7,7 +7,7 @@ COPY ./web .
 RUN yarn run build
 
 
-FROM --platform=$BUILDPLATFORM golang:1.26.0 AS BACK
+FROM --platform=$BUILDPLATFORM golang:1.23.6 AS BACK
 WORKDIR /go/src/casvisor
 COPY go.mod go.sum ./
 RUN go mod download
