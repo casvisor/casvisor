@@ -1,20 +1,19 @@
 module github.com/casvisor/casvisor
 
-go 1.22.0
-
-toolchain go1.23.6
+go 1.26.0
 
 require (
 	github.com/beego/beego v1.12.12
 	github.com/casbin/casbin/v2 v2.82.0
 	github.com/casdoor/casdoor-go-sdk v0.35.1
 	github.com/casdoor/xorm-adapter/v3 v3.1.0
+	github.com/casvisor/gordp v0.0.0-20261021171101-805f68c30056
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/qiangmzsx/string-adapter/v2 v2.2.0
 	github.com/ua-parser/uap-go v0.0.0-20240113215029-33f8e6d47f38
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.58.0
 	xorm.io/core v0.7.3
 	xorm.io/xorm v1.3.8
 )
@@ -30,13 +29,20 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
+	github.com/indece-official/go-ebcdic v1.2.0 // indirect
+	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
+	github.com/jcmturner/gofork v1.7.6 // indirect
+	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/oiweiwei/go-msrpc v1.6.5 // indirect
+	github.com/oiweiwei/go-oem v1.0.0 // indirect
+	github.com/oiweiwei/gokrb5.fork/v9 v9.0.8 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.46.0 // indirect
@@ -44,15 +50,13 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/shiena/ansicolor v0.0.0-20230509054315-a9deabde6e02 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/xorm-io/builder v0.3.13 // indirect
 	github.com/xorm-io/xorm v1.1.6 // indirect
-	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.28.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

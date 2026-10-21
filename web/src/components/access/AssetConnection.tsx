@@ -22,6 +22,7 @@ import * as Setting from "@/lib/setting";
 // each client library is only downloaded for the protocol that needs it
 const SshView = React.lazy(() => import("@/components/access/SshView"));
 const VncView = React.lazy(() => import("@/components/access/VncView"));
+const RdpView = React.lazy(() => import("@/components/access/RdpView"));
 const GuacdView = React.lazy(() => import("@/components/access/GuacdView"));
 
 /** Looks the asset up and opens it with the client its protocol needs. */
@@ -46,7 +47,7 @@ export function AssetConnection(props: ConnectionProps) {
 
   return (
     <React.Suspense fallback={fallback}>
-      {protocol === "SSH" ? <SshView {...props} /> : protocol === "VNC" ? <VncView {...props} /> : <GuacdView {...props} />}
+      {protocol === "SSH" ? <SshView {...props} /> : protocol === "VNC" ? <VncView {...props} /> : protocol === "RDP" ? <RdpView {...props} /> : <GuacdView {...props} />}
     </React.Suspense>
   );
 }
