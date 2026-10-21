@@ -97,9 +97,9 @@ jobs:
         uses: actions-ecosystem/action-get-latest-tag@v1.6.0
 
       - name: Release
-        run: yarn global add semantic-release@17.4.4 && semantic-release
+        uses: cycjimmy/semantic-release-action@v4
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Fetch Current version
         id: get-current-tag
