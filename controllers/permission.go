@@ -17,9 +17,9 @@ package controllers
 import (
 	"encoding/json"
 
-	"github.com/beego/beego"
 	"github.com/beego/beego/utils/pagination"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/util"
 )
@@ -166,7 +166,7 @@ func (c *ApiController) DeletePermission() {
 // @Success 200 {object} controllers.Principal The Response object
 // @router /get-users [get]
 func (c *ApiController) GetUsers() {
-	if c.GetSessionUser().Owner != beego.AppConfig.String("casdoorOrganization") {
+	if c.GetSessionUser().Owner != conf.GetConfigString("casdoorOrganization") {
 		c.ResponseOk([]*Principal{})
 		return
 	}
@@ -191,7 +191,7 @@ func (c *ApiController) GetUsers() {
 // @Success 200 {object} controllers.Principal The Response object
 // @router /get-groups [get]
 func (c *ApiController) GetGroups() {
-	if c.GetSessionUser().Owner != beego.AppConfig.String("casdoorOrganization") {
+	if c.GetSessionUser().Owner != conf.GetConfigString("casdoorOrganization") {
 		c.ResponseOk([]*Principal{})
 		return
 	}
