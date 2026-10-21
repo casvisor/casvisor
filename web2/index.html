@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="https://cdn.casbin.org/img/casvisor.png" />
+    <link rel="apple-touch-icon" href="https://cdn.casbin.org/img/casvisor.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Casvisor - An open-source bastion host for RDP, VNC and SSH" />
+    <title>Casvisor</title>
+    <script>
+      (function() {
+        var dark = false;
+        try {
+          var raw = localStorage.getItem("themeAlgorithm") || "system";
+          if (raw.charAt(0) === "[") {
+            dark = raw.indexOf("\"dark\"") !== -1;
+          } else if (raw === "dark") {
+            dark = true;
+          } else if (raw !== "light") {
+            dark = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          }
+        } catch (e) {}
+        if (dark) {
+          document.documentElement.className += " dark";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
