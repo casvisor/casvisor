@@ -286,3 +286,8 @@ func reverseBits(b byte) byte {
 	}
 	return r
 }
+
+// EncryptChallenge computes the VNC authentication response, for servers checking a client.
+func EncryptChallenge(challenge []byte, password string) ([]byte, error) {
+	return encryptChallenge(challenge, password)
+}

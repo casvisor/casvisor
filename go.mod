@@ -16,6 +16,7 @@ require (
 	github.com/qiangmzsx/string-adapter/v2 v2.2.0
 	github.com/ua-parser/uap-go v0.0.0-20240113215029-33f8e6d47f38
 	golang.org/x/crypto v0.31.0
+	golang.org/x/image v0.23.0
 	xorm.io/core v0.7.3
 	xorm.io/xorm v1.3.8
 )

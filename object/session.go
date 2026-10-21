@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/casvisor/casvisor/util"
 	"github.com/casvisor/casvisor/util/guacamole"
@@ -269,4 +270,9 @@ func CloseSession(id string, code int, msg string) error {
 	}
 
 	return nil
+}
+
+func GetActiveSessionCountByClientIp(clientIp string, maxDuration time.Duration) (int64, error) {
+	since := time.Now().Add(-maxDuration).Format(time.RFC3339)
+	return adapter.engine.Where("client_ip = ? and status = ? and start_time >= ?", clientIp, Connected, since).Count(&Session{})
 }

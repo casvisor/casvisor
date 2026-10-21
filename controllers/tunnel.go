@@ -23,6 +23,7 @@ import (
 
 	"github.com/beego/beego"
 	"github.com/beego/beego/logs"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/util"
 	"github.com/casvisor/casvisor/util/guacamole"
@@ -82,6 +83,18 @@ func (c *ApiController) AddAssetTunnel() {
 	if !slices.Contains(actions, object.ActionConnect) {
 		c.ResponseError(fmt.Sprintf("you have no permission to connect to the asset: %s", assetId))
 		return
+	}
+
+	if conf.GetConfigBool("isDemoMode") {
+		count, err := object.GetActiveSessionCountByClientIp(c.getClientIp(), demoSessionDuration)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		if count >= demoMaxSessionsPerIp {
+			c.ResponseError(fmt.Sprintf("in demo mode, each client IP can open at most %d sessions at the same time", demoMaxSessionsPerIp))
+			return
+		}
 	}
 
 	session := &object.Session{

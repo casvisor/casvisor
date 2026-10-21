@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/beego/beego/logs"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/util"
 	"github.com/gorilla/websocket"
@@ -160,7 +161,16 @@ func setSessionConnected(sessionId string, session *object.Session, width int, h
 	session.Reviewed = true
 
 	_, err := object.UpdateSession(sessionId, session)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if conf.GetConfigBool("isDemoMode") {
+		time.AfterFunc(demoSessionDuration, func() {
+			_ = object.CloseSession(sessionId, ForcedDisconnect, fmt.Sprintf("Demo sessions are limited to %d minutes", int(demoSessionDuration.Minutes())))
+		})
+	}
+	return nil
 }
 
 func closeTunnelSession(sessionId string, msg string) {
@@ -170,3 +180,8 @@ func closeTunnelSession(sessionId string, msg string) {
 		logs.Error(fmt.Sprintf("closeTunnelSession(): object.CloseSession() error: %s", err.Error()))
 	}
 }
+
+const (
+	demoSessionDuration  = 15 * time.Minute
+	demoMaxSessionsPerIp = 2
+)

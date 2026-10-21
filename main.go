@@ -19,6 +19,7 @@ import (
 	"github.com/beego/beego/plugins/cors"
 	_ "github.com/beego/beego/session/redis"
 	"github.com/casvisor/casvisor/authz"
+	"github.com/casvisor/casvisor/demo"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/routers"
 	"github.com/casvisor/casvisor/task"
@@ -61,6 +62,7 @@ func main() {
 	beego.BConfig.WebConfig.Session.SessionGCMaxLifetime = 3600 * 24 * 365
 
 	task.NewTicker().SetupTicker()
+	demo.StartDemoTargets()
 
 	beego.Run()
 }

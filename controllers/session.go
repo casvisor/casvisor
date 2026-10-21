@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/beego/beego/utils/pagination"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/util"
 )
@@ -183,6 +184,18 @@ func (c *ApiController) StartSession() {
 
 func (c *ApiController) StopSession() {
 	sessionId := c.Input().Get("id")
+
+	if conf.GetConfigBool("isDemoMode") {
+		session, err := object.GetConnSession(sessionId)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		if session == nil || session.Creator != getUserId(c.GetSessionUser()) {
+			c.ResponseError("in demo mode, you can only stop your own sessions")
+			return
+		}
+	}
 
 	err := object.CloseSession(sessionId, ForcedDisconnect, "The administrator forcibly closes the session")
 	if err != nil {
