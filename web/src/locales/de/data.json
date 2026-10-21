@@ -8,12 +8,15 @@
   "asset": {
     "Cannot enable Remote App when Remote Apps are empty. Please add at least one Remote App in below table first, then enable again": "Cannot enable Remote App when Remote Apps are empty. Please add at least one Remote App in below table first, then enable again",
     "Edit Asset": "Edit Asset",
+    "Fingerprint": "Fingerprint",
     "Host": "Host",
     "Host - Tooltip": "Hostname or IP address of the asset",
     "New Asset": "New Asset",
     "OS": "OS",
     "OS - Tooltip": "OS - Tooltip",
-    "Please select a asset": "Please select a asset"
+    "Please select a asset": "Please select a asset",
+    "Private key": "Private key",
+    "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed": "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed"
   },
   "general": {
     "Action": "Action",

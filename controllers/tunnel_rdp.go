@@ -18,10 +18,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/png"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,7 +68,8 @@ func (c *ApiController) GetAssetRdp() {
 
 	addr := net.JoinHostPort(asset.Host, strconv.Itoa(asset.Port))
 	client := gordp.NewClient(addr, "", asset.Username, asset.Password,
-		gordp.WithDesktopSize(uint16(width), uint16(height)))
+		gordp.WithDesktopSize(uint16(width), uint16(height)),
+		gordp.WithServerCertFingerprint(asset.Fingerprint))
 
 	var writeMu sync.Mutex
 	client.OnBitmap = func(rects []bitmap.Rect) {
@@ -85,10 +88,20 @@ func (c *ApiController) GetAssetRdp() {
 	}
 
 	if err := client.Connect(); err != nil {
+		if asset.Fingerprint != "" && strings.Contains(err.Error(), "does not match pinned") {
+			err = fmt.Errorf("%s, clear the fingerprint of the asset if the server certificate was renewed", err.Error())
+		}
 		fail(NewTunnelError, err)
 		return
 	}
 	defer client.Close()
+
+	if asset.Fingerprint == "" {
+		if err := object.UpdateAssetFingerprint(asset.GetId(), client.ServerCertFingerprint()); err != nil {
+			fail(NewTunnelError, err)
+			return
+		}
+	}
 
 	if err := setSessionConnected(sessionId, session, width, height); err != nil {
 		fail(SessionUpdateError, err)

@@ -33,6 +33,8 @@ export interface Asset {
   port: number;
   username: string;
   password: string;
+  privateKey: string;
+  fingerprint: string;
   enableRemoteApp: boolean;
   remoteApps: RemoteApp[] | null;
 }

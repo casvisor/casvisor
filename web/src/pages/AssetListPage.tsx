@@ -57,6 +57,8 @@ export default function AssetListPage() {
     port: 22,
     username: "root",
     password: "",
+    privateKey: "",
+    fingerprint: "",
     enableRemoteApp: false,
     remoteApps: [],
   });

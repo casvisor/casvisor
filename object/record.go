@@ -131,7 +131,7 @@ func NewRecord(ctx *context.Context) (*Record, error) {
 
 	object := ""
 	if ctx.Input.RequestBody != nil && len(ctx.Input.RequestBody) != 0 {
-		object = string(ctx.Input.RequestBody)
+		object = maskRecordObject(ctx.Input.RequestBody)
 	}
 
 	respBytes, err := json.Marshal(ctx.Input.Data()["json"])
@@ -198,4 +198,30 @@ func DeleteRecord(record *Record) (bool, error) {
 
 func (record *Record) getId() string {
 	return fmt.Sprintf("%s/%s", record.Owner, record.Name)
+}
+
+var maskedRecordFields = []string{"password", "privateKey"}
+
+func maskRecordObject(body []byte) string {
+	var m map[string]interface{}
+	if json.Unmarshal(body, &m) != nil {
+		return string(body)
+	}
+
+	masked := false
+	for _, field := range maskedRecordFields {
+		if value, ok := m[field].(string); ok && value != "" {
+			m[field] = "***"
+			masked = true
+		}
+	}
+	if !masked {
+		return string(body)
+	}
+
+	res, err := json.Marshal(m)
+	if err != nil {
+		return ""
+	}
+	return string(res)
 }

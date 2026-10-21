@@ -160,9 +160,19 @@ func dialSsh(asset *object.Asset) (*ssh.Client, error) {
 	}
 
 	password := asset.Password
-	config := &ssh.ClientConfig{
-		User: asset.Username,
-		Auth: []ssh.AuthMethod{
+	auth := []ssh.AuthMethod{}
+	if asset.PrivateKey != "" {
+		signer, err := ssh.ParsePrivateKey([]byte(asset.PrivateKey))
+		if _, ok := err.(*ssh.PassphraseMissingError); ok {
+			signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(asset.PrivateKey), []byte(password))
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse the private key of the asset: %s: %s", asset.GetId(), err.Error())
+		}
+		auth = append(auth, ssh.PublicKeys(signer))
+	}
+	if password != "" {
+		auth = append(auth,
 			ssh.Password(password),
 			ssh.KeyboardInteractive(func(user, instruction string, questions []string, echos []bool) ([]string, error) {
 				answers := make([]string, len(questions))
@@ -171,11 +181,31 @@ func dialSsh(asset *object.Asset) (*ssh.Client, error) {
 				}
 				return answers, nil
 			}),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		)
+	}
+
+	config := &ssh.ClientConfig{
+		User:            asset.Username,
+		Auth:            auth,
+		HostKeyCallback: getHostKeyCallback(asset),
 		Timeout:         10 * time.Second,
 	}
 
 	address := net.JoinHostPort(asset.Host, strconv.Itoa(asset.Port))
 	return ssh.Dial("tcp", address, config)
+}
+
+// getHostKeyCallback pins the host key on the first connection and rejects a different key afterwards.
+func getHostKeyCallback(asset *object.Asset) ssh.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		fingerprint := ssh.FingerprintSHA256(key)
+		if asset.Fingerprint == "" {
+			asset.Fingerprint = fingerprint
+			return object.UpdateAssetFingerprint(asset.GetId(), fingerprint)
+		}
+		if asset.Fingerprint != fingerprint {
+			return fmt.Errorf("the host key of the asset: %s has changed from %s to %s, clear the fingerprint of the asset if the change is expected", asset.GetId(), asset.Fingerprint, fingerprint)
+		}
+		return nil
+	}
 }

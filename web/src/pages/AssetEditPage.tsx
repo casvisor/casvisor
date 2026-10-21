@@ -19,6 +19,7 @@ import * as AssetBackend from "@/backend/AssetBackend";
 import type {Asset, RemoteApp} from "@/backend/types";
 import {Input} from "@/components/ui/input";
 import {Switch} from "@/components/ui/switch";
+import {Textarea} from "@/components/ui/textarea";
 import {Loading} from "@/components/common/Loading";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import {SelectField} from "@/components/common/SelectField";
@@ -171,6 +172,31 @@ export default function AssetEditPage() {
           onChange={(e) => updateField("password", e.target.value)}
         />
       </FormRow>
+      {asset.protocol === "SSH" ? (
+        <FormRow labelKey="asset:Private key">
+          <Textarea
+            value={asset.privateKey}
+            rows={4}
+            className="font-mono text-xs"
+            placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+            onChange={(e) => updateField("privateKey", e.target.value)}
+          />
+        </FormRow>
+      ) : null}
+      {asset.protocol === "SSH" || asset.protocol === "RDP" ? (
+        <FormRow labelKey="asset:Fingerprint">
+          <div className="flex w-full flex-col gap-1">
+            <Input
+              value={asset.fingerprint}
+              className="font-mono text-xs"
+              onChange={(e) => updateField("fingerprint", e.target.value)}
+            />
+            <span className="text-xs text-muted-foreground">
+              {i18next.t("asset:Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed")}
+            </span>
+          </div>
+        </FormRow>
+      ) : null}
       <FormRow labelKey="asset:OS">
         <SelectField
           value={asset.os}

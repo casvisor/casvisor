@@ -43,7 +43,10 @@ type Asset struct {
 	Host     string `xorm:"varchar(200)" json:"host"`
 	Port     int    `json:"port"`
 	Username string `xorm:"varchar(100)" json:"username"`
-	Password string `xorm:"varchar(500)" json:"password"`
+	Password string `xorm:"varchar(1000)" json:"password"`
+
+	PrivateKey  string `xorm:"mediumtext" json:"privateKey"`
+	Fingerprint string `xorm:"varchar(200)" json:"fingerprint"`
 
 	EnableRemoteApp bool         `json:"enableRemoteApp"`
 	RemoteApps      []*RemoteApp `xorm:"mediumtext" json:"remoteApps"`
@@ -87,6 +90,10 @@ func getAsset(owner string, name string) (*Asset, error) {
 	}
 
 	if existed {
+		err = asset.decryptCredentials()
+		if err != nil {
+			return nil, err
+		}
 		return &asset, nil
 	} else {
 		return nil, nil
@@ -109,6 +116,9 @@ func GetMaskedAsset(asset *Asset, errs ...error) (*Asset, error) {
 
 	if asset.Password != "" {
 		asset.Password = "***"
+	}
+	if asset.PrivateKey != "" {
+		asset.PrivateKey = "***"
 	}
 	return asset, nil
 }
@@ -141,6 +151,14 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 	if asset.Password == "***" {
 		asset.Password = p.Password
 	}
+	if asset.PrivateKey == "***" {
+		asset.PrivateKey = p.PrivateKey
+	}
+
+	err = asset.encryptCredentials()
+	if err != nil {
+		return false, err
+	}
 
 	affected, err := adapter.engine.ID(core.PK{owner, name}).AllCols().Update(asset)
 	if err != nil {
@@ -151,6 +169,11 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 }
 
 func AddAsset(asset *Asset) (bool, error) {
+	err := asset.encryptCredentials()
+	if err != nil {
+		return false, err
+	}
+
 	affected, err := adapter.engine.Insert(asset)
 	if err != nil {
 		return false, err
@@ -166,6 +189,12 @@ func DeleteAsset(asset *Asset) (bool, error) {
 	}
 
 	return affected != 0, nil
+}
+
+func UpdateAssetFingerprint(id string, fingerprint string) error {
+	owner, name := util.GetOwnerAndNameFromId(id)
+	_, err := adapter.engine.ID(core.PK{owner, name}).Cols("fingerprint").Update(&Asset{Fingerprint: fingerprint})
+	return err
 }
 
 func (asset *Asset) GetId() string {

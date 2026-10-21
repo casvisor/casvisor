@@ -27,6 +27,10 @@ import (
 
 func main() {
 	object.InitAdapter()
+	err := object.EncryptAssetCredentials()
+	if err != nil {
+		panic(err)
+	}
 	authz.InitAuthz()
 	util.InitIpDb()
 	util.InitParser()
