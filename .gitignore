@@ -32,3 +32,4 @@ lastupdate.tmp
 commentsRouter*.go
 
 dist/
+conf/app.local.conf

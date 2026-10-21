@@ -17,10 +17,44 @@ package conf
 import (
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/beego/beego"
+	"github.com/beego/beego/config"
 )
+
+// localConfigPath holds a server's own settings and secrets (dataSourceName, clientSecret, credentialKey, ...), which
+// override conf/app.conf. It is not in git, so pulling a new version never conflicts with it.
+const localConfigPath = "conf/app.local.conf"
+
+func init() {
+	if _, err := os.Stat(localConfigPath); err != nil {
+		return
+	}
+
+	local, err := config.NewConfig("ini", localConfigPath)
+	if err != nil {
+		panic(err)
+	}
+	items, err := local.GetSection("default")
+	if err != nil {
+		panic(err)
+	}
+	for key, value := range items {
+		err = beego.AppConfig.Set(key, value)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if value, ok := items["httpport"]; ok {
+		beego.BConfig.Listen.HTTPPort, err = strconv.Atoi(value)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
 
 func GetConfigString(key string) string {
 	if value, ok := os.LookupEnv(key); ok {
