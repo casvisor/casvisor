@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/beego/beego/utils/pagination"
 	"github.com/casvisor/casvisor/object"
@@ -38,6 +39,11 @@ func (c *ApiController) GetAssets() {
 	value := c.Input().Get("value")
 	sortField := c.Input().Get("sortField")
 	sortOrder := c.Input().Get("sortOrder")
+
+	if !c.isAdmin() {
+		c.getAllowedAssets(limit, page)
+		return
+	}
 
 	if limit == "" || page == "" {
 		assets, err := object.GetMaskedAssets(object.GetAssets(owner))
@@ -66,6 +72,31 @@ func (c *ApiController) GetAssets() {
 	}
 }
 
+func (c *ApiController) getAllowedAssets(limit string, page string) {
+	user := c.GetSessionUser()
+	assets, err := object.GetAssets(user.Owner)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	assets, err = object.GetMaskedAssets(object.FilterAllowedAssets(user, assets, c.getAuthzClientIp()))
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	if limit == "" || page == "" {
+		c.ResponseOk(assets)
+		return
+	}
+
+	paginator := pagination.SetPaginator(c.Ctx, util.ParseInt(limit), int64(len(assets)))
+	start := min(paginator.Offset(), len(assets))
+	end := min(start+util.ParseInt(limit), len(assets))
+	c.ResponseOk(assets[start:end], paginator.Nums())
+}
+
 // GetAsset
 // @Title GetAsset
 // @Tag Asset API
@@ -80,6 +111,18 @@ func (c *ApiController) GetAsset() {
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
+	}
+
+	if asset != nil && !c.isAdmin() {
+		actions, err := object.GetAssetActions(c.GetSessionUser(), asset, c.getAuthzClientIp())
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		if len(actions) == 0 {
+			c.ResponseError(fmt.Sprintf("you have no permission to access the asset: %s", id))
+			return
+		}
 	}
 
 	c.ResponseOk(asset)
@@ -103,6 +146,10 @@ func (c *ApiController) UpdateAsset() {
 		return
 	}
 
+	if !c.checkOwner(asset.Owner) {
+		return
+	}
+
 	c.Data["json"] = wrapActionResponse(object.UpdateAsset(id, &asset))
 	c.ServeJSON()
 }
@@ -119,6 +166,10 @@ func (c *ApiController) AddAsset() {
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &asset)
 	if err != nil {
 		c.ResponseError(err.Error())
+		return
+	}
+
+	if !c.checkOwner(asset.Owner) {
 		return
 	}
 

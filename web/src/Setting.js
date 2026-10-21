@@ -117,7 +117,7 @@ export function showMessage(type, text) {
 }
 
 export function isAdminUser(account) {
-  return account?.isAdmin;
+  return account?.owner === "built-in" || account?.isAdmin === true;
 }
 
 export function deepCopy(obj) {

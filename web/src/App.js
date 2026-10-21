@@ -31,6 +31,8 @@ import AssetEditPage from "./AssetEditPage";
 import SessionListPage from "./SessionListPage";
 import RecordListPage from "./RecordListPage";
 import RecordEditPage from "./RecordEditPage";
+import PermissionListPage from "./PermissionListPage";
+import PermissionEditPage from "./PermissionEditPage";
 import ShortcutsPage from "./basic/ShortcutsPage";
 import AssetWorkbench from "./AssetWorkbench";
 import AccessPage from "./component/access/AccessPage";
@@ -200,10 +202,15 @@ class App extends Component {
 
     res.push(Setting.getItem(<Link to="/">{i18next.t("general:Home")}</Link>, ""));
     res.push(Setting.getItem(<Link to="/assets">{i18next.t("general:Assets")}</Link>, "assets"));
-    res.push(Setting.getItem(<Link to="/sessions">{i18next.t("general:Sessions")}</Link>, "sessions"));
-    res.push(Setting.getItem(<Link to="/records">{i18next.t("general:Records")}</Link>, "records"));
+    if (Setting.isAdminUser(this.state.account)) {
+      res.push(Setting.getItem(<Link to="/permissions">{i18next.t("general:Permissions")}</Link>, "permissions"));
+      res.push(Setting.getItem(<Link to="/sessions">{i18next.t("general:Sessions")}</Link>, "sessions"));
+      res.push(Setting.getItem(<Link to="/records">{i18next.t("general:Records")}</Link>, "records"));
+    }
     res.push(Setting.getItem(<Link to="/workbench" target="_blank">{i18next.t("general:Workbench")}</Link>, "workbench"));
-    res.push(Setting.getItem(<a target="_blank" rel="noreferrer" href={Setting.isLocalhost() ? `${Setting.ServerUrl}/swagger/` : "/swagger/"}>{i18next.t("general:Swagger")}</a>, "/swagger"));
+    if (Setting.isAdminUser(this.state.account)) {
+      res.push(Setting.getItem(<a target="_blank" rel="noreferrer" href={Setting.isLocalhost() ? `${Setting.ServerUrl}/swagger/` : "/swagger/"}>{i18next.t("general:Swagger")}</a>, "/swagger"));
+    }
 
     return res;
   }
@@ -235,6 +242,8 @@ class App extends Component {
         <Route exact path="/" render={(props) => this.renderSigninIfNotSignedIn(<ShortcutsPage account={this.state.account} {...props} />)} />
         <Route exact path="/assets" render={(props) => this.renderSigninIfNotSignedIn(<AssetListPage account={this.state.account} {...props} />)} />
         <Route exact path="/assets/:organizationName/:assetName" render={(props) => this.renderSigninIfNotSignedIn(<AssetEditPage account={this.state.account} {...props} />)} />
+        <Route exact path="/permissions" render={(props) => this.renderSigninIfNotSignedIn(<PermissionListPage account={this.state.account} {...props} />)} />
+        <Route exact path="/permissions/:organizationName/:permissionName" render={(props) => this.renderSigninIfNotSignedIn(<PermissionEditPage account={this.state.account} {...props} />)} />
         <Route exact path="/sessions" render={(props) => this.renderSigninIfNotSignedIn(<SessionListPage account={this.state.account} {...props} />)} />
         <Route exact path="/records" render={(props) => this.renderSigninIfNotSignedIn(<RecordListPage account={this.state.account} {...props} />)} />
         <Route exact path="/records/:organizationName/:recordName" render={(props) => this.renderSigninIfNotSignedIn(<RecordEditPage account={this.state.account} {...props} />)} />

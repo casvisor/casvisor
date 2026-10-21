@@ -110,6 +110,9 @@ class AssetListPage extends BaseListPage {
         sorter: true,
         ...this.getColumnSearchProps("name"),
         render: (text, record, index) => {
+          if (!Setting.isAdminUser(this.props.account)) {
+            return text;
+          }
           return (
             <Link to={`/assets/${record.owner}/${record.name}`}>{text}</Link>
           );
@@ -204,17 +207,21 @@ class AssetListPage extends BaseListPage {
                 name={asset.name}
                 asset={asset}
               />
-              <Button
-                style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}
-                onClick={() => this.props.history.push(`/assets/${asset.owner}/${asset.name}`)}
-              >{i18next.t("general:Edit")}
-              </Button>
-              <PopconfirmModal
-                disabled={asset.owner !== this.props.account.owner}
-                title={i18next.t("general:Sure to delete") + `: ${asset.name} ?`}
-                onConfirm={() => this.deleteAsset(index)}
-              >
-              </PopconfirmModal>
+              {Setting.isAdminUser(this.props.account) ? (
+                <React.Fragment>
+                  <Button
+                    style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}
+                    onClick={() => this.props.history.push(`/assets/${asset.owner}/${asset.name}`)}
+                  >{i18next.t("general:Edit")}
+                  </Button>
+                  <PopconfirmModal
+                    disabled={asset.owner !== this.props.account.owner}
+                    title={i18next.t("general:Sure to delete") + `: ${asset.name} ?`}
+                    onConfirm={() => this.deleteAsset(index)}
+                  >
+                  </PopconfirmModal>
+                </React.Fragment>
+              ) : null}
             </div>
           );
         },
@@ -235,7 +242,7 @@ class AssetListPage extends BaseListPage {
           title={() => (
             <div>
               {i18next.t("general:Assets")}&nbsp;&nbsp;&nbsp;&nbsp;
-              <Button type="primary" size="small" onClick={this.addAsset.bind(this)}>{i18next.t("general:Add")}</Button>
+              {Setting.isAdminUser(this.props.account) ? <Button type="primary" size="small" onClick={this.addAsset.bind(this)}>{i18next.t("general:Add")}</Button> : null}
             </div>
           )}
           loading={this.state.loading}

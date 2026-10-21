@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/beego/beego/utils/pagination"
 	"github.com/casvisor/casvisor/object"
@@ -156,12 +157,22 @@ func (c *ApiController) AddSession() {
 func (c *ApiController) StartSession() {
 	sessionId := c.Input().Get("id")
 
+	session, err := object.GetConnSession(sessionId)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if session == nil || session.Creator != getUserId(c.GetSessionUser()) {
+		c.ResponseError(fmt.Sprintf("you have no permission to start the session: %s", sessionId))
+		return
+	}
+
 	s := &object.Session{
 		Status:    object.Connected,
 		StartTime: util.GetCurrentTime(),
 	}
 
-	_, err := object.UpdateSession(sessionId, s, []string{"status", "start_time"}...)
+	_, err = object.UpdateSession(sessionId, s, []string{"status", "start_time"}...)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return

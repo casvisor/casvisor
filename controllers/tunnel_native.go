@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -110,7 +111,7 @@ func truncateCloseReason(msg string) string {
 	return msg[:123]
 }
 
-func getTunnelSessionAndAsset(sessionId string, username string, password string) (*object.Session, *object.Asset, int, error) {
+func (c *ApiController) getTunnelSessionAndAsset(sessionId string, username string, password string) (*object.Session, *object.Asset, int, error) {
 	session, err := object.GetConnSession(sessionId)
 	if err != nil {
 		return nil, nil, SessionNotFound, err
@@ -119,12 +120,25 @@ func getTunnelSessionAndAsset(sessionId string, username string, password string
 		return nil, nil, SessionNotFound, fmt.Errorf("the session: %s does not exist", sessionId)
 	}
 
+	user := c.GetSessionUser()
+	if user == nil || session.Creator != getUserId(user) {
+		return nil, nil, PermissionDenied, fmt.Errorf("you have no permission to use this session")
+	}
+
 	asset, err := object.GetAsset(session.Asset)
 	if err != nil {
 		return nil, nil, AssetNotFound, err
 	}
 	if asset == nil {
 		return nil, nil, AssetNotFound, fmt.Errorf("the asset: %s does not exist", session.Asset)
+	}
+
+	actions, err := object.GetAssetActions(user, asset, c.getAuthzClientIp())
+	if err != nil {
+		return nil, nil, PermissionDenied, err
+	}
+	if !slices.Contains(actions, object.ActionConnect) {
+		return nil, nil, PermissionDenied, fmt.Errorf("you have no permission to connect to the asset: %s", session.Asset)
 	}
 
 	if asset.Username == "" {

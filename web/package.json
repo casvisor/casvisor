@@ -13,6 +13,7 @@
     "casdoor-js-sdk": "^0.11.0",
     "codemirror": "^5.61.1",
     "craco-less": "2.0.0",
+    "dayjs": "^1.11.1",
     "guacamole-common-js": "1.4.0-a",
     "i18next": "^19.8.9",
     "js-base64": "3.7.2",

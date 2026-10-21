@@ -17,6 +17,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -38,6 +39,7 @@ const (
 	ParametersError    int = 804
 	AssetNotFound      int = 805
 	SessionUpdateError int = 806
+	PermissionDenied   int = 807
 )
 
 var UpGrader = websocket.Upgrader{
@@ -66,16 +68,31 @@ func (c *ApiController) AddAssetTunnel() {
 		return
 	}
 
+	asset, err := object.GetAsset(assetId)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	actions, err := object.GetAssetActions(user, asset, c.getAuthzClientIp())
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if !slices.Contains(actions, object.ActionConnect) {
+		c.ResponseError(fmt.Sprintf("you have no permission to connect to the asset: %s", assetId))
+		return
+	}
+
 	session := &object.Session{
-		Creator:       user.Name,
+		Creator:       getUserId(user),
 		ClientIp:      c.getClientIp(),
 		UserAgent:     c.getUserAgent(),
 		ClientIpDesc:  util.GetDescFromIP(c.getClientIp()),
 		UserAgentDesc: util.GetDescFromUserAgent(c.getUserAgent()),
 	}
 
-	var err error
-	session, err = object.CreateSession(session, assetId, mode)
+	session, err = object.CreateSession(session, assetId, mode, object.GetSessionOperations(actions))
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -117,6 +134,16 @@ func (c *ApiController) GetAssetTunnel() {
 		guacamole.Disconnect(ws, SessionNotFound, err.Error())
 		return
 	}
+	if session == nil {
+		guacamole.Disconnect(ws, SessionNotFound, fmt.Sprintf("the session: %s does not exist", sessionId))
+		return
+	}
+
+	user := c.GetSessionUser()
+	if user == nil || session.Creator != getUserId(user) {
+		guacamole.Disconnect(ws, PermissionDenied, "you have no permission to use this session")
+		return
+	}
 
 	asset, err := object.GetAsset(session.Asset)
 	if err != nil {
@@ -125,6 +152,16 @@ func (c *ApiController) GetAssetTunnel() {
 	}
 	if asset == nil {
 		guacamole.Disconnect(ws, AssetNotFound, fmt.Sprintf("the asset: %s does not exist", session.Asset))
+		return
+	}
+
+	actions, err := object.GetAssetActions(user, asset, c.getAuthzClientIp())
+	if err != nil {
+		guacamole.Disconnect(ws, PermissionDenied, err.Error())
+		return
+	}
+	if !slices.Contains(actions, object.ActionConnect) {
+		guacamole.Disconnect(ws, PermissionDenied, fmt.Sprintf("you have no permission to connect to the asset: %s", session.Asset))
 		return
 	}
 
@@ -139,6 +176,12 @@ func (c *ApiController) GetAssetTunnel() {
 	propertyMap := configuration.LoadConfig()
 
 	setConfig(propertyMap, asset, configuration)
+	if !slices.Contains(actions, object.ActionCopy) {
+		configuration.SetParameter("disable-copy", "true")
+	}
+	if !slices.Contains(actions, object.ActionPaste) {
+		configuration.SetParameter("disable-paste", "true")
+	}
 	configuration.SetParameter("width", width)
 	configuration.SetParameter("height", height)
 	configuration.SetParameter("dpi", dpi)

@@ -47,6 +47,14 @@ func initAPI() {
 	beego.Router("/api/add-asset", &controllers.ApiController{}, "POST:AddAsset")
 	beego.Router("/api/delete-asset", &controllers.ApiController{}, "POST:DeleteAsset")
 
+	beego.Router("/api/get-permissions", &controllers.ApiController{}, "GET:GetPermissions")
+	beego.Router("/api/get-permission", &controllers.ApiController{}, "GET:GetPermission")
+	beego.Router("/api/update-permission", &controllers.ApiController{}, "POST:UpdatePermission")
+	beego.Router("/api/add-permission", &controllers.ApiController{}, "POST:AddPermission")
+	beego.Router("/api/delete-permission", &controllers.ApiController{}, "POST:DeletePermission")
+	beego.Router("/api/get-users", &controllers.ApiController{}, "GET:GetUsers")
+	beego.Router("/api/get-groups", &controllers.ApiController{}, "GET:GetGroups")
+
 	beego.Router("/api/get-sessions", &controllers.ApiController{}, "GET:GetSessions")
 	beego.Router("/api/get-session", &controllers.ApiController{}, "GET:GetConnSession")
 	beego.Router("/api/update-session", &controllers.ApiController{}, "POST:UpdateSession")

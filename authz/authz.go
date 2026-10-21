@@ -22,10 +22,24 @@ import (
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	xormadapter "github.com/casdoor/xorm-adapter/v3"
 	"github.com/casvisor/casvisor/conf"
+	"github.com/casvisor/casvisor/object"
 	stringadapter "github.com/qiangmzsx/string-adapter/v2"
 )
 
 var Enforcer *casbin.Enforcer
+
+var userApis = map[string]bool{
+	"/api/signin":           true,
+	"/api/signout":          true,
+	"/api/get-account":      true,
+	"/api/get-assets":       true,
+	"/api/get-asset":        true,
+	"/api/add-asset-tunnel": true,
+	"/api/get-asset-tunnel": true,
+	"/api/get-asset-ssh":    true,
+	"/api/get-asset-vnc":    true,
+	"/api/start-session":    true,
+}
 
 func InitAuthz() {
 	var err error
@@ -78,11 +92,6 @@ p, app, *, *, *, *, *
 p, *, *, POST, /api/signin, *, *
 p, *, *, POST, /api/signout, *, *
 p, *, *, GET, /api/get-account, *, *
-p, *, *, GET, /api/get-asset-tunnel, *, *
-p, *, *, GET, /api/get-asset-ssh, *, *
-p, *, *, GET, /api/get-asset-vnc, *, *
-p, *, *, POST, /api/add-asset-tunnel, *, *
-p, *, *, POST, /api/start-session, *, *
 `
 
 		sa := stringadapter.NewAdapter(ruleText)
@@ -118,9 +127,19 @@ func IsAllowed(user *casdoorsdk.User, subOwner string, subName string, method st
 			return false
 		}
 
-		if subOwner == objOwner || (objOwner == "admin") {
+		if user.Owner == "built-in" {
 			return true
 		}
+
+		if objOwner != "" && objOwner != user.Owner {
+			return false
+		}
+
+		if object.IsAdminUser(user) {
+			return true
+		}
+
+		return userApis[urlPath]
 	}
 
 	res, err := Enforcer.Enforce(subOwner, subName, method, urlPath, objOwner, objName)

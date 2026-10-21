@@ -17,13 +17,15 @@ import React from "react";
 import * as Setting from "../Setting";
 import GridCards from "./GridCards";
 
-const ShortcutsPage = () => {
+const ShortcutsPage = (props) => {
+  const isAdmin = Setting.isAdminUser(props.account);
   const items = [
     {link: "/assets", image: "/organizations", name: i18next.t("general:Assets"), description: i18next.t("general:Machines can be connected via RDP, VNC or SSH")},
-    {link: "/sessions", image: "/users", name: i18next.t("general:Sessions"), description: i18next.t("general:Active or history connection sessions")},
-    {link: "/records", image: "/providers", name: i18next.t("general:Records"), description: i18next.t("general:Audit logs")},
+    {link: "/permissions", image: "/users", name: i18next.t("general:Permissions"), description: i18next.t("general:Who can connect to which assets"), adminOnly: true},
+    {link: "/sessions", image: "/users", name: i18next.t("general:Sessions"), description: i18next.t("general:Active or history connection sessions"), adminOnly: true},
+    {link: "/records", image: "/providers", name: i18next.t("general:Records"), description: i18next.t("general:Audit logs"), adminOnly: true},
     {link: "/workbench", image: "/applications", name: i18next.t("general:Workbench"), description: i18next.t("general:Remote desktop management all in one screen")},
-  ];
+  ].filter(item => isAdmin || !item.adminOnly);
 
   const getItems = () => {
     return items.map(item => {

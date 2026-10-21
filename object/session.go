@@ -169,7 +169,7 @@ func AddSession(session *Session) (bool, error) {
 	return affected != 0, nil
 }
 
-func CreateSession(session *Session, assetId string, mode string) (*Session, error) {
+func CreateSession(session *Session, assetId string, mode string, operations []string) (*Session, error) {
 	asset, err := GetAsset(assetId)
 	if err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ func CreateSession(session *Session, assetId string, mode string) (*Session, err
 	session.Status = NoConnect
 	session.Mode = mode
 	session.Reviewed = false
-	session.Operations = []string{"paste", "copy", "createDir", "edit", "rename", "delete", "download", "upload", "fileSystem"}
+	session.Operations = operations
 
 	_, err = AddSession(session)
 	if err != nil {

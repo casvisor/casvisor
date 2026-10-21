@@ -62,7 +62,7 @@ func (c *ApiController) GetAssetSsh() {
 		return
 	}
 
-	session, asset, code, err := getTunnelSessionAndAsset(sessionId, c.Input().Get("username"), c.Input().Get("password"))
+	session, asset, code, err := c.getTunnelSessionAndAsset(sessionId, c.Input().Get("username"), c.Input().Get("password"))
 	if err != nil {
 		fail(code, err)
 		return

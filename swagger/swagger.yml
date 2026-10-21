@@ -37,6 +37,24 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/Response'
+  /add-permission:
+    post:
+      tags:
+      - Permission API
+      description: add a permission
+      operationId: ApiController.AddPermission
+      parameters:
+      - in: body
+        name: body
+        description: The details of the permission
+        required: true
+        schema:
+          $ref: '#/definitions/object.Permission'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /add-record:
     post:
       tags:
@@ -86,6 +104,24 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.Asset'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /delete-permission:
+    post:
+      tags:
+      - Permission API
+      description: delete a permission
+      operationId: ApiController.DeletePermission
+      parameters:
+      - in: body
+        name: body
+        description: The details of the permission
+        required: true
+        schema:
+          $ref: '#/definitions/object.Permission'
       responses:
         "200":
           description: The Response object
@@ -165,6 +201,51 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.Asset'
+  /get-groups:
+    get:
+      tags:
+      - Permission API
+      description: get the groups of the Casdoor organization, for choosing permission subjects
+      operationId: ApiController.GetGroups
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Principal'
+  /get-permission:
+    get:
+      tags:
+      - Permission API
+      description: get permission
+      operationId: ApiController.GetPermission
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the permission
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.Permission'
+  /get-permissions:
+    get:
+      tags:
+      - Permission API
+      description: get all permissions
+      operationId: ApiController.GetPermissions
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of permissions
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.Permission'
   /get-record:
     get:
       tags:
@@ -243,6 +324,17 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.Session'
+  /get-users:
+    get:
+      tags:
+      - Permission API
+      description: get the users of the Casdoor organization, for choosing permission subjects
+      operationId: ApiController.GetUsers
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Principal'
   /update-asset:
     post:
       tags:
@@ -261,6 +353,29 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.Asset'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /update-permission:
+    post:
+      tags:
+      - Permission API
+      description: update permission
+      operationId: ApiController.UpdatePermission
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the permission
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The details of the permission
+        required: true
+        schema:
+          $ref: '#/definitions/object.Permission'
       responses:
         "200":
           description: The Response object
@@ -316,6 +431,14 @@ definitions:
   Response:
     title: Response
     type: object
+  controllers.Principal:
+    title: Principal
+    type: object
+    properties:
+      displayName:
+        type: string
+      name:
+        type: string
   controllers.Response:
     title: Response
     type: object
@@ -372,6 +495,52 @@ definitions:
         type: string
       username:
         type: string
+  object.Permission:
+    title: Permission
+    type: object
+    properties:
+      actions:
+        type: array
+        items:
+          type: string
+      assetTags:
+        type: array
+        items:
+          type: string
+      assets:
+        type: array
+        items:
+          type: string
+      clientIps:
+        type: array
+        items:
+          type: string
+      createdTime:
+        type: string
+      description:
+        type: string
+      displayName:
+        type: string
+      endTime:
+        type: string
+      groups:
+        type: array
+        items:
+          type: string
+      isEnabled:
+        type: boolean
+      name:
+        type: string
+      owner:
+        type: string
+      startTime:
+        type: string
+      updatedTime:
+        type: string
+      users:
+        type: array
+        items:
+          type: string
   object.Record:
     title: Record
     type: object
