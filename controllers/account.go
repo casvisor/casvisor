@@ -16,9 +16,12 @@ package controllers
 
 import (
 	_ "embed"
+	"fmt"
+	"strings"
 
 	"github.com/beego/beego"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/casvisor/casvisor/conf"
 )
 
 //go:embed token_jwt_key.pem
@@ -52,9 +55,14 @@ func (c *ApiController) Signin() {
 		panic(err)
 	}
 
+	userId := claims.User.Owner + "/" + claims.User.Name
+	if !isUserAllowedToSignin(userId) {
+		c.ResponseError(fmt.Sprintf("the user: %s is not allowed to sign in", userId))
+		return
+	}
+
 	claims.AccessToken = token.AccessToken
 	c.SetSessionClaims(claims)
-	userId := claims.User.Owner + "/" + claims.User.Name
 	c.Ctx.Input.SetParam("recordUserId", userId)
 
 	c.ResponseOk(claims)
@@ -74,4 +82,20 @@ func (c *ApiController) GetAccount() {
 	claims := c.GetSessionClaims()
 
 	c.ResponseOk(claims)
+}
+
+// isUserAllowedToSignin checks the user against allowedUsers, a comma-separated list of "owner/name",
+// for deployments whose Casdoor application is shared with other users.
+func isUserAllowedToSignin(userId string) bool {
+	allowedUsers := conf.GetConfigString("allowedUsers")
+	if allowedUsers == "" {
+		return true
+	}
+
+	for _, allowedUser := range strings.Split(allowedUsers, ",") {
+		if strings.TrimSpace(allowedUser) == userId {
+			return true
+		}
+	}
+	return false
 }
