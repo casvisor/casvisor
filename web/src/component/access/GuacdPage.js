@@ -219,17 +219,15 @@ const GuacdPage = (props) => {
 
   const handleWindowFocus = (e) => {
     if (navigator.clipboard) {
-      try {
-        navigator.clipboard.readText().then((text) => {
-          sendClipboard({
-            "data": text,
-            "type": "text/plain",
-          });
+      navigator.clipboard.readText().then((text) => {
+        sendClipboard({
+          "data": text,
+          "type": "text/plain",
         });
-      } catch (e) {
+      }).catch((e) => {
         // eslint-disable-next-line no-console
         console.error("Copying to clipboard failed", e);
-      }
+      });
     }
   };
 

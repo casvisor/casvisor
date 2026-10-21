@@ -31,22 +31,20 @@ class AssetListPage extends BaseListPage {
   newAsset() {
     return {
       owner: this.props.account.owner,
-      name: `machine_${Setting.getRandomName()}`,
+      name: `asset_${Setting.getRandomName()}`,
       createdTime: moment().format(),
       updatedTime: moment().format(),
-      displayName: `New Machine - ${Setting.getRandomName()}`,
-      protocol: "RDP",
-      privateIp: "127.0.0.1",
-      remoteProtocol: "RDP",
-      remotePort: 3389,
-      remoteUsername: "Administrator",
-      remotePassword: "123",
-      language: "en",
-      autoQuery: false,
-      isPermanent: true,
+      displayName: `New Asset - ${Setting.getRandomName()}`,
+      description: "",
+      tag: "",
+      os: "Linux",
+      protocol: "SSH",
+      host: "127.0.0.1",
+      port: 22,
+      username: "root",
+      password: "",
       enableRemoteApp: false,
       remoteApps: [],
-      services: [],
     };
   }
 
@@ -146,15 +144,15 @@ class AssetListPage extends BaseListPage {
           {text: "RDP", value: "RDP"},
           {text: "VNC", value: "VNC"},
           {text: "SSH", value: "SSH"},
-          {text: "", value: "-"},
+          {text: "Telnet", value: "Telnet"},
         ],
       },
       {
-        title: i18next.t("general:IP"),
-        dataIndex: "ip",
-        key: "ip",
+        title: i18next.t("asset:Host"),
+        dataIndex: "host",
+        key: "host",
         width: "120px",
-        sorter: (a, b) => a.ip.localeCompare(b.ip),
+        sorter: (a, b) => a.host.localeCompare(b.host),
       },
       {
         title: i18next.t("general:Port"),
@@ -169,35 +167,6 @@ class AssetListPage extends BaseListPage {
         key: "username",
         width: "130px",
         sorter: (a, b) => a.username.localeCompare(b.username),
-      },
-      {
-        title: i18next.t("general:Language"),
-        dataIndex: "language",
-        key: "language",
-        width: "90px",
-        sorter: (a, b) => a.language.localeCompare(b.language),
-      },
-      {
-        title: i18next.t("general:Auto query"),
-        dataIndex: "autoQuery",
-        key: "autoQuery",
-        width: "100px",
-        render: (text, record, index) => {
-          return (
-            <Switch disabled checked={text} />
-          );
-        },
-      },
-      {
-        title: i18next.t("general:Is permanent"),
-        dataIndex: "isPermanent",
-        key: "isPermanent",
-        width: "110px",
-        render: (text, record, index) => {
-          return (
-            <Switch disabled checked={text} />
-          );
-        },
       },
       {
         title: i18next.t("general:Enable Remote App"),
@@ -220,16 +189,6 @@ class AssetListPage extends BaseListPage {
           return `${record.enableRemoteApp ? 1 : 0}  / ${record.remoteApps === null ? 0 : record.remoteApps.length}`;
         },
       },
-      // {
-      //   title: i18next.t("general:Services"),
-      //   dataIndex: "services",
-      //   key: "services",
-      //   width: "90px",
-      //   // todo: fix filter
-      //   render: (text, record, index) => {
-      //     return `${record.services.filter(service => service.status === "Running").length} / ${record.services.length}`;
-      //   },
-      // },
       {
         title: i18next.t("general:Action"),
         dataIndex: "action",
@@ -241,9 +200,9 @@ class AssetListPage extends BaseListPage {
             <div>
               <ConnectModal
                 disabled={asset.owner !== this.props.account.owner}
-                owner = {asset.owner}
-                name = {asset.name}
-                category = {asset.category}
+                owner={asset.owner}
+                name={asset.name}
+                asset={asset}
               />
               <Button
                 style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}

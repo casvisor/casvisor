@@ -41,26 +41,11 @@ func initAPI() {
 	beego.Router("/api/add-record", &controllers.ApiController{}, "POST:AddRecord")
 	beego.Router("/api/delete-record", &controllers.ApiController{}, "POST:DeleteRecord")
 
-	beego.Router("/api/commit-record", &controllers.ApiController{}, "POST:CommitRecord")
-	beego.Router("/api/query-record", &controllers.ApiController{}, "GET:QueryRecord")
-
 	beego.Router("/api/get-assets", &controllers.ApiController{}, "GET:GetAssets")
 	beego.Router("/api/get-asset", &controllers.ApiController{}, "GET:GetAsset")
 	beego.Router("/api/update-asset", &controllers.ApiController{}, "POST:UpdateAsset")
 	beego.Router("/api/add-asset", &controllers.ApiController{}, "POST:AddAsset")
 	beego.Router("/api/delete-asset", &controllers.ApiController{}, "POST:DeleteAsset")
-
-	beego.Router("/api/get-providers", &controllers.ApiController{}, "GET:GetProviders")
-	beego.Router("/api/get-provider", &controllers.ApiController{}, "GET:GetProvider")
-	beego.Router("/api/update-provider", &controllers.ApiController{}, "POST:UpdateProvider")
-	beego.Router("/api/add-provider", &controllers.ApiController{}, "POST:AddProvider")
-	beego.Router("/api/delete-provider", &controllers.ApiController{}, "POST:DeleteProvider")
-
-	beego.Router("/api/get-machines", &controllers.ApiController{}, "GET:GetMachines")
-	beego.Router("/api/get-machine", &controllers.ApiController{}, "GET:GetMachine")
-	beego.Router("/api/update-machine", &controllers.ApiController{}, "POST:UpdateMachine")
-	beego.Router("/api/add-machine", &controllers.ApiController{}, "POST:AddMachine")
-	beego.Router("/api/delete-machine", &controllers.ApiController{}, "POST:DeleteMachine")
 
 	beego.Router("/api/get-sessions", &controllers.ApiController{}, "GET:GetSessions")
 	beego.Router("/api/get-session", &controllers.ApiController{}, "GET:GetConnSession")

@@ -49,11 +49,6 @@ type Record struct {
 	Object   string `xorm:"mediumtext" json:"object"`
 	Response string `xorm:"mediumtext" json:"response"`
 	// ExtendedUser *User  `xorm:"-" json:"extendedUser"`
-
-	Provider    string `xorm:"varchar(100)" json:"provider"`
-	Block       string `xorm:"varchar(100)" json:"block"`
-	Transaction string `xorm:"varchar(500)" json:"transaction"`
-	IsTriggered bool   `json:"isTriggered"`
 }
 
 type Response struct {
@@ -167,7 +162,6 @@ func NewRecord(ctx *context.Context) (*Record, error) {
 		Language:    languageCode,
 		Object:      object,
 		Response:    fmt.Sprintf("{\"status\":\"%s\",\"msg\":\"%s\"}", resp.Status, resp.Msg),
-		IsTriggered: false,
 	}
 	return &record, nil
 }
@@ -181,17 +175,6 @@ func AddRecord(record *Record) bool {
 
 	if strings.HasSuffix(record.Action, "-record") {
 		return false
-	}
-
-	if record.Provider == "" {
-		provider, err := getActiveBlockchainProvider(record.Organization)
-		if err != nil {
-			panic(err)
-		}
-
-		if provider != nil {
-			record.Provider = provider.Name
-		}
 	}
 
 	record.Owner = record.Organization

@@ -59,92 +59,6 @@
                 }
             }
         },
-        "/add-command": {
-            "post": {
-                "tags": [
-                    "Command API"
-                ],
-                "description": "add a command",
-                "operationId": "ApiController.AddCommand",
-                "parameters": [
-                    {
-                        "in": "body",
-                        "name": "command",
-                        "description": "The command object",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/object.Command"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{string} The Response object"
-                    }
-                }
-            }
-        },
-        "/add-file": {
-            "post": {
-                "tags": [
-                    "File API"
-                ],
-                "description": "add file",
-                "operationId": "ApiController.AddFile",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "key",
-                        "description": "The directory of the file",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "sessionId",
-                        "description": "The id of the session",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/add-permission": {
-            "post": {
-                "tags": [
-                    "Permission API"
-                ],
-                "description": "add permission",
-                "operationId": "ApiController.AddPermission",
-                "parameters": [
-                    {
-                        "in": "body",
-                        "name": "body",
-                        "description": "The details of the permission",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/casdoorsdk.Permission"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/add-record": {
             "post": {
                 "tags": [
@@ -229,90 +143,6 @@
                 }
             }
         },
-        "/delete-command": {
-            "post": {
-                "tags": [
-                    "Command API"
-                ],
-                "description": "delete the command",
-                "operationId": "ApiController.DeleteCommand",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "id",
-                        "description": "The id ( owner/name ) of the command",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{string} The Response object"
-                    }
-                }
-            }
-        },
-        "/delete-file": {
-            "post": {
-                "tags": [
-                    "File API"
-                ],
-                "description": "delete file",
-                "operationId": "ApiController.DeleteFile",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "sessionId",
-                        "description": "The id of the session",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "key",
-                        "description": "The direction of the file",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/delete-permission": {
-            "post": {
-                "tags": [
-                    "Permission API"
-                ],
-                "description": "delete permission",
-                "operationId": "ApiController.DeletePermission",
-                "parameters": [
-                    {
-                        "in": "body",
-                        "name": "body",
-                        "description": "The details of the permission",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/casdoorsdk.Permission"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/delete-record": {
             "post": {
                 "tags": [
@@ -363,36 +193,6 @@
                         "schema": {
                             "$ref": "#/definitions/Response"
                         }
-                    }
-                }
-            }
-        },
-        "/exec-command": {
-            "get": {
-                "tags": [
-                    "Command API"
-                ],
-                "description": "execute the command",
-                "operationId": "ApiController.ExecCommand",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "id",
-                        "description": "The id ( owner/name ) of the command",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "assetId",
-                        "description": "The id of the asset",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{stream} string \"An event stream of the command output in multiple ssh terminal\""
                     }
                 }
             }
@@ -451,177 +251,6 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.Asset"
-                        }
-                    }
-                }
-            }
-        },
-        "/get-command": {
-            "get": {
-                "tags": [
-                    "Command API"
-                ],
-                "description": "get the command",
-                "operationId": "ApiController.GetCommand",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "id",
-                        "description": "The id ( owner/name ) of the command",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/object.Command"
-                        }
-                    }
-                }
-            }
-        },
-        "/get-commands": {
-            "get": {
-                "tags": [
-                    "Command API"
-                ],
-                "description": "get all commands",
-                "operationId": "ApiController.GetCommands",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "description": "The size of each page",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "p",
-                        "description": "The number of the page",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/object.Command"
-                        }
-                    }
-                }
-            }
-        },
-        "/get-file": {
-            "get": {
-                "tags": [
-                    "File API"
-                ],
-                "description": "download file",
-                "operationId": "ApiController.DownloadFile",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "sessionId",
-                        "description": "The id of the session",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "key",
-                        "description": "The direction of the file",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/get-files": {
-            "get": {
-                "tags": [
-                    "File API"
-                ],
-                "description": "list files",
-                "operationId": "ApiController.GetFiles",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "sessionId",
-                        "description": "The id of the session",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "key",
-                        "description": "The direction of the file",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/get-permission": {
-            "get": {
-                "tags": [
-                    "Permission API"
-                ],
-                "description": "get permission",
-                "operationId": "ApiController.GetPermission",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "id",
-                        "description": "The id(owner/name) of permission",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/casdoorsdk.Permission"
-                        }
-                    }
-                }
-            }
-        },
-        "/get-permissions": {
-            "get": {
-                "tags": [
-                    "Permission API"
-                ],
-                "description": "get permissions",
-                "operationId": "ApiController.GetPermissions",
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/casdoorsdk.Permission"
-                            }
                         }
                     }
                 }
@@ -780,99 +409,6 @@
                 }
             }
         },
-        "/update-command": {
-            "post": {
-                "tags": [
-                    "Command API"
-                ],
-                "description": "update the command",
-                "operationId": "ApiController.UpdateCommand",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "id",
-                        "description": "The id ( owner/name ) of the command",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "body",
-                        "name": "command",
-                        "description": "The command object",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/object.Command"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{string} The Response object"
-                    }
-                }
-            }
-        },
-        "/update-file": {
-            "post": {
-                "tags": [
-                    "File API"
-                ],
-                "description": "update file",
-                "operationId": "ApiController.UpdateFile",
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "sessionId",
-                        "description": "The id of the session",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "filename",
-                        "description": "The name of the file",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/update-permission": {
-            "post": {
-                "tags": [
-                    "Permission API"
-                ],
-                "description": "update permission",
-                "operationId": "ApiController.UpdatePermission",
-                "parameters": [
-                    {
-                        "in": "body",
-                        "name": "body",
-                        "description": "The details of the permission",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/casdoorsdk.Permission"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "The Response object",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/update-record": {
             "post": {
                 "tags": [
@@ -949,10 +485,6 @@
             "title": "Response",
             "type": "object"
         },
-        "casdoorsdk.Permission": {
-            "title": "Permission",
-            "type": "object"
-        },
         "controllers.Response": {
             "title": "Response",
             "type": "object",
@@ -985,42 +517,11 @@
             "title": "Asset",
             "type": "object",
             "properties": {
-                "authType": {
-                    "type": "string"
-                },
-                "autoQuery": {
-                    "type": "boolean"
-                },
-                "category": {
-                    "type": "string"
-                },
-                "cpuCurrent": {
-                    "type": "number",
-                    "format": "float"
-                },
-                "cpuTotal": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "createdTime": {
                     "type": "string"
                 },
-                "databaseFile": {
+                "description": {
                     "type": "string"
-                },
-                "databaseUrl": {
-                    "type": "string"
-                },
-                "defaultDatabase": {
-                    "type": "string"
-                },
-                "diskCurrent": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "diskTotal": {
-                    "type": "integer",
-                    "format": "int64"
                 },
                 "displayName": {
                     "type": "string"
@@ -1028,38 +529,8 @@
                 "enableRemoteApp": {
                     "type": "boolean"
                 },
-                "enableSsh": {
-                    "type": "boolean"
-                },
-                "endpoint": {
+                "host": {
                     "type": "string"
-                },
-                "gatewayPort": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "isActive": {
-                    "type": "boolean"
-                },
-                "isPermanent": {
-                    "type": "boolean"
-                },
-                "isReadOnly": {
-                    "type": "boolean"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "memCurrent": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "memTotal": {
-                    "type": "integer",
-                    "format": "int64"
                 },
                 "name": {
                     "type": "string"
@@ -1077,58 +548,22 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "protocol": {
+                    "type": "string"
+                },
                 "remoteApps": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/object.RemoteApp"
                     }
                 },
-                "services": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/object.Service"
-                    }
-                },
-                "socketPath": {
-                    "type": "string"
-                },
                 "tag": {
                     "type": "string"
                 },
-                "type": {
+                "updatedTime": {
                     "type": "string"
-                },
-                "useDatabaseUrl": {
-                    "type": "boolean"
                 },
                 "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "object.Command": {
-            "title": "Command",
-            "type": "object",
-            "properties": {
-                "assets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "command": {
-                    "type": "string"
-                },
-                "createdTime": {
-                    "type": "string"
-                },
-                "displayName": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "owner": {
                     "type": "string"
                 }
             }
@@ -1150,8 +585,8 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "isTriggered": {
-                    "type": "boolean"
+                "language": {
+                    "type": "string"
                 },
                 "method": {
                     "type": "string"
@@ -1171,7 +606,13 @@
                 "requestUri": {
                     "type": "string"
                 },
+                "response": {
+                    "type": "string"
+                },
                 "user": {
+                    "type": "string"
+                },
+                "userAgent": {
                     "type": "string"
                 }
             }
@@ -1191,42 +632,6 @@
                     "type": "string"
                 },
                 "remoteAppName": {
-                    "type": "string"
-                }
-            }
-        },
-        "object.Service": {
-            "title": "Service",
-            "type": "object",
-            "properties": {
-                "expectedStatus": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "no": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "port": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "processId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "subStatus": {
                     "type": "string"
                 }
             }

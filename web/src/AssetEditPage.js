@@ -17,7 +17,6 @@ import {Button, Card, Col, Input, Row, Select, Switch} from "antd";
 import * as AssetBackend from "./backend/AssetBackend";
 import * as Setting from "./Setting";
 import i18next from "i18next";
-import ServiceTable from "./ServiceTable";
 import RemoteAppTable from "./RemoteAppTable";
 
 const {Option} = Select;
@@ -33,54 +32,19 @@ class AssetEditPage extends React.Component {
       organizations: [],
       mode: props.location.mode !== undefined ? props.location.mode : "edit",
     };
-
-    this.timer = null;
   }
 
   UNSAFE_componentWillMount() {
     this.getAsset();
-    this.startTimer();
   }
 
-  componentWillUnmount() {
-    this.stopTimer();
-  }
-
-  getAsset(updateFromRemote = false) {
-    AssetBackend.getAsset(this.props.account.owner, this.state.assetName)
+  getAsset() {
+    AssetBackend.getAsset(this.state.assetOwner, this.state.assetName)
       .then((res) => {
         if (res.status === "ok") {
-          // Clone the fetched asset data using the spread operator
           const newAsset = {...res.data};
-
-          if (!updateFromRemote && this.state.asset !== null) {
-            newAsset.autoQuery = this.state.asset.autoQuery;
-
-            // Update or add remote Apps to the asset data
-            newAsset.remoteApps = newAsset.remoteApps.map((newApp, i) => {
-              if (i < this.state.asset.remoteApps.length) {
-                const oldApp = this.state.asset.remoteApps[i];
-                return {
-                  ...oldApp, // Preserve old attributes
-                  ...newApp, // Override with new attributes
-                };
-              } else {
-                return newApp; // Add new service
-              }
-            }).slice(0, this.state.asset.remoteApps.length);
-
-            // Update or add services to the asset data
-            newAsset.services = newAsset.services.map((newService, i) => {
-              if (i < this.state.asset.services.length) {
-                const oldService = this.state.asset.services[i];
-                return {
-                  ...oldService, // Preserve old attributes
-                  ...newService, // Override with new attributes
-                };
-              } else {
-                return newService; // Add new service
-              }
-            }).slice(0, this.state.asset.services.length);
+          if (newAsset.remoteApps === null) {
+            newAsset.remoteApps = [];
           }
 
           this.setState({
@@ -90,25 +54,6 @@ class AssetEditPage extends React.Component {
           Setting.showMessage("error", `Failed to get asset: ${res.msg}`);
         }
       });
-  }
-
-  startTimer() {
-    if (this.timer === null) {
-      this.timer = window.setInterval(this.doTimer.bind(this), 3000);
-    }
-  }
-
-  stopTimer() {
-    if (this.timer !== null) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-  }
-
-  doTimer() {
-    if (this.state.asset?.autoQuery) {
-      this.getAsset(false);
-    }
   }
 
   parseAssetField(key, value) {
@@ -174,6 +119,16 @@ class AssetEditPage extends React.Component {
         </Row>
         <Row style={{marginTop: "20px"}} >
           <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+            {Setting.getLabel(i18next.t("general:Display name"), i18next.t("general:Display name - Tooltip"))} :
+          </Col>
+          <Col span={22} >
+            <Input value={this.state.asset.displayName} onChange={e => {
+              this.updateAssetField("displayName", e.target.value);
+            }} />
+          </Col>
+        </Row>
+        <Row style={{marginTop: "20px"}} >
+          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
             {Setting.getLabel(i18next.t("general:Description"), i18next.t("general:Description - Tooltip"))} :
           </Col>
           <Col span={22} >
@@ -204,11 +159,11 @@ class AssetEditPage extends React.Component {
         </Row>
         <Row style={{marginTop: "20px"}} >
           <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:IP"), i18next.t("general:IP - Tooltip"))} :
+            {Setting.getLabel(i18next.t("asset:Host"), i18next.t("asset:Host - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.ip} onChange={e => {
-              this.updateAssetField("ip", e.target.value);
+            <Input value={this.state.asset.host} onChange={e => {
+              this.updateAssetField("host", e.target.value);
             }} />
           </Col>
         </Row>
@@ -219,7 +174,6 @@ class AssetEditPage extends React.Component {
           <Col span={22} >
             <Input
               value={this.state.asset.port}
-              defaultValue={this.getDefaultPort(this.state.asset.protocol)}
               onChange={e => {
                 this.updateAssetField("port", e.target.value);
               }}
@@ -241,7 +195,7 @@ class AssetEditPage extends React.Component {
             {Setting.getLabel(i18next.t("general:Password"), i18next.t("general:Password - Tooltip"))} :
           </Col>
           <Col span={22} >
-            <Input value={this.state.asset.password} onChange={e => {
+            <Input.Password value={this.state.asset.password} onChange={e => {
               this.updateAssetField("password", e.target.value);
             }} />
           </Col>
@@ -269,36 +223,6 @@ class AssetEditPage extends React.Component {
               this.updateAssetField("tag", e.target.value);
             }
             } />
-          </Col>
-        </Row>
-        <Row style={{marginTop: "20px"}} >
-          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Language"), i18next.t("general:Language - Tooltip"))} :
-          </Col>
-          <Col span={22} >
-            <Input value={this.state.asset.language} onChange={e => {
-              this.updateAssetField("language", e.target.value);
-            }} />
-          </Col>
-        </Row>
-        <Row style={{marginTop: "20px"}} >
-          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Auto query"), i18next.t("general:Auto query - Tooltip"))} :
-          </Col>
-          <Col span={22} >
-            <Switch checked={this.state.asset.autoQuery} onChange={checked => {
-              this.updateAssetField("autoQuery", checked);
-            }} />
-          </Col>
-        </Row>
-        <Row style={{marginTop: "20px"}} >
-          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Is Permanent"), i18next.t("application:Is Permanent - Tooltip"))} :
-          </Col>
-          <Col span={1} >
-            <Switch checked={this.state.asset.isPermanent} onChange={checked => {
-              this.updateAssetField("isPermanent", checked);
-            }} />
           </Col>
         </Row>
         {this.state.asset.protocol === "RDP" && (
@@ -331,20 +255,6 @@ class AssetEditPage extends React.Component {
             )}
           </div>
         )}
-        {this.state.asset.protocol === "SSH" && (
-          <div>
-          </div>
-        )}
-        <Row style={{marginTop: "20px"}} >
-          <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-            {Setting.getLabel(i18next.t("general:Services"), i18next.t("general:Services - Tooltip"))} :
-          </Col>
-          <Col span={22} >
-            <ServiceTable title={"Services"} table={this.state.asset.services} onUpdateTable={(value) => {
-              this.updateAssetField("services", value);
-            }} />
-          </Col>
-        </Row>
       </Card>
     );
   }

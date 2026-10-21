@@ -14,58 +14,26 @@
 
 import React from "react";
 import {Link} from "react-router-dom";
-import {Button, Switch, Table} from "antd";
+import {Button, Table} from "antd";
 import moment from "moment";
 import * as Setting from "./Setting";
 import * as RecordBackend from "./backend/RecordBackend";
-import * as ProviderBackend from "./backend/ProviderBackend";
 import i18next from "i18next";
 import BaseListPage from "./BaseListPage";
 import PopconfirmModal from "./common/modal/PopconfirmModal";
 
 class RecordListPage extends BaseListPage {
-  constructor(props) {
-    super(props);
-    this.state = {
-      ...this.state,
-      providerMap: {},
-    };
-  }
-
-  componentDidMount() {
-    this.getProviders();
-  }
-
-  getProviders() {
-    ProviderBackend.getProviders(this.props.account.owner)
-      .then((res) => {
-        if (res.status === "ok") {
-          const providerMap = {};
-          for (const provider of res.data) {
-            providerMap[provider.name] = provider;
-          }
-          this.setState({
-            providerMap: providerMap,
-          });
-        } else {
-          Setting.showMessage("error", res.msg);
-        }
-      });
-  }
-
   newRecord() {
     return {
       owner: this.props.account.owner,
       name: Setting.GenerateId(),
       createdTime: moment().format(),
-      provider: "",
       organization: this.props.account.owner,
       clientIp: "::1",
       user: this.props.account.name,
       method: "POST",
       requestUri: "/api/get-account",
       action: "login",
-      isTriggered: false,
     };
   }
 
@@ -103,34 +71,6 @@ class RecordListPage extends BaseListPage {
       })
       .catch(error => {
         Setting.showMessage("error", `Record failed to delete: ${error}`);
-      });
-  }
-
-  commitRecord(i) {
-    RecordBackend.commitRecord(this.state.data[i])
-      .then((res) => {
-        if (res.status === "ok") {
-          Setting.showMessage("success", "Record committed successfully");
-          this.fetch({
-            pagination: this.state.pagination,
-          });
-        } else {
-          Setting.showMessage("error", `Failed to commit Record: ${res.msg}`);
-        }
-      })
-      .catch(error => {
-        Setting.showMessage("error", `Record failed to commit: ${error}`);
-      });
-  }
-
-  queryRecord(record) {
-    RecordBackend.queryRecord(record.owner, record.name)
-      .then((res) => {
-        if (res.status === "ok") {
-          Setting.showMessage(res.data.includes("Mismatched") ? "error" : "success", `${res.data}`);
-        } else {
-          Setting.showMessage("error", `Failed to query record: ${res.msg}`);
-        }
       });
   }
 
@@ -209,23 +149,6 @@ class RecordListPage extends BaseListPage {
         },
       },
       {
-        title: i18next.t("general:Provider"),
-        dataIndex: "provider",
-        key: "provider",
-        width: "90px",
-        sorter: true,
-        ...this.getColumnSearchProps("provider"),
-        render: (text, record, index) => {
-          return (
-            <Link to={`/providers/${record.owner}/${text}`}>
-              {
-                Setting.getShortText(text, 25)
-              }
-            </Link>
-          );
-        },
-      },
-      {
         title: i18next.t("general:User"),
         dataIndex: "user",
         key: "user",
@@ -292,22 +215,6 @@ class RecordListPage extends BaseListPage {
         ...this.getColumnSearchProps("object"),
       },
       {
-        title: i18next.t("general:Is triggered"),
-        dataIndex: "isTriggered",
-        key: "isTriggered",
-        width: "140px",
-        sorter: true,
-        render: (text, record, index) => {
-          if (!["signup", "login", "logout", "update-user"].includes(record.action)) {
-            return null;
-          }
-
-          return (
-            <Switch disabled checkedChildren="ON" unCheckedChildren="OFF" checked={text} />
-          );
-        },
-      },
-      {
         title: i18next.t("general:Action"),
         dataIndex: "action",
         key: "action",
@@ -320,18 +227,6 @@ class RecordListPage extends BaseListPage {
         },
       },
       {
-        title: i18next.t("general:Block"),
-        dataIndex: "block",
-        key: "block",
-        width: "90px",
-        sorter: true,
-        fixed: (Setting.isMobile()) ? "false" : "right",
-        ...this.getColumnSearchProps("block"),
-        render: (text, record, index) => {
-          return Setting.getBlockBrowserUrl(this.state.providerMap, record.provider, text);
-        },
-      },
-      {
         title: i18next.t("general:Action"),
         dataIndex: "action",
         key: "action",
@@ -340,25 +235,6 @@ class RecordListPage extends BaseListPage {
         render: (text, record, index) => {
           return (
             <div>
-              {
-                (record.block === "") ? (
-                  <Button
-                    disabled={record.block !== ""}
-                    style={{marginTop: "10px", marginRight: "10px"}}
-                    type="primary" danger
-                    onClick={() => this.commitRecord(index)}
-                  >{i18next.t("record:Commit")}
-                  </Button>
-                ) : (
-                  <Button
-                    disabled={record.block === ""}
-                    style={{marginTop: "10px", marginRight: "10px"}}
-                    type="primary"
-                    onClick={() => this.queryRecord(record)}
-                  >{i18next.t("record:Query")}
-                  </Button>
-                )
-              }
               <Button
                 // disabled={record.owner !== this.props.account.owner}
                 style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}

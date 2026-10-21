@@ -21,30 +21,6 @@ import (
 	"xorm.io/core"
 )
 
-type Service struct {
-	No             int    `json:"no"`
-	Name           string `json:"name"`
-	Path           string `json:"path"`
-	Port           int    `json:"port"`
-	ProcessId      int    `json:"processId"`
-	ExpectedStatus string `json:"expectedStatus"`
-	Status         string `json:"status"`
-	SubStatus      string `json:"subStatus"`
-	Message        string `json:"message"`
-}
-
-type Patch struct {
-	Name           string `json:"name"`
-	Category       string `json:"category"`
-	Title          string `json:"title"`
-	Url            string `json:"url"`
-	Size           string `json:"size"`
-	ExpectedStatus string `json:"expectedStatus"`
-	Status         string `json:"status"`
-	InstallTime    string `json:"installTime"`
-	Message        string `json:"message"`
-}
-
 type RemoteApp struct {
 	No            int    `json:"no"`
 	RemoteAppName string `xorm:"varchar(100)" json:"remoteAppName"`
@@ -58,35 +34,19 @@ type Asset struct {
 	CreatedTime string `xorm:"varchar(100)" json:"createdTime"`
 	UpdatedTime string `xorm:"varchar(100)" json:"updatedTime"`
 	DisplayName string `xorm:"varchar(100)" json:"displayName"`
+	Description string `xorm:"varchar(500)" json:"description"`
 
-	Category string `xorm:"varchar(100)" json:"category"`
-	Type     string `xorm:"varchar(100)" json:"type"`
-	Tag      string `xorm:"varchar(100)" json:"tag"`
+	Tag string `xorm:"varchar(100)" json:"tag"`
+	Os  string `xorm:"varchar(100)" json:"os"`
 
-	MachineName string `xorm:"varchar(100)" json:"machineName"`
-	Os          string `xorm:"varchar(100)" json:"os"`
-
-	PublicIp  string `xorm:"varchar(100)" json:"publicIp"`
-	PrivateIp string `xorm:"varchar(100)" json:"privateIp"`
-
-	Size    string `xorm:"varchar(100)" json:"size"`
-	CpuSize string `xorm:"varchar(100)" json:"cpuSize"`
-	MemSize string `xorm:"varchar(100)" json:"memSize"`
-
-	RemoteProtocol string `xorm:"varchar(100)" json:"remoteProtocol"`
-	RemotePort     int    `json:"remotePort"`
-	RemoteUsername string `xorm:"varchar(100)" json:"remoteUsername"`
-	RemotePassword string `xorm:"varchar(100)" json:"remotePassword"`
-
-	AutoQuery   bool `json:"autoQuery"`
-	IsPermanent bool `json:"isPermanent"`
-
-	Language string `xorm:"varchar(100)" json:"language"`
+	Protocol string `xorm:"varchar(100)" json:"protocol"`
+	Host     string `xorm:"varchar(200)" json:"host"`
+	Port     int    `json:"port"`
+	Username string `xorm:"varchar(100)" json:"username"`
+	Password string `xorm:"varchar(500)" json:"password"`
 
 	EnableRemoteApp bool         `json:"enableRemoteApp"`
-	RemoteApps      []*RemoteApp `json:"remoteApps"`
-	Services        []*Service   `json:"services"`
-	Patches         []*Patch     `json:"patches"`
+	RemoteApps      []*RemoteApp `xorm:"mediumtext" json:"remoteApps"`
 }
 
 func GetAssetCount(owner, field, value string) (int64, error) {
@@ -147,8 +107,8 @@ func GetMaskedAsset(asset *Asset, errs ...error) (*Asset, error) {
 		return nil, nil
 	}
 
-	if asset.RemotePassword != "" {
-		asset.RemotePassword = "***"
+	if asset.Password != "" {
+		asset.Password = "***"
 	}
 	return asset, nil
 }
@@ -178,8 +138,8 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		return false, nil
 	}
 
-	if asset.RemotePassword == "***" {
-		asset.RemotePassword = p.RemotePassword
+	if asset.Password == "***" {
+		asset.Password = p.Password
 	}
 
 	affected, err := adapter.engine.ID(core.PK{owner, name}).AllCols().Update(asset)
@@ -208,6 +168,6 @@ func DeleteAsset(asset *Asset) (bool, error) {
 	return affected != 0, nil
 }
 
-func (asset *Asset) getId() string {
+func (asset *Asset) GetId() string {
 	return fmt.Sprintf("%s/%s", asset.Owner, asset.Name)
 }

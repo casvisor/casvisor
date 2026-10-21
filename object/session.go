@@ -15,6 +15,7 @@
 package object
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -168,21 +169,21 @@ func AddSession(session *Session) (bool, error) {
 	return affected != 0, nil
 }
 
-func CreateSession(session *Session, machineId string, mode string) (*Session, error) {
-	machine, err := GetMachine(machineId)
+func CreateSession(session *Session, assetId string, mode string) (*Session, error) {
+	asset, err := GetAsset(assetId)
 	if err != nil {
 		return nil, err
 	}
 
-	if machine == nil {
-		return nil, nil
+	if asset == nil {
+		return nil, fmt.Errorf("the asset: %s does not exist", assetId)
 	}
 
-	session.Owner = machine.Owner
+	session.Owner = asset.Owner
 	session.Name = util.GenerateId()
 	session.CreatedTime = util.GetCurrentTime()
-	session.Protocol = machine.RemoteProtocol
-	session.Asset = machineId
+	session.Protocol = asset.Protocol
+	session.Asset = assetId
 	session.Status = NoConnect
 	session.Mode = mode
 	session.Reviewed = false
@@ -196,7 +197,7 @@ func CreateSession(session *Session, machineId string, mode string) (*Session, e
 	respSession := &Session{
 		Owner:      session.Owner,
 		Name:       session.Name,
-		Protocol:   machine.RemoteProtocol,
+		Protocol:   asset.Protocol,
 		Operations: session.Operations,
 	}
 	return respSession, nil

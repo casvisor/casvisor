@@ -26,8 +26,7 @@ const ConnectModal = (props) => {
   const [password, setPassword] = useState("");
   const owner = props.owner;
   const name = props.name;
-  const category = props.category;
-  const machine = props.machine;
+  const asset = props.asset;
 
   const handleUsernameAndPassword = (username, password) => {
     setUsername(username || "");
@@ -43,35 +42,13 @@ const ConnectModal = (props) => {
 
   const showModal = () => {
     initStatus();
-    handleUsernameAndPassword(machine.remoteUsername, machine.remotePassword);
-    // getAsset(owner, name)
-    //   .then(res => {
-    //     if (res.status === "ok") {
-    //       setUsername(res.data.username || "");
-    //       if (res.data.username && res.data.password) {
-    //         handleOk();
-    //       } else {
-    //         if (res.data.username) {
-    //           setInputDisabled(true);
-    //         }
-    //         setIsModalOpen(true);
-    //       }
-    //     }
-    //   })
-    //   .catch(error => {
-    //     setIsModalOpen(true);
-    //   });
+    handleUsernameAndPassword(asset.username, asset.password);
   };
 
   const handleOk = () => {
     setIsModalOpen(false);
-    if (category === "Machine") {
-      const link = (username === "" || password === "") ? `access/${owner}/${name}` : `access/${owner}/${name}?username=${username}&password=${password}`;
-      Setting.openLink(link);
-    } else if (category === "Database") {
-      const link = "databases";
-      Setting.openLink(link);
-    }
+    const link = (username === "" || password === "") ? `access/${owner}/${name}` : `access/${owner}/${name}?username=${username}&password=${password}`;
+    Setting.openLink(link);
   };
 
   const handleCancel = () => {
@@ -88,7 +65,7 @@ const ConnectModal = (props) => {
     <>
       <Button
         disabled={props.disabled}
-        type={machine.remoteUsername && machine.remotePassword ? "primary" : "default"}
+        type={asset.username && asset.password ? "primary" : "default"}
         onClick={showModal}
         style={{marginTop: "10px", marginBottom: "10px", marginRight: "10px"}}
       >

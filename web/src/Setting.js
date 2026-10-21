@@ -243,33 +243,6 @@ export function changeMomentLanguage(lng) {
   // }
 }
 
-export function getProviderTypeOptions(category) {
-  if (category === "Public Cloud") {
-    return ([
-      {value: "Amazon Web Services", label: "Amazon Web Services"},
-      {value: "Azure", label: "Azure"},
-      {value: "Google Cloud", label: "Google Cloud"},
-      {value: "Aliyun", label: "Aliyun"},
-    ]);
-  } else if (category === "Private Cloud") {
-    return ([
-      {value: "KVM", label: "KVM"},
-      {value: "Xen", label: "Xen"},
-      {value: "VMware", label: "VMware"},
-      {value: "PVE", label: "PVE"},
-    ]);
-  } else if (category === "Blockchain") {
-    return ([
-      {value: "Hyperledger Fabric", label: "Hyperledger Fabric"},
-      {value: "ChainMaker", label: "ChainMaker"},
-      {value: "Tencent ChainMaker", label: "Tencent ChainMaker"},
-      {value: "Tencent ChainMaker (Demo Network)", label: "Tencent ChainMaker (Demo Network)"},
-    ]);
-  } else {
-    return [];
-  }
-}
-
 export function setOrganization(organization) {
   localStorage.setItem("organization", organization);
   window.dispatchEvent(new Event("storageOrganizationChanged"));
@@ -373,18 +346,4 @@ export function GetIdFromObject(obj) {
     return "";
   }
   return `${obj.owner}/${obj.name}`;
-}
-
-export function getBlockBrowserUrl(providerMap, providerName, block) {
-  const provider = providerMap[providerName];
-  if (!provider || provider.browserUrl === "") {
-    return block;
-  }
-
-  const url = provider.browserUrl.replace("{bh}", block).replace("{chainId}", 1).replace("{clusterId}", provider.network);
-  return (
-    <a target="_blank" rel="noreferrer" href={url}>
-      {block}
-    </a>
-  );
 }

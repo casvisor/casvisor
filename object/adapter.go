@@ -106,16 +106,6 @@ func (a *Adapter) createTable() {
 		panic(err)
 	}
 
-	err = a.engine.Sync2(new(Provider))
-	if err != nil {
-		panic(err)
-	}
-
-	err = a.engine.Sync2(new(Machine))
-	if err != nil {
-		panic(err)
-	}
-
 	err = a.engine.Sync2(new(Record))
 	if err != nil {
 		panic(err)

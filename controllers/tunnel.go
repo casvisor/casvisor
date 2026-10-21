@@ -118,25 +118,27 @@ func (c *ApiController) GetAssetTunnel() {
 		return
 	}
 
-	machine, err := object.GetMachine(session.Asset)
-	if err != nil || machine == nil {
+	asset, err := object.GetAsset(session.Asset)
+	if err != nil {
 		guacamole.Disconnect(ws, AssetNotFound, err.Error())
 		return
 	}
+	if asset == nil {
+		guacamole.Disconnect(ws, AssetNotFound, fmt.Sprintf("the asset: %s does not exist", session.Asset))
+		return
+	}
 
-	if machine.RemoteUsername == "" {
-		machine.RemoteUsername = username
-		machine.RemotePassword = password
-	} else {
-		if machine.RemotePassword == "" {
-			machine.RemotePassword = password
-		}
+	if asset.Username == "" {
+		asset.Username = username
+		asset.Password = password
+	} else if asset.Password == "" {
+		asset.Password = password
 	}
 
 	configuration := guacamole.NewConfiguration()
 	propertyMap := configuration.LoadConfig()
 
-	setConfig(propertyMap, machine, configuration)
+	setConfig(propertyMap, asset, configuration)
 	configuration.SetParameter("width", width)
 	configuration.SetParameter("height", height)
 	configuration.SetParameter("dpi", dpi)
@@ -281,23 +283,15 @@ func (c *ApiController) TunnelMonitor() {
 	}
 }
 
-func setConfig(propertyMap map[string]string, machine *object.Machine, configuration *guacamole.Configuration) {
-	configuration.Protocol = strings.ToLower(machine.RemoteProtocol)
+func setConfig(propertyMap map[string]string, asset *object.Asset, configuration *guacamole.Configuration) {
+	configuration.Protocol = strings.ToLower(asset.Protocol)
 
-	hostname := machine.PublicIp
-	if hostname == "" {
-		hostname = machine.PrivateIp
-	}
-	if hostname == "" {
-		hostname = machine.Name
-	}
+	configuration.SetParameter("hostname", asset.Host)
+	configuration.SetParameter("port", strconv.Itoa(asset.Port))
+	configuration.SetParameter("username", asset.Username)
+	configuration.SetParameter("password", asset.Password)
 
-	configuration.SetParameter("hostname", hostname)
-	configuration.SetParameter("port", strconv.Itoa(machine.RemotePort))
-	configuration.SetParameter("username", machine.RemoteUsername)
-	configuration.SetParameter("password", machine.RemotePassword)
-
-	switch machine.RemoteProtocol {
+	switch asset.Protocol {
 	case "RDP":
 		configuration.SetParameter("security", "any")
 		configuration.SetParameter("ignore-cert", "true")
