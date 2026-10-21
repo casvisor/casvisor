@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import React from "react";
-import GuacdPage from "./GuacdPage";
+import AssetConnection from "./AssetConnection";
 import {useLocation, useParams} from "react-router-dom";
 
 const AccessPage = () => {
@@ -21,7 +21,7 @@ const AccessPage = () => {
   const query = new URLSearchParams(useLocation().search);
   const username = query.get("username") || "";
   const password = query.get("password") || "";
-  return <GuacdPage assetId={`${owner}/${name}`} username={`${username}`} password={`${password}`} />;
+  return <AssetConnection assetId={`${owner}/${name}`} username={`${username}`} password={`${password}`} />;
 };
 
 export default AccessPage;

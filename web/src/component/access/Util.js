@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import * as Setting from "../../Setting";
+
 export const debounce = function(fn, delay = 500) {
   let timer = null;
 
@@ -61,4 +63,12 @@ export function toggleFullscreen() {
       }
     }
   }
+}
+
+export function getWebSocketUrl(path) {
+  if (Setting.ServerUrl) {
+    return Setting.ServerUrl.replace(/^http/, "ws") + path;
+  }
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}${path}`;
 }

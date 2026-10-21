@@ -14,7 +14,7 @@
 
 import React, {useEffect, useState} from "react";
 import {Tabs} from "antd";
-import GuacdPage from "./GuacdPage";
+import AssetConnection from "./AssetConnection";
 import i18next from "i18next";
 
 const RemoteDesktop = (props) => {
@@ -52,7 +52,7 @@ const RemoteDesktop = (props) => {
 
     const newPane = {
       label: asset.name,
-      children: <GuacdPage
+      children: <AssetConnection
         assetId={`${asset.owner}/${asset.name}`}
         activeKey={activeKey}
         closePane={removePane}

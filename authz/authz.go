@@ -79,6 +79,8 @@ p, *, *, POST, /api/signin, *, *
 p, *, *, POST, /api/signout, *, *
 p, *, *, GET, /api/get-account, *, *
 p, *, *, GET, /api/get-asset-tunnel, *, *
+p, *, *, GET, /api/get-asset-ssh, *, *
+p, *, *, GET, /api/get-asset-vnc, *, *
 p, *, *, POST, /api/add-asset-tunnel, *, *
 p, *, *, POST, /api/start-session, *, *
 `
