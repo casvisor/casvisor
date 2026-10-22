@@ -35,6 +35,14 @@ func (t *Ticker) SetupTicker() {
 			t.deleteUnUsedSession()
 		}
 	}()
+
+	// rescan the updates of the assets scanned before, once a day by default
+	patchScanTicker := time.NewTicker(time.Hour)
+	go func() {
+		for range patchScanTicker.C {
+			object.ScanStalePatches()
+		}
+	}()
 }
 
 func (t *Ticker) deleteUnUsedSession() {

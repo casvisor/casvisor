@@ -188,6 +188,11 @@ func DeleteAsset(asset *Asset) (bool, error) {
 		return false, err
 	}
 
+	err = deletePatchStatus(asset.Owner, asset.Name)
+	if err != nil {
+		return false, err
+	}
+
 	return affected != 0, nil
 }
 

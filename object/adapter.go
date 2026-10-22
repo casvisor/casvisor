@@ -140,6 +140,16 @@ func (a *Adapter) createTable() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = a.engine.Sync2(new(PatchStatus))
+	if err != nil {
+		panic(err)
+	}
+
+	err = a.engine.Sync2(new(PatchJob))
+	if err != nil {
+		panic(err)
+	}
 }
 
 func GetSession(owner string, offset, limit int, field, value, sortField, sortOrder string) *xorm.Session {

@@ -155,3 +155,49 @@ export interface Command {
   action: string;
   rule: string;
 }
+
+export interface PatchUpdate {
+  id: string;
+  title: string;
+  kb: string;
+  category: string;
+  severity: string;
+  isSecurity: boolean;
+  currentVersion: string;
+  newVersion: string;
+  rebootRequired: boolean;
+}
+
+export interface PatchStatus {
+  owner: string;
+  name: string;
+  updatedTime: string;
+  platform: string;
+  os: string;
+  manager: string;
+  updates: PatchUpdate[] | null;
+  updateCount: number;
+  securityCount: number;
+  rebootRequired: boolean;
+  scannedTime: string;
+  message: string;
+  job: string;
+  jobType: string;
+  displayName: string;
+  host: string;
+  tag: string;
+}
+
+export interface PatchJob {
+  owner: string;
+  name: string;
+  createdTime: string;
+  endTime: string;
+  asset: string;
+  type: string;
+  updates: string[] | null;
+  user: string;
+  status: string;
+  message: string;
+  output: string;
+}

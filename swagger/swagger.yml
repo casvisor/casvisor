@@ -409,6 +409,84 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Principal'
+  /get-patch-job:
+    get:
+      tags:
+      - Patch API
+      description: get a job with its output, live while it runs
+      operationId: ApiController.GetPatchJob
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the job
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.PatchJob'
+  /get-patch-jobs:
+    get:
+      tags:
+      - Patch API
+      description: get the scan, install and restart jobs, by page
+      operationId: ApiController.GetPatchJobs
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the jobs
+        required: true
+        type: string
+      - in: query
+        name: pageSize
+        description: The size of each page
+        required: true
+        type: string
+      - in: query
+        name: p
+        description: The number of the page
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.PatchJob'
+  /get-patch-status:
+    get:
+      tags:
+      - Patch API
+      description: get the pending updates of an SSH asset, from the last scan
+      operationId: ApiController.GetPatchStatus
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the asset
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.PatchStatus'
+  /get-patch-statuses:
+    get:
+      tags:
+      - Patch API
+      description: get the pending updates of every SSH asset, from the last scan
+      operationId: ApiController.GetPatchStatuses
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the assets
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.PatchStatus'
   /get-permission:
     get:
       tags:
@@ -614,6 +692,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /start-patch-job:
+    post:
+      tags:
+      - Patch API
+      description: scan for updates, install updates or restart, on one or more SSH assets
+      operationId: ApiController.StartPatchJob
+      parameters:
+      - in: body
+        name: body
+        description: The owner, the asset names, the type (Scan, Install or Reboot) and, to install some of the updates of one asset, their ids
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.patchJobRequest'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.PatchJob'
   /update-asset:
     post:
       tags:
@@ -818,6 +914,22 @@ definitions:
         type: string
       port:
         type: string
+  controllers.patchJobRequest:
+    title: patchJobRequest
+    type: object
+    properties:
+      assets:
+        type: array
+        items:
+          type: string
+      owner:
+        type: string
+      type:
+        type: string
+      updates:
+        type: array
+        items:
+          type: string
   object:
     title: object
     type: object
@@ -924,6 +1036,98 @@ definitions:
         type: array
         items:
           type: string
+  object.PatchJob:
+    title: PatchJob
+    type: object
+    properties:
+      asset:
+        type: string
+      createdTime:
+        type: string
+      endTime:
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      output:
+        type: string
+      owner:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updates:
+        type: array
+        items:
+          type: string
+      user:
+        type: string
+  object.PatchStatus:
+    title: PatchStatus
+    type: object
+    properties:
+      displayName:
+        type: string
+      host:
+        type: string
+      job:
+        type: string
+      jobType:
+        type: string
+      manager:
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      os:
+        type: string
+      owner:
+        type: string
+      platform:
+        type: string
+      rebootRequired:
+        type: boolean
+      scannedTime:
+        type: string
+      securityCount:
+        type: integer
+        format: int64
+      tag:
+        type: string
+      updateCount:
+        type: integer
+        format: int64
+      updatedTime:
+        type: string
+      updates:
+        type: array
+        items:
+          $ref: '#/definitions/object.PatchUpdate'
+  object.PatchUpdate:
+    title: PatchUpdate
+    type: object
+    properties:
+      category:
+        type: string
+      currentVersion:
+        type: string
+      id:
+        type: string
+      isSecurity:
+        type: boolean
+      kb:
+        type: string
+      newVersion:
+        type: string
+      rebootRequired:
+        type: boolean
+      severity:
+        type: string
+      title:
+        type: string
   object.Permission:
     title: Permission
     type: object

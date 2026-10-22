@@ -33,6 +33,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	object.InitPatchJobs()
 	authz.InitAuthz()
 	util.InitIpDb()
 	util.InitParser()

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, ScrollText, Server, ShieldAlert, SquareTerminal, type LucideIcon} from "lucide-react";
+import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -58,6 +58,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         label: i18next.t("general:Permissions"),
         icon: KeyRound,
         description: i18next.t("general:Who can connect to which assets"),
+      },
+      {
+        key: "/patches",
+        label: i18next.t("general:Patches"),
+        icon: PackageCheck,
+        description: i18next.t("general:Scan and install system updates on SSH assets"),
       },
       {
         key: "/sessions",

@@ -71,6 +71,12 @@ func initAPI() {
 	beego.Router("/api/delete-command-rule", &controllers.ApiController{}, "POST:DeleteCommandRule")
 	beego.Router("/api/get-commands", &controllers.ApiController{}, "GET:GetCommands")
 
+	beego.Router("/api/get-patch-statuses", &controllers.ApiController{}, "GET:GetPatchStatuses")
+	beego.Router("/api/get-patch-status", &controllers.ApiController{}, "GET:GetPatchStatus")
+	beego.Router("/api/get-patch-jobs", &controllers.ApiController{}, "GET:GetPatchJobs")
+	beego.Router("/api/get-patch-job", &controllers.ApiController{}, "GET:GetPatchJob")
+	beego.Router("/api/start-patch-job", &controllers.ApiController{}, "POST:StartPatchJob")
+
 	beego.Router("/api/add-asset-tunnel", &controllers.ApiController{}, "POST:AddAssetTunnel")
 	beego.Router("/api/get-asset-tunnel", &controllers.ApiController{}, "GET:GetAssetTunnel")
 	beego.Router("/api/get-asset-ssh", &controllers.ApiController{}, "GET:GetAssetSsh")
