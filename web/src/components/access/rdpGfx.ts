@@ -274,10 +274,18 @@ export class GfxRenderer {
       const glyph = this.glyphs.get(u16(at));
       const s = this.surfaces.get(u16(at + 2));
       const r = rect(at + 4);
-      if (glyph && s) {
-        s.ctx.drawImage(glyph, 0, 0, r.w, r.h, r.x, r.y, r.w, r.h);
-        this.touch(s, r);
+      if (!glyph || !s || r.w * r.h > glyph.width * glyph.height) {
+        break;
       }
+      if (glyph.width === r.w && glyph.height === r.h) {
+        s.ctx.drawImage(glyph, r.x, r.y);
+      } else {
+        // A glyph is a run of pixels: it may be drawn in rows of a
+        // different width than it was saved with.
+        const pixels = context(glyph).getImageData(0, 0, glyph.width, glyph.height).data;
+        s.ctx.putImageData(new ImageData(pixels.slice(0, r.w * r.h * 4), r.w, r.h), r.x, r.y);
+      }
+      this.touch(s, r);
       break;
     }
     }
