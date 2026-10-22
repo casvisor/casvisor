@@ -22,6 +22,7 @@ import (
 	"image"
 	"image/png"
 	"net"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -31,6 +32,7 @@ import (
 	"github.com/casvisor/casvisor/object"
 	gordp "github.com/casvisor/gordp"
 	"github.com/casvisor/gordp/bitmap"
+	"github.com/casvisor/gordp/rdpdr"
 	"github.com/gorilla/websocket"
 )
 
@@ -68,9 +70,35 @@ func (c *ApiController) GetAssetRdp() {
 	}
 
 	addr := net.JoinHostPort(asset.Host, strconv.Itoa(asset.Port))
-	client := gordp.NewClient(addr, "", asset.Username, asset.Password,
+	options := []gordp.Option{
 		gordp.WithDesktopSize(uint16(width), uint16(height)),
-		gordp.WithServerCertFingerprint(asset.Fingerprint))
+		gordp.WithServerCertFingerprint(asset.Fingerprint),
+	}
+
+	// The remote desktop sees a gateway directory of its own as
+	// \\tsclient\casvisor, which the file panel uploads into and downloads
+	// from. Without Download nothing may leave the remote host, so it cannot
+	// write there; without Upload it cannot read what the user put there.
+	canUpload := slices.Contains(session.Operations, "upload")
+	canDownload := slices.Contains(session.Operations, "download")
+	driveDir := ""
+	if canUpload || canDownload {
+		driveDir = getSessionDriveDir(session)
+		if err = os.MkdirAll(driveDir, 0o700); err != nil {
+			fail(NewTunnelError, err)
+			return
+		}
+		// The files are only reachable while the session is connected.
+		defer os.RemoveAll(driveDir)
+		options = append(options, gordp.WithDrive(gordp.Drive{
+			Name:      "casvisor",
+			Root:      driveDir,
+			ReadOnly:  !canDownload,
+			WriteOnly: !canUpload,
+		}))
+	}
+
+	client := gordp.NewClient(addr, "", asset.Username, asset.Password, options...)
 
 	// Clipboard and resize calls are queued to run between pumps, on the
 	// goroutine that owns the client state.
@@ -100,8 +128,19 @@ func (c *ApiController) GetAssetRdp() {
 	if slices.Contains(session.Operations, "copy") {
 		client.OnClipboard = func(text string) {
 			_ = stream.WriteJSON(rdpMessage{Type: "clipboard", Text: text})
-			c.auditRdpClipboard(asset, "clipboard-copy", text)
+			c.auditRdp(asset, "clipboard-copy", truncateRunes(text, 1000))
 		}
+	}
+
+	client.OnDriveEvent = func(drive string, ev rdpdr.Event) {
+		detail := ev.Path
+		switch ev.Op {
+		case rdpdr.OpRename:
+			detail = fmt.Sprintf("%s -> %s", ev.Path, ev.NewPath)
+		case rdpdr.OpRead, rdpdr.OpWrite:
+			detail = fmt.Sprintf("%s (%d bytes)", ev.Path, ev.Bytes)
+		}
+		c.auditRdp(asset, "file-"+ev.Op, detail)
 	}
 
 	if err := client.Connect(); err != nil {
@@ -123,6 +162,10 @@ func (c *ApiController) GetAssetRdp() {
 	if err := setSessionConnected(sessionId, session, width, height); err != nil {
 		fail(SessionUpdateError, err)
 		return
+	}
+	if driveDir != "" {
+		sessionDrives.Store(sessionId, driveDir)
+		defer sessionDrives.Delete(sessionId)
 	}
 	object.AddSessionCloser(sessionId, func(code int, msg string) {
 		_ = client.Close()
@@ -192,7 +235,7 @@ func (c *ApiController) readRdpInput(ws *websocket.Conn, client *gordp.Client, s
 			}
 			text := msg.Text
 			queue(func() { _ = client.SetClipboard(text) })
-			c.auditRdpClipboard(asset, "clipboard-paste", text)
+			c.auditRdp(asset, "clipboard-paste", truncateRunes(text, 1000))
 		case "resize":
 			if msg.Width <= 0 || msg.Height <= 0 {
 				continue
@@ -203,7 +246,7 @@ func (c *ApiController) readRdpInput(ws *websocket.Conn, client *gordp.Client, s
 	}
 }
 
-func (c *ApiController) auditRdpClipboard(asset *object.Asset, action string, text string) {
+func (c *ApiController) auditRdp(asset *object.Asset, action string, detail string) {
 	user := c.GetSessionUser()
 	if user == nil {
 		return
@@ -216,7 +259,7 @@ func (c *ApiController) auditRdpClipboard(asset *object.Asset, action string, te
 		Method:       "RDP",
 		Action:       action,
 		Asset:        asset.GetId(),
-		Detail:       truncateRunes(text, 1000),
+		Detail:       detail,
 	})
 }
 

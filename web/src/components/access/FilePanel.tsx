@@ -94,8 +94,10 @@ function NameDialog({title, value, onOk, onCancel}: {title: string; value: strin
 }
 
 /**
- * The files of an SSH session's asset, docked beside the terminal. It goes over
- * the session's own SSH connection, held to the Upload and Download permissions.
+ * The files of an SSH session's asset, docked beside the terminal, over the
+ * session's own SSH connection; in an RDP session, the gateway directory the
+ * remote desktop sees as \\tsclient\casvisor. Held to the Upload and Download
+ * permissions.
  */
 export function FilePanel({sessionId, operations, onClose}: {sessionId: string; operations: string[]; onClose: () => void}) {
   const canUpload = operations.includes("upload");

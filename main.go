@@ -16,9 +16,11 @@ package main
 
 import (
 	"github.com/beego/beego"
+	"github.com/beego/beego/logs"
 	"github.com/beego/beego/plugins/cors"
 	_ "github.com/beego/beego/session/redis"
 	"github.com/casvisor/casvisor/authz"
+	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/demo"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/routers"
@@ -38,6 +40,10 @@ func main() {
 		panic(err)
 	}
 	object.InitPatchJobs()
+	err = controllers.ClearSessionDrives()
+	if err != nil {
+		logs.Warning("failed to clear the drives of earlier RDP sessions: %s", err.Error())
+	}
 	authz.InitAuthz()
 	util.InitIpDb()
 	util.InitParser()

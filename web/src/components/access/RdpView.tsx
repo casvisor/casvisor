@@ -17,6 +17,7 @@ import i18next from "i18next";
 import qs from "qs";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ClipboardDialog, ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
+import {FilePanel} from "@/components/access/FilePanel";
 import {closeView, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
@@ -38,6 +39,8 @@ export default function RdpView(props: ConnectionProps) {
   const [clipboardText, setClipboardText] = React.useState("");
   const [clipboardOpen, setClipboardOpen] = React.useState(false);
   const [failure, setFailure] = React.useState<string | null>(null);
+  const [session, setSession] = React.useState<{id: string; operations: string[]} | null>(null);
+  const [showFiles, setShowFiles] = React.useState(false);
   const status = useConnectionToast(assetId);
 
   const send = (msg: any) => {
@@ -118,6 +121,7 @@ export default function RdpView(props: ConnectionProps) {
             connected = true;
             status.success(i18next.t("asset:Connection successful"));
             SessionBackend.connect(`${session.owner}/${session.name}`);
+            setSession({id: `${session.owner}/${session.name}`, operations: session.operations ?? []});
             canvas.focus();
           } else if (msg.t === "size") {
             if (canvas.width !== msg.width || canvas.height !== msg.height) {
@@ -141,6 +145,8 @@ export default function RdpView(props: ConnectionProps) {
           return;
         }
         wsRef.current = null;
+        setSession(null);
+        setShowFiles(false);
         status.dismiss();
         if (failureReason) {
           setFailure(failureReason);
@@ -259,28 +265,36 @@ export default function RdpView(props: ConnectionProps) {
     canvasRef.current?.focus();
   };
 
+  const canTransfer = session !== null && session.operations.includes("fileSystem");
+
   return (
-    <div className="relative h-full w-full bg-[#1b1b1b]">
-      <canvas
-        ref={canvasRef}
-        tabIndex={0}
-        className="h-full w-full object-contain outline-none"
-        onMouseMove={onMouseMove}
-        onMouseDown={(e) => onMouseButton(e, true)}
-        onMouseUp={(e) => onMouseButton(e, false)}
-        onContextMenu={(e) => e.preventDefault()}
-        onWheel={onWheel}
-        onKeyDown={(e) => onKey(e, true)}
-        onKeyUp={(e) => onKey(e, false)}
-      />
-      <ConnectionToolbar
-        onFullscreen={() => {
-          toggleFullscreen();
-          canvasRef.current?.focus();
-        }}
-        onClipboard={() => setClipboardOpen(true)}
-        onHotKey={sendCombinationKey}
-      />
+    <div className="flex h-full w-full">
+      <div className="relative h-full min-w-0 flex-1 bg-[#1b1b1b]">
+        <canvas
+          ref={canvasRef}
+          tabIndex={0}
+          className="h-full w-full object-contain outline-none"
+          onMouseMove={onMouseMove}
+          onMouseDown={(e) => onMouseButton(e, true)}
+          onMouseUp={(e) => onMouseButton(e, false)}
+          onContextMenu={(e) => e.preventDefault()}
+          onWheel={onWheel}
+          onKeyDown={(e) => onKey(e, true)}
+          onKeyUp={(e) => onKey(e, false)}
+        />
+        <ConnectionToolbar
+          onFullscreen={() => {
+            toggleFullscreen();
+            canvasRef.current?.focus();
+          }}
+          onClipboard={() => setClipboardOpen(true)}
+          onHotKey={sendCombinationKey}
+          onFiles={canTransfer ? () => setShowFiles(!showFiles) : undefined}
+        />
+      </div>
+      {canTransfer && showFiles ? (
+        <FilePanel sessionId={session.id} operations={session.operations} onClose={() => setShowFiles(false)} />
+      ) : null}
       <ClipboardDialog
         open={clipboardOpen}
         text={clipboardText}

@@ -15,12 +15,14 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -76,6 +78,189 @@ func (s *sessionSsh) getSftp() (*sftp.Client, error) {
 	return s.sftp, nil
 }
 
+// sessionFs is what the file panel works on: the asset's own files over SFTP in
+// SSH sessions, or the gateway directory redirected into an RDP session.
+type sessionFs interface {
+	Getwd() (string, error)
+	ReadDir(p string) ([]os.FileInfo, error)
+	Stat(p string) (os.FileInfo, error)
+	Lstat(p string) (os.FileInfo, error)
+	Open(p string) (sessionFsFile, error)
+	Create(p string) (io.WriteCloser, error)
+	Mkdir(p string) error
+	Rename(oldPath string, newPath string) error
+	Remove(p string) error
+	RemoveAll(p string) error
+}
+
+type sessionFsFile interface {
+	io.ReadCloser
+	Stat() (os.FileInfo, error)
+}
+
+type sftpFs struct {
+	*sftp.Client
+}
+
+func (fs sftpFs) Open(p string) (sessionFsFile, error) {
+	file, err := fs.Client.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func (fs sftpFs) Create(p string) (io.WriteCloser, error) {
+	file, err := fs.Client.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+// sessionDrives maps an RDP session to its gateway directory, which the remote
+// desktop sees as \\tsclient\casvisor.
+var sessionDrives sync.Map
+
+var sessionDrivesDir = filepath.Join("data", "drives")
+
+func getSessionDriveDir(session *object.Session) string {
+	return filepath.Join(sessionDrivesDir, session.Name)
+}
+
+// ClearSessionDrives removes what RDP sessions of an earlier run left behind,
+// which no session can reach any more.
+func ClearSessionDrives() error {
+	return os.RemoveAll(sessionDrivesDir)
+}
+
+// driveFs is the gateway directory of an RDP session, with "/" as its root.
+type driveFs struct {
+	root string
+}
+
+func (fs driveFs) local(p string) (string, error) {
+	if strings.ContainsAny(p, ":\\") {
+		return "", fmt.Errorf("invalid path: %s", p)
+	}
+	return filepath.Join(fs.root, filepath.FromSlash(path.Clean("/"+p))), nil
+}
+
+// hide keeps the gateway's own paths out of error messages.
+func (fs driveFs) hide(err error) error {
+	if err == nil {
+		return nil
+	}
+	return errors.New(strings.ReplaceAll(strings.ReplaceAll(err.Error(), fs.root, ""), "\\", "/"))
+}
+
+func (fs driveFs) Getwd() (string, error) {
+	return "/", nil
+}
+
+func (fs driveFs) ReadDir(p string) ([]os.FileInfo, error) {
+	dir, err := fs.local(p)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fs.hide(err)
+	}
+	res := []os.FileInfo{}
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err == nil {
+			res = append(res, info)
+		}
+	}
+	return res, nil
+}
+
+func (fs driveFs) Stat(p string) (os.FileInfo, error) {
+	name, err := fs.local(p)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(name)
+	return info, fs.hide(err)
+}
+
+func (fs driveFs) Lstat(p string) (os.FileInfo, error) {
+	name, err := fs.local(p)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Lstat(name)
+	return info, fs.hide(err)
+}
+
+func (fs driveFs) Open(p string) (sessionFsFile, error) {
+	name, err := fs.local(p)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(name)
+	if err != nil {
+		return nil, fs.hide(err)
+	}
+	return file, nil
+}
+
+func (fs driveFs) Create(p string) (io.WriteCloser, error) {
+	name, err := fs.local(p)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Create(name)
+	if err != nil {
+		return nil, fs.hide(err)
+	}
+	return file, nil
+}
+
+func (fs driveFs) Mkdir(p string) error {
+	name, err := fs.local(p)
+	if err != nil {
+		return err
+	}
+	return fs.hide(os.Mkdir(name, 0o700))
+}
+
+func (fs driveFs) Rename(oldPath string, newPath string) error {
+	oldName, err := fs.local(oldPath)
+	if err != nil {
+		return err
+	}
+	newName, err := fs.local(newPath)
+	if err != nil {
+		return err
+	}
+	if oldName == fs.root || newName == fs.root {
+		return fmt.Errorf("the root directory cannot be renamed")
+	}
+	return fs.hide(os.Rename(oldName, newName))
+}
+
+func (fs driveFs) Remove(p string) error {
+	name, err := fs.local(p)
+	if err != nil {
+		return err
+	}
+	return fs.hide(os.Remove(name))
+}
+
+func (fs driveFs) RemoveAll(p string) error {
+	name, err := fs.local(p)
+	if err != nil {
+		return err
+	}
+	if name == fs.root {
+		return fmt.Errorf("the root directory cannot be deleted")
+	}
+	return fs.hide(os.RemoveAll(name))
+}
+
 type SessionFile struct {
 	Name         string `json:"name"`
 	Size         int64  `json:"size"`
@@ -91,15 +276,16 @@ type SessionFiles struct {
 }
 
 type sessionFileContext struct {
-	client  *sftp.Client
+	client  sessionFs
+	method  string
 	user    *casdoorsdk.User
 	session *object.Session
 	asset   *object.Asset
 }
 
-// getSessionSftp checks that the session is the user's own, still connected, and
+// getSessionFs checks that the session is the user's own, still connected, and
 // that the user holds one of the given actions on its asset right now.
-func (c *ApiController) getSessionSftp(actions ...string) (*sessionFileContext, error) {
+func (c *ApiController) getSessionFs(actions ...string) (*sessionFileContext, error) {
 	sessionId := c.Input().Get("id")
 	session, err := object.GetConnSession(sessionId)
 	if err != nil {
@@ -114,9 +300,10 @@ func (c *ApiController) getSessionSftp(actions ...string) (*sessionFileContext, 
 		return nil, fmt.Errorf("the session: %s is not connected", sessionId)
 	}
 
-	value, ok := sessionSshs.Load(sessionId)
-	if !ok {
-		return nil, fmt.Errorf("files can only be transferred in SSH sessions")
+	sshValue, isSsh := sessionSshs.Load(sessionId)
+	driveValue, isRdp := sessionDrives.Load(sessionId)
+	if !isSsh && !isRdp {
+		return nil, fmt.Errorf("files can only be transferred in SSH sessions and RDP sessions with the Upload or Download permission")
 	}
 
 	asset, err := object.GetAsset(session.Asset)
@@ -135,21 +322,35 @@ func (c *ApiController) getSessionSftp(actions ...string) (*sessionFileContext, 
 		return nil, fmt.Errorf("you have no permission to %s files on the asset: %s", strings.ToLower(strings.Join(actions, " or ")), asset.Name)
 	}
 
-	client, err := value.(*sessionSsh).getSftp()
-	if err != nil {
-		return nil, err
+	ctx := &sessionFileContext{user: user, session: session, asset: asset}
+	if isRdp {
+		ctx.client = driveFs{root: driveValue.(string)}
+		ctx.method = "RDP"
+	} else {
+		client, err := sshValue.(*sessionSsh).getSftp()
+		if err != nil {
+			return nil, err
+		}
+		ctx.client = sftpFs{client}
+		ctx.method = "SFTP"
 	}
-
-	return &sessionFileContext{client: client, user: user, session: session, asset: asset}, nil
+	return ctx, nil
 }
 
+// auditSessionFile records an action of the file panel, e.g. "sftp-upload" in
+// SSH sessions and "file-upload" in RDP sessions.
 func (c *ApiController) auditSessionFile(ctx *sessionFileContext, action string, detail string) {
+	if ctx.method == "SFTP" {
+		action = "sftp-" + action
+	} else {
+		action = "file-" + action
+	}
 	object.AddAuditRecord(&object.AuditEvent{
 		Organization: ctx.asset.Owner,
 		User:         ctx.user.Name,
 		ClientIp:     c.getClientIp(),
 		UserAgent:    c.getUserAgent(),
-		Method:       "SFTP",
+		Method:       ctx.method,
 		Action:       action,
 		Asset:        ctx.asset.GetId(),
 		Detail:       detail,
@@ -166,13 +367,13 @@ func getRemotePath(p string) (string, error) {
 // GetSessionFiles
 // @Title GetSessionFiles
 // @Tag Session File API
-// @Description list a directory on the asset of an SSH session, the home directory when path is empty
+// @Description list a directory on the asset of an SSH session or the drive of an RDP session, the home directory when path is empty
 // @Param   id      query    string  true        "The id of the session"
 // @Param   path    query    string  false       "The absolute path of the directory"
 // @Success 200 {object} controllers.SessionFiles The Response object
 // @router /get-session-files [get]
 func (c *ApiController) GetSessionFiles() {
-	ctx, err := c.getSessionSftp(object.ActionUpload, object.ActionDownload)
+	ctx, err := c.getSessionFs(object.ActionUpload, object.ActionDownload)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -228,13 +429,13 @@ func (c *ApiController) GetSessionFiles() {
 // DownloadSessionFile
 // @Title DownloadSessionFile
 // @Tag Session File API
-// @Description download a file from the asset of an SSH session
+// @Description download a file from the asset of an SSH session or the drive of an RDP session
 // @Param   id      query    string  true        "The id of the session"
 // @Param   path    query    string  true        "The absolute path of the file"
 // @Success 200 {file} file The file
 // @router /download-session-file [get]
 func (c *ApiController) DownloadSessionFile() {
-	ctx, err := c.getSessionSftp(object.ActionDownload)
+	ctx, err := c.getSessionFs(object.ActionDownload)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -263,7 +464,7 @@ func (c *ApiController) DownloadSessionFile() {
 		return
 	}
 
-	c.auditSessionFile(ctx, "sftp-download", filePath)
+	c.auditSessionFile(ctx, "download", filePath)
 
 	c.EnableRender = false
 	header := c.Ctx.ResponseWriter.Header()
@@ -277,13 +478,13 @@ func (c *ApiController) DownloadSessionFile() {
 // UploadSessionFile
 // @Title UploadSessionFile
 // @Tag Session File API
-// @Description upload files (form field "files") into a directory on the asset of an SSH session
+// @Description upload files (form field "files") into a directory on the asset of an SSH session or the drive of an RDP session
 // @Param   id      query    string  true        "The id of the session"
 // @Param   path    query    string  true        "The absolute path of the directory"
 // @Success 200 {object} controllers.Response The Response object
 // @router /upload-session-file [post]
 func (c *ApiController) UploadSessionFile() {
-	ctx, err := c.getSessionSftp(object.ActionUpload)
+	ctx, err := c.getSessionFs(object.ActionUpload)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -313,20 +514,20 @@ func (c *ApiController) UploadSessionFile() {
 			c.ResponseError(err.Error())
 			return
 		}
-		c.auditSessionFile(ctx, "sftp-upload", path.Join(dir, name))
+		c.auditSessionFile(ctx, "upload", path.Join(dir, name))
 	}
 
 	c.ResponseOk()
 }
 
-func uploadSessionFile(client *sftp.Client, header *multipart.FileHeader, filePath string) error {
+func uploadSessionFile(client sessionFs, header *multipart.FileHeader, filePath string) error {
 	src, err := header.Open()
 	if err != nil {
 		return err
 	}
 	defer src.Close()
 
-	dst, err := client.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
+	dst, err := client.Create(filePath)
 	if err != nil {
 		return err
 	}
@@ -339,13 +540,13 @@ func uploadSessionFile(client *sftp.Client, header *multipart.FileHeader, filePa
 // CreateSessionDir
 // @Title CreateSessionDir
 // @Tag Session File API
-// @Description create a directory on the asset of an SSH session
+// @Description create a directory on the asset of an SSH session or the drive of an RDP session
 // @Param   id      query    string  true        "The id of the session"
 // @Param   path    query    string  true        "The absolute path of the new directory"
 // @Success 200 {object} controllers.Response The Response object
 // @router /create-session-dir [post]
 func (c *ApiController) CreateSessionDir() {
-	ctx, err := c.getSessionSftp(object.ActionUpload)
+	ctx, err := c.getSessionFs(object.ActionUpload)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -362,6 +563,7 @@ func (c *ApiController) CreateSessionDir() {
 		c.ResponseError(err.Error())
 		return
 	}
+	c.auditSessionFile(ctx, "mkdir", dir)
 
 	c.ResponseOk()
 }
@@ -369,14 +571,14 @@ func (c *ApiController) CreateSessionDir() {
 // RenameSessionFile
 // @Title RenameSessionFile
 // @Tag Session File API
-// @Description rename or move a file or directory on the asset of an SSH session
+// @Description rename or move a file or directory on the asset of an SSH session or the drive of an RDP session
 // @Param   id       query    string  true        "The id of the session"
 // @Param   path     query    string  true        "The absolute path of the file"
 // @Param   newPath  query    string  true        "The new absolute path"
 // @Success 200 {object} controllers.Response The Response object
 // @router /rename-session-file [post]
 func (c *ApiController) RenameSessionFile() {
-	ctx, err := c.getSessionSftp(object.ActionUpload)
+	ctx, err := c.getSessionFs(object.ActionUpload)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -398,6 +600,7 @@ func (c *ApiController) RenameSessionFile() {
 		c.ResponseError(err.Error())
 		return
 	}
+	c.auditSessionFile(ctx, "rename", fmt.Sprintf("%s -> %s", oldPath, newPath))
 
 	c.ResponseOk()
 }
@@ -405,13 +608,13 @@ func (c *ApiController) RenameSessionFile() {
 // DeleteSessionFile
 // @Title DeleteSessionFile
 // @Tag Session File API
-// @Description delete a file, or a directory with everything in it, on the asset of an SSH session
+// @Description delete a file, or a directory with everything in it, on the asset of an SSH session or the drive of an RDP session
 // @Param   id      query    string  true        "The id of the session"
 // @Param   path    query    string  true        "The absolute path of the file or directory"
 // @Success 200 {object} controllers.Response The Response object
 // @router /delete-session-file [post]
 func (c *ApiController) DeleteSessionFile() {
-	ctx, err := c.getSessionSftp(object.ActionUpload)
+	ctx, err := c.getSessionFs(object.ActionUpload)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -442,6 +645,7 @@ func (c *ApiController) DeleteSessionFile() {
 		c.ResponseError(err.Error())
 		return
 	}
+	c.auditSessionFile(ctx, "delete", filePath)
 
 	c.ResponseOk()
 }
