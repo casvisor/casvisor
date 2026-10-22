@@ -75,7 +75,7 @@ func StartPatchJob(assetId string, jobType string, ids []string, user string) (*
 	if asset == nil {
 		return nil, fmt.Errorf("the asset: %s does not exist", assetId)
 	}
-	if asset.Protocol != "ssh" {
+	if !strings.EqualFold(asset.Protocol, "SSH") {
 		return nil, fmt.Errorf("the asset: %s is not an SSH asset, updates are scanned and installed over SSH", assetId)
 	}
 	if jobType != PatchJobScan && jobType != PatchJobInstall && jobType != PatchJobReboot {

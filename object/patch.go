@@ -15,6 +15,8 @@
 package object
 
 import (
+	"strings"
+
 	"github.com/casvisor/casvisor/util"
 	"xorm.io/core"
 )
@@ -102,7 +104,7 @@ func GetPatchStatuses(owner string) ([]*PatchStatus, error) {
 
 	res := []*PatchStatus{}
 	for _, asset := range assets {
-		if asset.Protocol != "ssh" {
+		if !strings.EqualFold(asset.Protocol, "SSH") {
 			continue
 		}
 
