@@ -50,6 +50,7 @@
     "Please select a asset": "请选择一个资产",
     "Private key": "私钥",
     "Reconnect": "重新连接",
+    "Reconnecting...": "正在重新连接...",
     "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed": "首次连接时自动记录，之后主机密钥或证书不一致会拒绝连接。服务器重装或证书更新后清空即可",
     "Rename": "重命名",
     "Upload": "上传",

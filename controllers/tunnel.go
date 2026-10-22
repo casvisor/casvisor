@@ -32,6 +32,7 @@ const (
 	AssetNotFound      int = 805
 	SessionUpdateError int = 806
 	PermissionDenied   int = 807
+	InternalError      int = 808
 )
 
 // AddAssetTunnel

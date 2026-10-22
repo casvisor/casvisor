@@ -44,6 +44,8 @@ export default function RdpView(props: ConnectionProps) {
   const [session, setSession] = React.useState<{id: string; operations: string[]} | null>(null);
   const [showFiles, setShowFiles] = React.useState(false);
   const status = useConnectionToast(assetId);
+  // Reconnections in a row after the connection dropped, reset once one lasts.
+  const reconnectsRef = React.useRef(0);
 
   const send = (msg: any) => {
     const ws = wsRef.current;
@@ -61,6 +63,19 @@ export default function RdpView(props: ConnectionProps) {
     }
     lastClipboardRef.current = text;
     send({t: "clipboard", text});
+  };
+
+  // The connection dropped (1006) or the gateway failed (1011), as opposed to
+  // being closed on purpose.
+  const shouldReconnect = (code: number, connectedAt: number) => {
+    if (code !== 1006 && code !== 1011) {
+      return false;
+    }
+    if (Date.now() - connectedAt > 60 * 1000) {
+      reconnectsRef.current = 0;
+    }
+    reconnectsRef.current++;
+    return reconnectsRef.current <= 3;
   };
 
   const disconnect = () => {
@@ -84,8 +99,8 @@ export default function RdpView(props: ConnectionProps) {
     return {x: Math.max(0, Math.round(x)), y: Math.max(0, Math.round(y))};
   };
 
-  const connect = () => {
-    status.loading(i18next.t("asset:Connecting..."));
+  const connect = (reconnecting = false) => {
+    status.loading(i18next.t(reconnecting ? "asset:Reconnecting..." : "asset:Connecting..."));
 
     SessionBackend.addAssetTunnel(assetId).then((res) => {
       if (!activeRef.current) {
@@ -118,6 +133,7 @@ export default function RdpView(props: ConnectionProps) {
       ws.binaryType = "arraybuffer";
       wsRef.current = ws;
       let connected = false;
+      let connectedAt = 0;
       let failureReason = "";
       const screen = new RdpScreen(canvas);
 
@@ -127,6 +143,7 @@ export default function RdpView(props: ConnectionProps) {
           if (msg.t === "init") {
             screen.init(msg.width, msg.height);
             connected = true;
+            connectedAt = Date.now();
             status.success(i18next.t("asset:Connection successful"));
             SessionBackend.connect(`${session.owner}/${session.name}`);
             setSession({id: `${session.owner}/${session.name}`, operations: session.operations ?? []});
@@ -147,7 +164,7 @@ export default function RdpView(props: ConnectionProps) {
         screen.frame(event.data as ArrayBuffer);
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         if (wsRef.current !== ws) {
           return;
         }
@@ -159,6 +176,14 @@ export default function RdpView(props: ConnectionProps) {
           setFailure(failureReason);
         } else if (!connected) {
           setFailure(NotReachable);
+        } else if (shouldReconnect(event.code, connectedAt)) {
+          // The remote session goes on, so a dropped connection picks it up again.
+          status.loading(i18next.t("asset:Reconnecting..."));
+          setTimeout(() => {
+            if (activeRef.current && !wsRef.current) {
+              connect(true);
+            }
+          }, 1000);
         } else {
           status.error(i18next.t("asset:Connection closed"));
         }

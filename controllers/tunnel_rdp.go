@@ -218,17 +218,43 @@ func (c *ApiController) GetAssetRdp() {
 
 	go c.readRdpInput(ws, stream, client, session, asset, ops)
 
+	p := pumpRdp(client, gfx, ops, flush, syncSize)
+
+	if unsupported := client.GFXUnsupported(); len(unsupported) > 0 {
+		logs.Warning(fmt.Sprintf("GetAssetRdp(): %s used graphics codecs that are not decoded (codec ID: commands): %v", asset.GetId(), unsupported))
+	}
+	// The viewer is told, or it would keep showing the last frame.
+	if p != nil {
+		logs.Error(fmt.Sprintf("GetAssetRdp(): %s: panic: %v\n%s", asset.GetId(), p.value, p.stack))
+		msg := truncateRunes(fmt.Sprintf("Internal error: %v at %s", p.value, p.location), 250)
+		closeTunnelSession(sessionId, msg)
+		stream.Close(InternalError, msg)
+		return
+	}
+	closeTunnelSession(sessionId, "Normal user exit")
+	stream.Close(Normal, "Remote connection shut down")
+}
+
+// pumpRdp relays the remote desktop until the connection ends. A panic while
+// decoding ends the connection like an error does and is returned.
+func pumpRdp(client *gordp.Client, gfx *rdpGfxWriter, ops chan func(), flush func() error, syncSize func()) (p *recoveredPanic) {
+	defer func() {
+		if r := recover(); r != nil {
+			p = newRecoveredPanic(r)
+		}
+	}()
+
 	for {
 		if _, err := client.PumpFrame(50 * time.Millisecond); err != nil {
-			break
+			return nil
 		}
 		if err := flush(); err != nil {
-			break
+			return nil
 		}
 		if gfx != nil {
 			gfx.flush()
 			if gfx.err != nil {
-				break
+				return nil
 			}
 		}
 		for pending := true; pending; {
@@ -241,11 +267,6 @@ func (c *ApiController) GetAssetRdp() {
 		}
 		syncSize()
 	}
-
-	if unsupported := client.GFXUnsupported(); len(unsupported) > 0 {
-		logs.Warning(fmt.Sprintf("GetAssetRdp(): %s used graphics codecs that are not decoded (codec ID: commands): %v", asset.GetId(), unsupported))
-	}
-	closeTunnelSession(sessionId, "Normal user exit")
 }
 
 // readRdpInput reads input events from the browser and drives the RDP client.

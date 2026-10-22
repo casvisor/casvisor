@@ -18,7 +18,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path"
+	"runtime"
+	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,6 +50,10 @@ type wsStream struct {
 	// rec records what the viewer is sent, once the screen is up
 	rec *recording.Recording
 }
+
+// wsWriteTimeout ends a session whose viewer stopped reading, instead of
+// blocking it for good.
+const wsWriteTimeout = time.Minute
 
 func newWsStream(ws *websocket.Conn) *wsStream {
 	return &wsStream{ws: ws}
@@ -81,6 +89,7 @@ func (s *wsStream) Write(p []byte) (int, error) {
 	defer s.writeMu.Unlock()
 
 	s.rec.Write(recording.KindData, p)
+	_ = s.ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 	err := s.ws.WriteMessage(websocket.BinaryMessage, p)
 	if err != nil {
 		return 0, err
@@ -93,6 +102,7 @@ func (s *wsStream) WriteJSON(v interface{}) error {
 	defer s.writeMu.Unlock()
 
 	s.rec.WriteJson(recording.KindText, v)
+	_ = s.ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 	return s.ws.WriteJSON(v)
 }
 
@@ -109,6 +119,7 @@ func (s *wsStream) writeBinary(p []byte) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
+	_ = s.ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 	return s.ws.WriteMessage(websocket.BinaryMessage, p)
 }
 
@@ -117,6 +128,7 @@ func (s *wsStream) WriteJSONUnrecorded(v interface{}) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
+	_ = s.ws.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 	return s.ws.WriteJSON(v)
 }
 
@@ -162,12 +174,43 @@ func (s *wsStream) Close(code int, msg string) {
 	defer s.writeMu.Unlock()
 
 	closeCode := websocket.CloseNormalClosure
-	if code != Normal {
+	if code == InternalError {
+		// the viewer may connect again
+		closeCode = websocket.CloseInternalServerErr
+	} else if code != Normal {
 		closeCode = 4000
 	}
 	deadline := time.Now().Add(time.Second)
 	_ = s.ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(closeCode, truncateCloseReason(msg)), deadline)
 	_ = s.ws.Close()
+}
+
+// recoveredPanic is a panic that ended a session, with where it happened.
+type recoveredPanic struct {
+	value    interface{}
+	stack    []byte
+	location string
+}
+
+// newRecoveredPanic is called by the deferred function that recovered value.
+func newRecoveredPanic(value interface{}) *recoveredPanic {
+	p := &recoveredPanic{value: value, stack: debug.Stack()}
+	pcs := make([]uintptr, 64)
+	frames := runtime.CallersFrames(pcs[:runtime.Callers(2, pcs)])
+	panicked := false
+	for {
+		frame, more := frames.Next()
+		if strings.HasPrefix(frame.Function, "runtime.") {
+			panicked = panicked || frame.Function == "runtime.gopanic"
+		} else if panicked {
+			p.location = fmt.Sprintf("%s (%s:%d)", path.Base(frame.Function), path.Base(frame.File), frame.Line)
+			break
+		}
+		if !more {
+			break
+		}
+	}
+	return p
 }
 
 func truncateCloseReason(msg string) string {

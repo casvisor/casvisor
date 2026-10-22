@@ -50,6 +50,7 @@
     "Please select a asset": "Please select a asset",
     "Private key": "Private key",
     "Reconnect": "Reconnect",
+    "Reconnecting...": "Reconnecting...",
     "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed": "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed",
     "Rename": "Rename",
     "Upload": "Upload",
