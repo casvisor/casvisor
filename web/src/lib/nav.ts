@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, Users, type LucideIcon} from "lucide-react";
+import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, Users, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -62,6 +62,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
 
   if (isAdmin) {
     items.push(
+      {
+        key: "/network-gateways",
+        label: i18next.t("general:Network gateways"),
+        icon: Network,
+        description: i18next.t("general:Reach assets in other networks through SSH jump hosts"),
+      },
       {
         key: "/permissions",
         label: i18next.t("general:Permissions"),

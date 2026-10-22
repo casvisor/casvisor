@@ -71,6 +71,13 @@ func initAPI() {
 	beego.Router("/api/stop-session", &controllers.ApiController{}, "POST:StopSession")
 	beego.Router("/api/get-session-monitor", &controllers.ApiController{}, "GET:GetSessionMonitor")
 
+	beego.Router("/api/get-network-gateways", &controllers.ApiController{}, "GET:GetNetworkGateways")
+	beego.Router("/api/get-network-gateway", &controllers.ApiController{}, "GET:GetNetworkGateway")
+	beego.Router("/api/update-network-gateway", &controllers.ApiController{}, "POST:UpdateNetworkGateway")
+	beego.Router("/api/add-network-gateway", &controllers.ApiController{}, "POST:AddNetworkGateway")
+	beego.Router("/api/delete-network-gateway", &controllers.ApiController{}, "POST:DeleteNetworkGateway")
+	beego.Router("/api/test-network-gateway", &controllers.ApiController{}, "POST:TestNetworkGateway")
+
 	beego.Router("/api/get-command-rules", &controllers.ApiController{}, "GET:GetCommandRules")
 	beego.Router("/api/get-command-rule", &controllers.ApiController{}, "GET:GetCommandRule")
 	beego.Router("/api/update-command-rule", &controllers.ApiController{}, "POST:UpdateCommandRule")

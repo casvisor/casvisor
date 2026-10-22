@@ -82,6 +82,9 @@ func (c *ApiController) GetAssetRdp() {
 		gordp.WithDesktopSize(uint16(width), uint16(height)),
 		gordp.WithServerCertFingerprint(asset.Fingerprint),
 		gordp.WithScaleFactor(scale),
+		gordp.WithDialer(func(network, addr string) (net.Conn, error) {
+			return object.DialAsset(asset)
+		}),
 	}
 
 	// The remote desktop sees a gateway directory of its own as

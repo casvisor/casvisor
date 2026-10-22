@@ -31,23 +31,19 @@ const (
 	protocolVersion = "RFB 003.008\n"
 )
 
-// DialServer connects to a VNC server and finishes the RFB handshake up to the
+// ConnectServer finishes the RFB handshake with a VNC server on conn up to the
 // point where the client sends ClientInit, authenticating with the password.
-func DialServer(address string, password string, timeout time.Duration) (net.Conn, error) {
-	conn, err := net.DialTimeout("tcp", address, timeout)
-	if err != nil {
-		return nil, err
-	}
-
+// The connection is closed when the handshake fails.
+func ConnectServer(conn net.Conn, password string, timeout time.Duration) error {
 	_ = conn.SetDeadline(time.Now().Add(timeout))
-	err = handshakeServer(conn, password)
+	err := handshakeServer(conn, password)
 	if err != nil {
 		_ = conn.Close()
-		return nil, err
+		return err
 	}
 	_ = conn.SetDeadline(time.Time{})
 
-	return conn, nil
+	return nil
 }
 
 func handshakeServer(conn io.ReadWriter, password string) error {

@@ -89,6 +89,8 @@ export default function App() {
           <Route path="/commands" element={page("CommandListPage")} />
           <Route path="/patches" element={page("PatchListPage")} />
           <Route path="/patches/:owner/:name" element={page("PatchDetailPage")} />
+          <Route path="/network-gateways" element={page("NetworkGatewayListPage")} />
+          <Route path="/network-gateways/:owner/:name" element={page("NetworkGatewayEditPage")} />
           <Route path="/command-rules" element={page("CommandRuleListPage")} />
           <Route path="/command-rules/:owner/:name" element={page("CommandRuleEditPage")} />
           <Route path="/records" element={page("RecordListPage")} />

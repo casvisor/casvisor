@@ -21,7 +21,6 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/terminal"
@@ -67,8 +66,8 @@ type telnetConn struct {
 	sb    []byte
 }
 
-func dialTelnet(host string, port int, cols int, rows int) (*telnetConn, error) {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), 10*time.Second)
+func dialTelnet(asset *object.Asset, cols int, rows int) (*telnetConn, error) {
+	conn, err := object.DialAsset(asset)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +302,7 @@ func (c *ApiController) GetAssetTelnet() {
 		return
 	}
 
-	conn, err := dialTelnet(asset.Host, asset.Port, cols, rows)
+	conn, err := dialTelnet(asset, cols, rows)
 	if err != nil {
 		fail(NewTunnelError, err)
 		return

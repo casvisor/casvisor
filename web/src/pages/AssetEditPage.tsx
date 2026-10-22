@@ -16,7 +16,8 @@ import * as React from "react";
 import i18next from "i18next";
 import {useNavigate, useParams} from "react-router-dom";
 import * as AssetBackend from "@/backend/AssetBackend";
-import type {Asset} from "@/backend/types";
+import * as NetworkGatewayBackend from "@/backend/NetworkGatewayBackend";
+import type {Asset, NetworkGateway} from "@/backend/types";
 import {Input} from "@/components/ui/input";
 import {Textarea} from "@/components/ui/textarea";
 import {Loading} from "@/components/common/Loading";
@@ -31,6 +32,8 @@ import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
 import NotFoundPage from "@/pages/NotFoundPage";
 
+const directConnection = "__direct__";
+
 export default function AssetEditPage() {
   const {owner = "", name = ""} = useParams();
   const navigate = useNavigate();
@@ -40,6 +43,15 @@ export default function AssetEditPage() {
     fetch: () => AssetBackend.getAsset(owner, name),
     deps: [owner, name],
   });
+
+  const [gateways, setGateways] = React.useState<NetworkGateway[]>([]);
+  React.useEffect(() => {
+    NetworkGatewayBackend.getNetworkGateways(owner).then((res) => {
+      if (res.status === "ok") {
+        setGateways(res.data ?? []);
+      }
+    });
+  }, [owner]);
 
   if (loading) {
     return <Loading />;
@@ -143,6 +155,16 @@ export default function AssetEditPage() {
           </div>
         </FormRow>
       ) : null}
+      <FormRow label={i18next.t("asset:Network gateway")} tooltip={i18next.t("asset:Network gateway - Tooltip")}>
+        <SelectField
+          value={asset.networkGateway || directConnection}
+          options={[
+            {id: directConnection, name: i18next.t("asset:Direct connection")},
+            ...gateways.map((gateway) => ({id: gateway.name, name: gateway.displayName || gateway.name})),
+          ]}
+          onChange={(value) => updateField("networkGateway", value === directConnection ? "" : value)}
+        />
+      </FormRow>
       <FormRow labelKey="asset:OS">
         <SelectField
           value={asset.os}

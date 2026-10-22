@@ -38,8 +38,9 @@ type Asset struct {
 	Username string `xorm:"varchar(100)" json:"username"`
 	Password string `xorm:"varchar(1000)" json:"password"`
 
-	PrivateKey  string `xorm:"mediumtext" json:"privateKey"`
-	Fingerprint string `xorm:"varchar(200)" json:"fingerprint"`
+	PrivateKey     string `xorm:"mediumtext" json:"privateKey"`
+	Fingerprint    string `xorm:"varchar(200)" json:"fingerprint"`
+	NetworkGateway string `xorm:"varchar(100)" json:"networkGateway"`
 }
 
 func GetAssetCount(owner, field, value string) (int64, error) {
@@ -145,6 +146,11 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		asset.PrivateKey = p.PrivateKey
 	}
 
+	err = asset.checkNetworkGateway()
+	if err != nil {
+		return false, err
+	}
+
 	err = asset.encryptCredentials()
 	if err != nil {
 		return false, err
@@ -159,7 +165,12 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 }
 
 func AddAsset(asset *Asset) (bool, error) {
-	err := asset.encryptCredentials()
+	err := asset.checkNetworkGateway()
+	if err != nil {
+		return false, err
+	}
+
+	err = asset.encryptCredentials()
 	if err != nil {
 		return false, err
 	}
@@ -194,4 +205,19 @@ func UpdateAssetFingerprint(id string, fingerprint string) error {
 
 func (asset *Asset) GetId() string {
 	return fmt.Sprintf("%s/%s", asset.Owner, asset.Name)
+}
+
+func (asset *Asset) checkNetworkGateway() error {
+	if asset.NetworkGateway == "" {
+		return nil
+	}
+
+	gateway, err := getNetworkGateway(asset.Owner, asset.NetworkGateway)
+	if err != nil {
+		return err
+	}
+	if gateway == nil {
+		return fmt.Errorf("the network gateway: %s does not exist in the organization: %s", asset.NetworkGateway, asset.Owner)
+	}
+	return nil
 }

@@ -17,7 +17,6 @@ package object
 import (
 	"fmt"
 	"net"
-	"strconv"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -28,15 +27,49 @@ func DialSsh(asset *Asset) (*ssh.Client, error) {
 		return nil, fmt.Errorf("the username of the asset: %s is empty", asset.GetId())
 	}
 
-	password := asset.Password
+	auth, err := getSshAuthMethods(asset.GetId(), asset.Password, asset.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &ssh.ClientConfig{
+		User: asset.Username,
+		Auth: auth,
+		HostKeyCallback: getHostKeyCallback("asset", asset.GetId(), &asset.Fingerprint, func(fingerprint string) error {
+			return UpdateAssetFingerprint(asset.GetId(), fingerprint)
+		}),
+		Timeout: dialTimeout,
+	}
+
+	conn, err := DialAsset(asset)
+	if err != nil {
+		return nil, err
+	}
+	return newSshClient(conn, asset.getAddress(), config)
+}
+
+// newSshClient runs the SSH handshake on conn, which is closed when the handshake fails.
+func newSshClient(conn net.Conn, address string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	_ = conn.SetDeadline(time.Now().Add(config.Timeout))
+	c, chans, reqs, err := ssh.NewClientConn(conn, address, config)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	_ = conn.SetDeadline(time.Time{})
+
+	return ssh.NewClient(c, chans, reqs), nil
+}
+
+func getSshAuthMethods(id string, password string, privateKey string) ([]ssh.AuthMethod, error) {
 	auth := []ssh.AuthMethod{}
-	if asset.PrivateKey != "" {
-		signer, err := ssh.ParsePrivateKey([]byte(asset.PrivateKey))
+	if privateKey != "" {
+		signer, err := ssh.ParsePrivateKey([]byte(privateKey))
 		if _, ok := err.(*ssh.PassphraseMissingError); ok {
-			signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(asset.PrivateKey), []byte(password))
+			signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(privateKey), []byte(password))
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse the private key of the asset: %s: %s", asset.GetId(), err.Error())
+			return nil, fmt.Errorf("failed to parse the private key of: %s: %s", id, err.Error())
 		}
 		auth = append(auth, ssh.PublicKeys(signer))
 	}
@@ -52,28 +85,19 @@ func DialSsh(asset *Asset) (*ssh.Client, error) {
 			}),
 		)
 	}
-
-	config := &ssh.ClientConfig{
-		User:            asset.Username,
-		Auth:            auth,
-		HostKeyCallback: getHostKeyCallback(asset),
-		Timeout:         10 * time.Second,
-	}
-
-	address := net.JoinHostPort(asset.Host, strconv.Itoa(asset.Port))
-	return ssh.Dial("tcp", address, config)
+	return auth, nil
 }
 
 // getHostKeyCallback pins the host key on the first connection and rejects a different key afterwards.
-func getHostKeyCallback(asset *Asset) ssh.HostKeyCallback {
+func getHostKeyCallback(kind string, id string, pinned *string, update func(fingerprint string) error) ssh.HostKeyCallback {
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		fingerprint := ssh.FingerprintSHA256(key)
-		if asset.Fingerprint == "" {
-			asset.Fingerprint = fingerprint
-			return UpdateAssetFingerprint(asset.GetId(), fingerprint)
+		if *pinned == "" {
+			*pinned = fingerprint
+			return update(fingerprint)
 		}
-		if asset.Fingerprint != fingerprint {
-			return fmt.Errorf("the host key of the asset: %s has changed from %s to %s, clear the fingerprint of the asset if the change is expected", asset.GetId(), asset.Fingerprint, fingerprint)
+		if *pinned != fingerprint {
+			return fmt.Errorf("the host key of the %s: %s has changed from %s to %s, clear the fingerprint of the %s if the change is expected", kind, id, *pinned, fingerprint, kind)
 		}
 		return nil
 	}

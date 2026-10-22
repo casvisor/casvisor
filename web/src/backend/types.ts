@@ -28,6 +28,23 @@ export interface Asset {
   password: string;
   privateKey: string;
   fingerprint: string;
+  networkGateway: string;
+}
+
+export interface NetworkGateway {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  privateKey: string;
+  fingerprint: string;
+  isEnabled: boolean;
 }
 
 export interface Permission {

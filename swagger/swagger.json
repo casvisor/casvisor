@@ -115,6 +115,34 @@
                 }
             }
         },
+        "/add-network-gateway": {
+            "post": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "add a network gateway",
+                "operationId": "ApiController.AddNetworkGateway",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the network gateway",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.NetworkGateway"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-permission": {
             "post": {
                 "tags": [
@@ -260,7 +288,7 @@
                 "tags": [
                     "Session File API"
                 ],
-                "description": "create a directory on the asset of an SSH session",
+                "description": "create a directory on the asset of an SSH session or the drive of an RDP session",
                 "operationId": "ApiController.CreateSessionDir",
                 "parameters": [
                     {
@@ -372,6 +400,34 @@
                 }
             }
         },
+        "/delete-network-gateway": {
+            "post": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "delete a network gateway",
+                "operationId": "ApiController.DeleteNetworkGateway",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the network gateway",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.NetworkGateway"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/delete-permission": {
             "post": {
                 "tags": [
@@ -459,7 +515,7 @@
                 "tags": [
                     "Session File API"
                 ],
-                "description": "delete a file, or a directory with everything in it, on the asset of an SSH session",
+                "description": "delete a file, or a directory with everything in it, on the asset of an SSH session or the drive of an RDP session",
                 "operationId": "ApiController.DeleteSessionFile",
                 "parameters": [
                     {
@@ -520,7 +576,7 @@
                 "tags": [
                     "Session File API"
                 ],
-                "description": "download a file from the asset of an SSH session",
+                "description": "download a file from the asset of an SSH session or the drive of an RDP session",
                 "operationId": "ApiController.DownloadSessionFile",
                 "parameters": [
                     {
@@ -760,6 +816,58 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.LocalUser"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-network-gateway": {
+            "get": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "get network gateway",
+                "operationId": "ApiController.GetNetworkGateway",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the network gateway",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.NetworkGateway"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-network-gateways": {
+            "get": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "get all network gateways",
+                "operationId": "ApiController.GetNetworkGateways",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of network gateways",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.NetworkGateway"
                         }
                     }
                 }
@@ -1025,7 +1133,7 @@
                 "tags": [
                     "Session File API"
                 ],
-                "description": "list a directory on the asset of an SSH session, the home directory when path is empty",
+                "description": "list a directory on the asset of an SSH session or the drive of an RDP session, the home directory when path is empty",
                 "operationId": "ApiController.GetSessionFiles",
                 "parameters": [
                     {
@@ -1159,7 +1267,7 @@
                 "tags": [
                     "Session File API"
                 ],
-                "description": "rename or move a file or directory on the asset of an SSH session",
+                "description": "rename or move a file or directory on the asset of an SSH session or the drive of an RDP session",
                 "operationId": "ApiController.RenameSessionFile",
                 "parameters": [
                     {
@@ -1217,6 +1325,32 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.PatchJob"
+                        }
+                    }
+                }
+            }
+        },
+        "/test-network-gateway": {
+            "post": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "connect to a network gateway with its saved settings, recording its host key on the first connection",
+                "operationId": "ApiController.TestNetworkGateway",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the network gateway",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
                         }
                     }
                 }
@@ -1314,6 +1448,41 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.LocalUser"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/update-network-gateway": {
+            "post": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "update network gateway",
+                "operationId": "ApiController.UpdateNetworkGateway",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the network gateway",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the network gateway",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.NetworkGateway"
                         }
                     }
                 ],
@@ -1437,7 +1606,7 @@
                 "tags": [
                     "Session File API"
                 ],
-                "description": "upload files (form field \"files\") into a directory on the asset of an SSH session",
+                "description": "upload files (form field \"files\") into a directory on the asset of an SSH session or the drive of an RDP session",
                 "operationId": "ApiController.UploadSessionFile",
                 "parameters": [
                     {
@@ -1627,6 +1796,9 @@
                 "name": {
                     "type": "string"
                 },
+                "networkGateway": {
+                    "type": "string"
+                },
                 "os": {
                     "type": "string"
                 },
@@ -1792,6 +1964,52 @@
                 }
             }
         },
+        "object.NetworkGateway": {
+            "title": "NetworkGateway",
+            "type": "object",
+            "properties": {
+                "createdTime": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "isEnabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "privateKey": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "object.PatchJob": {
             "title": "PatchJob",
             "type": "object",
@@ -1816,6 +2034,10 @@
                 },
                 "owner": {
                     "type": "string"
+                },
+                "remoteOffset": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "status": {
                     "type": "string"

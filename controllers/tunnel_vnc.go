@@ -16,8 +16,6 @@ package controllers
 
 import (
 	"io"
-	"net"
-	"strconv"
 	"time"
 
 	"github.com/casvisor/casvisor/object"
@@ -45,8 +43,12 @@ func (c *ApiController) GetAssetVnc() {
 		return
 	}
 
-	address := net.JoinHostPort(asset.Host, strconv.Itoa(asset.Port))
-	conn, err := vnc.DialServer(address, asset.Password, 10*time.Second)
+	conn, err := object.DialAsset(asset)
+	if err != nil {
+		fail(NewTunnelError, err)
+		return
+	}
+	err = vnc.ConnectServer(conn, asset.Password, 10*time.Second)
 	if err != nil {
 		fail(NewTunnelError, err)
 		return

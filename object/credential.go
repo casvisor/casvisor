@@ -114,7 +114,7 @@ func (asset *Asset) decryptCredentials() error {
 	return err
 }
 
-// EncryptAssetCredentials encrypts the plaintext credentials left in the database,
+// EncryptAssetCredentials encrypts the plaintext credentials of assets and gateways left in the database,
 // e.g. the ones saved before credentialKey was configured.
 func EncryptAssetCredentials() error {
 	if conf.GetConfigString("credentialKey") == "" {
@@ -138,6 +138,28 @@ func EncryptAssetCredentials() error {
 			return err
 		}
 		_, err = adapter.engine.ID(core.PK{asset.Owner, asset.Name}).Cols("password", "private_key").Update(asset)
+		if err != nil {
+			return err
+		}
+	}
+
+	gateways := []*NetworkGateway{}
+	err = adapter.engine.Find(&gateways)
+	if err != nil {
+		return err
+	}
+
+	for _, gateway := range gateways {
+		if (gateway.Password == "" || strings.HasPrefix(gateway.Password, encryptedPrefix)) &&
+			(gateway.PrivateKey == "" || strings.HasPrefix(gateway.PrivateKey, encryptedPrefix)) {
+			continue
+		}
+
+		err = gateway.encryptCredentials()
+		if err != nil {
+			return err
+		}
+		_, err = adapter.engine.ID(core.PK{gateway.Owner, gateway.Name}).Cols("password", "private_key").Update(gateway)
 		if err != nil {
 			return err
 		}

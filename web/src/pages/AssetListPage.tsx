@@ -62,6 +62,7 @@ export default function AssetListPage() {
     password: "",
     privateKey: "",
     fingerprint: "",
+    networkGateway: "",
   });
 
   const columns: ColumnDef<Asset>[] = [
