@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, type LucideIcon} from "lucide-react";
+import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, Users, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -50,6 +50,15 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
       description: i18next.t("general:Connect to SSH assets with ssh, scp, sftp, Xshell or VS Code"),
     },
   ];
+
+  if (isAdmin && Setting.isLocalAuth()) {
+    items.push({
+      key: "/users",
+      label: i18next.t("general:Users"),
+      icon: Users,
+      description: i18next.t("general:Accounts that sign in to Casvisor"),
+    });
+  }
 
   if (isAdmin) {
     items.push(

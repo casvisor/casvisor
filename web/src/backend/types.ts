@@ -201,3 +201,17 @@ export interface PatchJob {
   message: string;
   output: string;
 }
+
+export interface LocalUser {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  email: string;
+  groups: string[] | null;
+  isAdmin: boolean;
+  isForbidden: boolean;
+  password: string;
+  lastSigninTime: string;
+}

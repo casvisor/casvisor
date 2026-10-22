@@ -1,11 +1,19 @@
 {
   "account": {
+    "At least 8 characters": "At least 8 characters",
+    "Change password": "Change password",
+    "Confirm password": "Confirm password",
+    "Manage the account in Casdoor": "Manage the account in Casdoor",
     "My Account": "My Account",
+    "New password": "New password",
+    "Old password": "Old password",
+    "Password changed": "Password changed",
     "Sign In": "Sign In",
     "Sign Out": "Sign Out",
     "Sign Up": "Sign Up",
     "Signout failed": "Signout failed",
-    "Successfully signed out, redirected to homepage": "Successfully signed out, redirected to homepage"
+    "Successfully signed out, redirected to homepage": "Successfully signed out, redirected to homepage",
+    "The two passwords do not match": "The two passwords do not match"
   },
   "asset": {
     "Can not paste": "Can not paste",
@@ -64,6 +72,7 @@
     "View Command Rule": "View Command Rule"
   },
   "general": {
+    "Accounts that sign in to Casvisor": "Accounts that sign in to Casvisor",
     "Action": "Action",
     "Action - Tooltip": "Action - Tooltip",
     "Active or history connection sessions": "Active or history connection sessions",
@@ -121,6 +130,7 @@
     "Method - Tooltip": "Method - Tooltip",
     "Name": "Name",
     "Name - Tooltip": "Name - Tooltip",
+    "No": "No",
     "No data": "No data",
     "OFF": "OFF",
     "OK": "OK",
@@ -180,9 +190,11 @@
     "User agent": "User agent",
     "Username": "Username",
     "Username - Tooltip": "Username - Tooltip",
+    "Users": "Users",
     "View": "View",
     "Who can connect to which assets": "Who can connect to which assets",
     "Workbench": "Workbench",
+    "Yes": "Yes",
     "{total} in total": "{total} in total"
   },
   "login": {
@@ -194,6 +206,7 @@
     "Loading": "Loading",
     "Login Error": "Login Error",
     "More Details": "More Details",
+    "Sign in to continue": "Sign in to continue",
     "Signing in...": "Signing in..."
   },
   "patch": {
@@ -321,6 +334,15 @@
     "Theme": "Theme"
   },
   "user": {
-    "Language": "Language"
+    "Edit User": "Edit User",
+    "Email": "Email",
+    "Is admin": "Is admin",
+    "Is forbidden": "Is forbidden",
+    "Language": "Language",
+    "Last sign-in time": "Last sign-in time",
+    "Leave empty to keep the password": "Leave empty to keep the password",
+    "New User": "New User",
+    "Password - Tooltip": "At least 8 characters; leave it empty to keep the current password of an existing user",
+    "View User": "View User"
   }
 }

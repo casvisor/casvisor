@@ -250,28 +250,51 @@ function getUrlWithLanguage(url: string) {
   return `${url}${url.includes("?") ? "&" : "?"}language=${getLanguage()}`;
 }
 
+/**
+ * Without a Casdoor endpoint in conf/app.conf, users sign in to Casvisor itself
+ * with the accounts it keeps (the backend writes "" into Conf.AuthConfig.serverUrl).
+ */
+export function isLocalAuth() {
+  return Conf.AuthConfig.serverUrl === "";
+}
+
 export function getSigninUrl() {
+  if (isLocalAuth()) {
+    return "/login";
+  }
   initCasdoorSdk();
   return getUrlWithLanguage(CasdoorSdk.getSigninUrl());
 }
 
 export function getSignupUrl() {
+  if (isLocalAuth()) {
+    return "/login";
+  }
   initCasdoorSdk();
   return getUrlWithLanguage(CasdoorSdk.getSignupUrl());
 }
 
 export function getUserProfileUrl(userName: string, account: any) {
+  if (isLocalAuth()) {
+    return userName.includes("/") ? `/users/${userName}` : `/users/${account?.owner}/${userName}`;
+  }
   initCasdoorSdk();
   return getUrlWithLanguage(CasdoorSdk.getUserProfileUrl(userName, account));
 }
 
 export function getMyProfileUrl(account: any) {
+  if (isLocalAuth()) {
+    return "/account";
+  }
   initCasdoorSdk();
   return getUrlWithLanguage(CasdoorSdk.getMyProfileUrl(account));
 }
 
 /** A page of the Casdoor console, such as "/organizations/casbin", for the signed-in user. */
 export function getCasdoorUrl(account: any, path: string) {
+  if (isLocalAuth()) {
+    return path.startsWith("/users/") ? path : "";
+  }
   return getMyProfileUrl(account).replace("/account", path);
 }
 

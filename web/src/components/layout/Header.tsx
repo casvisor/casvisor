@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
+import {useNavigate} from "react-router-dom";
 import {ChevronDown, LogOut, Settings} from "lucide-react";
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import {SidebarTrigger} from "@/components/ui/sidebar";
@@ -36,6 +37,7 @@ export function Header() {
   const {account} = useAccount();
   const logout = useLogout();
   const accountMenu = useHoverMenu();
+  const navigate = useNavigate();
 
   if (!account) {
     return null;
@@ -74,7 +76,7 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => Setting.openLink(Setting.getMyProfileUrl(account))}>
+            <DropdownMenuItem onSelect={() => (Setting.isLocalAuth() ? navigate("/account") : Setting.openLink(Setting.getMyProfileUrl(account)))}>
               <Settings />
               {i18next.t("account:My Account")}
             </DropdownMenuItem>

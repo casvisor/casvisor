@@ -34,6 +34,13 @@ func initAPI() {
 	beego.Router("/api/signin", &controllers.ApiController{}, "POST:Signin")
 	beego.Router("/api/signout", &controllers.ApiController{}, "POST:Signout")
 	beego.Router("/api/get-account", &controllers.ApiController{}, "GET:GetAccount")
+	beego.Router("/api/change-password", &controllers.ApiController{}, "POST:ChangePassword")
+
+	beego.Router("/api/get-local-users", &controllers.ApiController{}, "GET:GetLocalUsers")
+	beego.Router("/api/get-local-user", &controllers.ApiController{}, "GET:GetLocalUser")
+	beego.Router("/api/update-local-user", &controllers.ApiController{}, "POST:UpdateLocalUser")
+	beego.Router("/api/add-local-user", &controllers.ApiController{}, "POST:AddLocalUser")
+	beego.Router("/api/delete-local-user", &controllers.ApiController{}, "POST:DeleteLocalUser")
 
 	beego.Router("/api/get-records", &controllers.ApiController{}, "GET:GetRecords")
 	beego.Router("/api/get-record", &controllers.ApiController{}, "GET:GetRecord")

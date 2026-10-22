@@ -55,6 +55,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /add-local-user:
+    post:
+      tags:
+      - Local User API
+      description: add a local user
+      operationId: ApiController.AddLocalUser
+      parameters:
+      - in: body
+        name: body
+        description: The details of the local user
+        required: true
+        schema:
+          $ref: '#/definitions/object.LocalUser'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /add-permission:
     post:
       tags:
@@ -127,6 +145,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /change-password:
+    post:
+      tags:
+      - Account API
+      description: change the password of the signed-in local user
+      operationId: ApiController.ChangePassword
+      parameters:
+      - in: body
+        name: body
+        description: The old and the new password
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.PasswordForm'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /create-session-dir:
     post:
       tags:
@@ -180,6 +216,24 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.CommandRule'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /delete-local-user:
+    post:
+      tags:
+      - Local User API
+      description: delete a local user
+      operationId: ApiController.DeleteLocalUser
+      parameters:
+      - in: body
+        name: body
+        description: The details of the local user
+        required: true
+        schema:
+          $ref: '#/definitions/object.LocalUser'
       responses:
         "200":
           description: The Response object
@@ -409,6 +463,40 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Principal'
+  /get-local-user:
+    get:
+      tags:
+      - Local User API
+      description: get local user
+      operationId: ApiController.GetLocalUser
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the local user
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.LocalUser'
+  /get-local-users:
+    get:
+      tags:
+      - Local User API
+      description: get all local users
+      operationId: ApiController.GetLocalUsers
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of local users
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.LocalUser'
   /get-patch-job:
     get:
       tags:
@@ -756,6 +844,29 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /update-local-user:
+    post:
+      tags:
+      - Local User API
+      description: update local user
+      operationId: ApiController.UpdateLocalUser
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the local user
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The details of the local user
+        required: true
+        schema:
+          $ref: '#/definitions/object.LocalUser'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /update-permission:
     post:
       tags:
@@ -851,6 +962,14 @@ definitions:
   Response:
     title: Response
     type: object
+  controllers.PasswordForm:
+    title: PasswordForm
+    type: object
+    properties:
+      newPassword:
+        type: string
+      oldPassword:
+        type: string
   controllers.Principal:
     title: Principal
     type: object
@@ -1036,6 +1155,34 @@ definitions:
         type: array
         items:
           type: string
+  object.LocalUser:
+    title: LocalUser
+    type: object
+    properties:
+      createdTime:
+        type: string
+      displayName:
+        type: string
+      email:
+        type: string
+      groups:
+        type: array
+        items:
+          type: string
+      isAdmin:
+        type: boolean
+      isForbidden:
+        type: boolean
+      lastSigninTime:
+        type: string
+      name:
+        type: string
+      owner:
+        type: string
+      password:
+        type: string
+      updatedTime:
+        type: string
   object.PatchJob:
     title: PatchJob
     type: object

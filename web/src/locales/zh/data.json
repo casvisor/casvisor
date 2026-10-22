@@ -1,11 +1,19 @@
 {
   "account": {
+    "At least 8 characters": "至少 8 个字符",
+    "Change password": "修改口令",
+    "Confirm password": "确认新口令",
+    "Manage the account in Casdoor": "到 Casdoor 管理账号",
     "My Account": "我的账户",
+    "New password": "新口令",
+    "Old password": "原口令",
+    "Password changed": "口令已修改",
     "Sign In": "登录",
     "Sign Out": "登出",
     "Sign Up": "注册",
     "Signout failed": "登出失败",
-    "Successfully signed out, redirected to homepage": "登出成功，正在跳转到首页"
+    "Successfully signed out, redirected to homepage": "登出成功，正在跳转到首页",
+    "The two passwords do not match": "两次输入的口令不一致"
   },
   "asset": {
     "Can not paste": "无法粘贴",
@@ -64,6 +72,7 @@
     "View Command Rule": "查看命令规则"
   },
   "general": {
+    "Accounts that sign in to Casvisor": "登录 Casvisor 的账号",
     "Action": "操作",
     "Action - Tooltip": "操作 - 工具提示",
     "Active or history connection sessions": "活动或历史连接会话",
@@ -121,6 +130,7 @@
     "Method - Tooltip": "方法 - 工具提示",
     "Name": "名称",
     "Name - Tooltip": "名称 - 工具提示",
+    "No": "否",
     "No data": "暂无数据",
     "OFF": "关",
     "OK": "确定",
@@ -180,9 +190,11 @@
     "User agent": "用户代理",
     "Username": "用户名",
     "Username - Tooltip": "用户名 - 工具提示",
+    "Users": "用户",
     "View": "查看",
     "Who can connect to which assets": "谁可以连接哪些资产",
     "Workbench": "工作台",
+    "Yes": "是",
     "{total} in total": "共{total}个"
   },
   "login": {
@@ -194,6 +206,7 @@
     "Loading": "加载中",
     "Login Error": "登录错误",
     "More Details": "更多详情",
+    "Sign in to continue": "登录后继续",
     "Signing in...": "正在登录..."
   },
   "patch": {
@@ -321,6 +334,15 @@
     "Theme": "Theme"
   },
   "user": {
-    "Language": "语言"
+    "Edit User": "编辑用户",
+    "Email": "邮箱",
+    "Is admin": "管理员",
+    "Is forbidden": "已禁用",
+    "Language": "语言",
+    "Last sign-in time": "最近登录时间",
+    "Leave empty to keep the password": "留空则不修改口令",
+    "New User": "新建用户",
+    "Password - Tooltip": "至少 8 个字符；编辑已有用户时留空则不修改",
+    "View User": "查看用户"
   }
 }

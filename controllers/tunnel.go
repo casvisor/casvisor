@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/beego/beego"
 	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
@@ -199,7 +198,7 @@ func (c *ApiController) GetAssetTunnel() {
 	configuration.SetParameter("height", height)
 	configuration.SetParameter("dpi", dpi)
 
-	addr := beego.AppConfig.String("guacamoleEndpoint")
+	addr := conf.GetConfigString("guacamoleEndpoint")
 	tunnel, err := guacamole.NewTunnel(addr, configuration)
 	if err != nil {
 		guacamole.Disconnect(ws, NewTunnelError, err.Error())
@@ -292,7 +291,7 @@ func (c *ApiController) TunnelMonitor() {
 	configuration.SetParameter("dpi", "96")
 	configuration.SetReadOnlyMode()
 
-	addr := beego.AppConfig.String("guacamoleEndpoint")
+	addr := conf.GetConfigString("guacamoleEndpoint")
 	tunnel, err := guacamole.NewTunnel(addr, configuration)
 	if err != nil {
 		guacamole.Disconnect(ws, NewTunnelError, err.Error())

@@ -17,10 +17,12 @@ package routers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/beego/beego/context"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/casvisor/casvisor/conf"
+	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/util"
 )
 
@@ -82,4 +84,30 @@ func getUsernameByClientIdSecret(ctx *context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("app/%s", applicationName), nil
+}
+
+// RefreshLocalUser keeps the signed-in local user in step with the user table,
+// so that a forbidden or deleted user is signed out and new groups apply at once.
+func RefreshLocalUser(ctx *context.Context) {
+	if !object.IsLocalAuth() || !strings.HasPrefix(ctx.Request.URL.Path, "/api/") {
+		return
+	}
+
+	s := ctx.Input.Session("user")
+	if s == nil {
+		return
+	}
+	claims := s.(casdoorsdk.Claims)
+
+	user, err := object.GetLocalUser(util.GetIdFromOwnerAndName(claims.User.Owner, claims.User.Name))
+	if err != nil {
+		return
+	}
+	if user == nil || user.IsForbidden {
+		ctx.Input.CruSession.Delete("user")
+		return
+	}
+
+	claims.User = *user.ToCasdoorUser()
+	ctx.Input.CruSession.Set("user", claims)
 }

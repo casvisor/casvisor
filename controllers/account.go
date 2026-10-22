@@ -99,6 +99,10 @@ func getJwksCertificate(casdoorEndpoint string, certName string) (string, error)
 }
 
 func InitAuthConfig() {
+	if object.IsLocalAuth() {
+		return
+	}
+
 	if err := tryInitAuthConfig(); err != nil {
 		beego.Warning("InitAuthConfig: casdoor unreachable, will retry in background:", err)
 		go func() {
@@ -116,6 +120,11 @@ func InitAuthConfig() {
 }
 
 func (c *ApiController) Signin() {
+	if object.IsLocalAuth() {
+		c.signinLocal()
+		return
+	}
+
 	code := c.Input().Get("code")
 	state := c.Input().Get("state")
 
@@ -142,6 +151,79 @@ func (c *ApiController) Signin() {
 	c.Ctx.Input.SetParam("recordUserId", userId)
 
 	c.ResponseOk(claims)
+}
+
+type LocalSigninForm struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func (c *ApiController) signinLocal() {
+	var form LocalSigninForm
+	err := json.Unmarshal(c.Ctx.Input.RequestBody, &form)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	organization := object.GetLocalOrganization()
+	user, err := object.SigninLocalUser(organization, strings.TrimSpace(form.Username), form.Password, c.getAuthzClientIp())
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	userId := user.GetId()
+	if !object.IsUserAllowedToSignin(userId) {
+		c.ResponseError(fmt.Sprintf("the user: %s is not allowed to sign in", userId))
+		return
+	}
+
+	c.SessionRegenerateID()
+	claims := &casdoorsdk.Claims{User: *user.ToCasdoorUser()}
+	c.SetSessionClaims(claims)
+	c.Ctx.Input.SetParam("recordUserId", userId)
+
+	c.ResponseOk(claims)
+}
+
+// ChangePassword
+// @Title ChangePassword
+// @Tag Account API
+// @Description change the password of the signed-in local user
+// @Param   body    body   controllers.PasswordForm  true        "The old and the new password"
+// @Success 200 {object} controllers.Response The Response object
+// @router /change-password [post]
+func (c *ApiController) ChangePassword() {
+	user := c.GetSessionUser()
+	if user == nil {
+		c.ResponseError("please sign in first")
+		return
+	}
+	if !object.IsLocalAuth() {
+		c.ResponseError("passwords are managed in Casdoor")
+		return
+	}
+
+	var form PasswordForm
+	err := json.Unmarshal(c.Ctx.Input.RequestBody, &form)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	err = object.ChangeLocalUserPassword(user.Owner, user.Name, form.OldPassword, form.NewPassword)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.ResponseOk()
+}
+
+type PasswordForm struct {
+	OldPassword string `json:"oldPassword"`
+	NewPassword string `json:"newPassword"`
 }
 
 func (c *ApiController) Signout() {

@@ -32,8 +32,8 @@ RUN apk add ca-certificates && update-ca-certificates
 RUN adduser -D $USER -u 1000 \
     && echo "$USER ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USER \
     && chmod 0440 /etc/sudoers.d/$USER \
-    && mkdir logs \
-    && chown -R $USER:$USER logs
+    && mkdir logs db \
+    && chown -R $USER:$USER logs db
 
 USER 1000
 WORKDIR /
@@ -43,6 +43,7 @@ COPY --from=BACK --chown=$USER:$USER /go/src/casvisor/data ./data
 COPY --from=BACK --chown=$USER:$USER /go/src/casvisor/conf/app.conf ./conf/app.conf
 COPY --from=FRONT --chown=$USER:$USER /web/build ./web/build
 
+VOLUME /db
 EXPOSE 19000 2222
 ENTRYPOINT ["/server"]
 
@@ -53,6 +54,11 @@ ARG TARGETOS
 ARG TARGETARCH
 ENV BUILDX_ARCH="${TARGETOS:-linux}_${TARGETARCH:-amd64}"
 ENV sshGatewayPort=2222
+# the all-in-one image keeps its own MySQL (MariaDB), as before
+ENV driverName=mysql
+ENV dataSourceName="root:123456@tcp(localhost:3306)/"
+ENV dbName=casvisor
+ENV guacamoleEndpoint=127.0.0.1:4822
 
 WORKDIR /
 

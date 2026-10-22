@@ -32,6 +32,7 @@ var userApis = map[string]bool{
 	"/api/signin":           true,
 	"/api/signout":          true,
 	"/api/get-account":      true,
+	"/api/change-password":  true,
 	"/api/get-assets":       true,
 	"/api/get-asset":        true,
 	"/api/add-asset-tunnel": true,
@@ -62,6 +63,10 @@ func InitAuthz() {
 	dataSourceName := conf.GetConfigDataSourceName()
 	if conf.GetConfigString("driverName") == "mysql" {
 		dataSourceName = dataSourceName + conf.GetConfigString("dbName")
+	}
+	if object.IsSqlite(driverName) {
+		driverName = "sqlite"
+		dataSourceName = object.GetSqliteDataSourceName(dataSourceName)
 	}
 
 	a, err := xormadapter.NewAdapterWithTableName(driverName, dataSourceName, "api_rule", tableNamePrefix, true)

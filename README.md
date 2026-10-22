@@ -37,8 +37,7 @@
 
 ## Online demo
 
-- Read-only site: https://door.casvisor.com (any modification operation will fail)
-- Writable site: https://demo.casvisor.com (original data will be restored for every 5 minutes)
+https://demo.casvisor.com (the data is restored regularly)
 
 ## Documentation
 
@@ -48,67 +47,64 @@ https://casvisor.org
 
 Casvisor contains 2 parts:
 
-| Name     | Description                      | Language                       | Source code                                          |
-|----------|----------------------------------|--------------------------------|------------------------------------------------------|
-| Frontend | Web frontend UI for Casvisor     | TypeScript + React + shadcn/ui | https://github.com/casvisor/casvisor/tree/master/web |
-| Backend  | RESTful API backend for Casvisor | Golang + Beego + MySQL         | https://github.com/casvisor/casvisor                 |
+| Name     | Description                      | Language                        | Source code                                          |
+|----------|----------------------------------|---------------------------------|------------------------------------------------------|
+| Frontend | Web frontend UI for Casvisor     | TypeScript + React + shadcn/ui  | https://github.com/casvisor/casvisor/tree/master/web |
+| Backend  | RESTful API backend for Casvisor | Golang + Beego + SQLite / MySQL | https://github.com/casvisor/casvisor                 |
 
-## Installation
-
-Casvisor uses Casdoor as the authentication system. So you need to create an organization and an application for Casvisor in a Casdoor instance.
-
-### Necessary configuration
-
-#### Get the code
+## Quick start
 
 ```shell
-go get github.com/casdoor/casdoor
-go get github.com/casvisor/casvisor
+docker run -d --name casvisor -p 19000:19000 -p 2222:2222 -v casvisor-db:/db casbin/casvisor
+docker logs casvisor
 ```
 
-or
+Open http://localhost:19000 and sign in as `admin` with the password printed in the log, then change it in My Account. Pass `-e adminPassword=<password>` to choose the first password instead.
+
+Out of the box, Casvisor keeps its data in SQLite (`/db/casvisor.db`) and its own user accounts: administrators add users, groups and permissions in the web console. Port 2222 is the SSH gateway for `ssh`, `scp`, `sftp`, Xshell and VS Code.
+
+To run Telnet sessions as well, use `docker compose up -d` with the [docker-compose.yml](docker-compose.yml) of this repository, which adds guacd.
+
+## Installation from source
 
 ```shell
-git clone https://github.com/casdoor/casdoor
 git clone https://github.com/casvisor/casvisor
+cd casvisor/web && yarn install && yarn build && cd ..
+go run main.go
 ```
 
-#### Setup database
+Settings are read from `conf/app.conf`. Put the settings of your own server in `conf/app.local.conf` (same format, not tracked by git), or pass any of them as environment variables.
 
-Casvisor will store its users, nodes and topics information in a MySQL database named: `casvisor`, will create it if not existed. The DB connection string can be specified at: https://github.com/casvisor/casvisor/blob/master/conf/app.conf
+### Database
+
+The default is SQLite:
 
 ```ini
-dataSourceName = root:123@tcp(localhost:3306)/
+driverName = sqlite
+dataSourceName = db/casvisor.db
 ```
 
-Casvisor uses XORM to connect to DB, so all DBs supported by XORM can also be used.
+To use MySQL instead (the database is created if it does not exist):
 
-#### Configure Casdoor
-
-After creating an organization and an application for Casvisor in a Casdoor, you need to update `clientID`, `clientSecret`, `casdoorOrganization` and `casdoorApplication` in app.conf.
-
-#### Run Casvisor
-
-- Configure and run Casvisor by yourself. If you want to learn more about casvisor.
-- Open browser: http://localhost:16001/
-
-### Optional configuration
-
-#### Setup your Casvisor to enable some third-party login platform
-
-  Casvisor uses Casdoor to manage members. If you want to log in with oauth, you should see [casdoor oauth configuration](https://casdoor.org/docs/provider/oauth/overview).
-
-#### OSS, Email, and SMS
-
-  Casvisor uses Casdoor to upload files to cloud storage, send Emails and send SMSs. See Casdoor for more details.
-
-#### RDP
-
-Run guacd for RDP connection.
-
-```shell
-docker run --name some-guacd -d -p 4822:4822 guacamole/guacd
+```ini
+driverName = mysql
+dataSourceName = root:123456@tcp(localhost:3306)/
+dbName = casvisor
 ```
+
+### Sign in with Casdoor
+
+Instead of its own accounts, Casvisor can sign users in with [Casdoor](https://casdoor.org), for SSO, MFA, LDAP and third-party logins. Create an organization and an application for Casvisor in Casdoor, add `http://<your Casvisor host>/callback` to the redirect URLs of the application, and set:
+
+```ini
+casdoorEndpoint = https://<your Casdoor host>
+clientId = <client ID of the application>
+clientSecret = <client secret of the application>
+casdoorOrganization = <organization>
+casdoorApplication = <application>
+```
+
+When `casdoorEndpoint` is empty, Casvisor uses its own accounts.
 
 ## Contribute
 

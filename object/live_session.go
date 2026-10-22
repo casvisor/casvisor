@@ -77,6 +77,17 @@ func CheckLiveSessions() {
 
 // check returns why the session has to end, or "" when it may go on.
 func (liveSession *LiveSession) check() (string, error) {
+	if IsLocalAuth() {
+		user, err := getLocalUser(liveSession.User.Owner, liveSession.User.Name)
+		if err != nil {
+			return "", err
+		}
+		if user == nil || user.IsForbidden {
+			return fmt.Sprintf("The user: %s has been deleted or forbidden", liveSession.User.Name), nil
+		}
+		liveSession.User = user.ToCasdoorUser()
+	}
+
 	asset, err := GetAsset(liveSession.AssetId)
 	if err != nil {
 		return "", err

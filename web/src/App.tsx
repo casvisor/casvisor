@@ -72,6 +72,7 @@ export default function App() {
       <Routes>
         <Route path="/callback" element={<AuthCallback />} />
         <Route path="/signin" element={<SigninRedirect />} />
+        <Route path="/login" element={page("LoginPage")} />
 
         {/* the remote desktops take the whole window, without the console around them */}
         <Route path="/access/:owner/:name" element={<RequireAuth>{page("AccessPage")}</RequireAuth>} />
@@ -93,6 +94,9 @@ export default function App() {
           <Route path="/records" element={page("RecordListPage")} />
           <Route path="/records/:owner/:name" element={page("RecordEditPage")} />
           <Route path="/ssh-keys" element={page("SshKeyListPage")} />
+          <Route path="/account" element={page("AccountPage")} />
+          <Route path="/users" element={page("UserListPage")} />
+          <Route path="/users/:owner/:name" element={page("UserEditPage")} />
           <Route path="*" element={page("NotFoundPage")} />
         </Route>
       </Routes>

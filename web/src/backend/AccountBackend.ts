@@ -21,3 +21,12 @@ export function getAccount() {
 export function signout() {
   return post("/api/signout");
 }
+
+/** Signs in with an account Casvisor keeps itself, when no Casdoor is configured. */
+export function signinLocal(username: string, password: string) {
+  return post("/api/signin", {}, {username, password});
+}
+
+export function changePassword(oldPassword: string, newPassword: string) {
+  return post("/api/change-password", {}, {oldPassword, newPassword});
+}

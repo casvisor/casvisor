@@ -174,6 +174,21 @@ func (c *ApiController) DeletePermission() {
 // @Success 200 {object} controllers.Principal The Response object
 // @router /get-users [get]
 func (c *ApiController) GetUsers() {
+	if object.IsLocalAuth() {
+		users, err := object.GetLocalUsers(c.GetSessionUser().Owner)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+
+		res := []*Principal{}
+		for _, user := range users {
+			res = append(res, &Principal{Name: user.Name, DisplayName: user.DisplayName})
+		}
+		c.ResponseOk(res)
+		return
+	}
+
 	if c.GetSessionUser().Owner != conf.GetConfigString("casdoorOrganization") {
 		c.ResponseOk([]*Principal{})
 		return
@@ -199,6 +214,21 @@ func (c *ApiController) GetUsers() {
 // @Success 200 {object} controllers.Principal The Response object
 // @router /get-groups [get]
 func (c *ApiController) GetGroups() {
+	if object.IsLocalAuth() {
+		groups, err := object.GetLocalGroups(c.GetSessionUser().Owner)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+
+		res := []*Principal{}
+		for _, group := range groups {
+			res = append(res, &Principal{Name: group, DisplayName: group})
+		}
+		c.ResponseOk(res)
+		return
+	}
+
 	if c.GetSessionUser().Owner != conf.GetConfigString("casdoorOrganization") {
 		c.ResponseOk([]*Principal{})
 		return

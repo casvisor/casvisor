@@ -41,6 +41,20 @@ func IsUserAllowedToSignin(userId string) bool {
 // GetCasdoorUser reads a user from Casdoor with the application's credentials,
 // for callers like the SSH gateway that have no sign-in token to take the user from.
 func GetCasdoorUser(owner string, name string) (*casdoorsdk.User, error) {
+	if IsLocalAuth() {
+		user, err := getLocalUser(owner, name)
+		if err != nil {
+			return nil, err
+		}
+		if user == nil {
+			return nil, fmt.Errorf("the user: %s/%s does not exist", owner, name)
+		}
+		if user.IsForbidden {
+			return nil, fmt.Errorf("the user: %s/%s is forbidden to sign in", owner, name)
+		}
+		return user.ToCasdoorUser(), nil
+	}
+
 	client := casdoorsdk.NewClient(
 		conf.GetConfigString("casdoorEndpoint"),
 		conf.GetConfigString("clientId"),

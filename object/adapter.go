@@ -16,12 +16,16 @@ package object
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/beego/beego"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/util"
 	_ "github.com/go-sql-driver/mysql"
+	_ "modernc.org/sqlite"
 	"xorm.io/xorm"
 )
 
@@ -77,16 +81,57 @@ func (a *Adapter) createDatabase() error {
 	}
 	defer engine.Close()
 
-	_, err = engine.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s default charset utf8 COLLATE utf8_general_ci", beego.AppConfig.String("dbName")))
+	_, err = engine.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s default charset utf8 COLLATE utf8_general_ci", conf.GetConfigString("dbName")))
 	return err
 }
 
 func (a *Adapter) open() {
+	if IsSqlite(a.driverName) {
+		a.openSqlite()
+		return
+	}
+
 	if err := a.createDatabase(); err != nil {
 		panic(err)
 	}
 
-	engine, err := xorm.NewEngine(a.driverName, a.dataSourceName+beego.AppConfig.String("dbName"))
+	engine, err := xorm.NewEngine(a.driverName, a.dataSourceName+conf.GetConfigString("dbName"))
+	if err != nil {
+		panic(err)
+	}
+
+	a.engine = engine
+	a.createTable()
+}
+
+func IsSqlite(driverName string) bool {
+	return driverName == "sqlite" || driverName == "sqlite3"
+}
+
+// GetSqliteDataSourceName waits for a locked database instead of failing at once,
+// and lets readers go on while a write is in progress.
+func GetSqliteDataSourceName(dataSourceName string) string {
+	if strings.Contains(dataSourceName, "_pragma") {
+		return dataSourceName
+	}
+
+	separator := "?"
+	if strings.Contains(dataSourceName, "?") {
+		separator = "&"
+	}
+	return dataSourceName + separator + "_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)"
+}
+
+func (a *Adapter) openSqlite() {
+	path := strings.TrimPrefix(strings.SplitN(a.dataSourceName, "?", 2)[0], "file:")
+	if dir := filepath.Dir(path); dir != "." {
+		err := os.MkdirAll(dir, 0o755)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	engine, err := xorm.NewEngine("sqlite", GetSqliteDataSourceName(a.dataSourceName))
 	if err != nil {
 		panic(err)
 	}
@@ -137,6 +182,11 @@ func (a *Adapter) createTable() {
 	}
 
 	err = a.engine.Sync2(new(Command))
+	if err != nil {
+		panic(err)
+	}
+
+	err = a.engine.Sync2(new(LocalUser))
 	if err != nil {
 		panic(err)
 	}
