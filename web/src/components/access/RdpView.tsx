@@ -24,8 +24,8 @@ import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
-/** An RDP screen drawn on a canvas from PNG tiles, decoded on the gateway by the
- *  native gordp client. Mouse and keyboard are relayed back. */
+/** An RDP screen drawn on a canvas from frames of PNG tiles, decoded on the
+ *  gateway by the native gordp client. Mouse and keyboard are relayed back. */
 export default function RdpView(props: ConnectionProps) {
   const {assetId, inTab, addClient, username, password} = props;
   const assetName = Setting.getShortName(assetId);
@@ -34,6 +34,7 @@ export default function RdpView(props: ConnectionProps) {
   const wsRef = React.useRef<WebSocket | null>(null);
   const ctxRef = React.useRef<CanvasRenderingContext2D | null>(null);
   const activeRef = React.useRef(false);
+  const frameChainRef = React.useRef<Promise<void>>(Promise.resolve());
   const operationsRef = React.useRef<string[]>([]);
   const lastClipboardRef = React.useRef("");
   const [clipboardText, setClipboardText] = React.useState("");
@@ -69,6 +70,10 @@ export default function RdpView(props: ConnectionProps) {
     }
   };
 
+  // The remote desktop is requested at the physical pixel size of the view and
+  // told the display scaling, so it is drawn 1:1 and sharp on high-DPI screens.
+  const pixelRatio = () => window.devicePixelRatio || 1;
+
   // Map a mouse event to remote desktop pixel coordinates.
   const toRemote = (e: React.MouseEvent | WheelEvent) => {
     const canvas = canvasRef.current!;
@@ -94,11 +99,14 @@ export default function RdpView(props: ConnectionProps) {
       const session = res.data;
       operationsRef.current = session.operations ?? [];
       lastClipboardRef.current = "";
+      frameChainRef.current = Promise.resolve();
       const canvas = canvasRef.current!;
+      const ratio = pixelRatio();
       const params: Record<string, any> = {
         sessionId: `${session.owner}/${session.name}`,
-        width: Math.round(canvas.parentElement?.clientWidth || 1024),
-        height: Math.round(canvas.parentElement?.clientHeight || 768),
+        width: Math.round((canvas.parentElement?.clientWidth || 1024) * ratio),
+        height: Math.round((canvas.parentElement?.clientHeight || 768) * ratio),
+        scale: Math.round(ratio * 100),
       };
       if (username || password) {
         params.username = username;
@@ -132,12 +140,15 @@ export default function RdpView(props: ConnectionProps) {
             lastClipboardRef.current = msg.text;
             setClipboardText(msg.text);
             navigator.clipboard?.writeText(msg.text).catch(() => undefined);
+          } else if (msg.t === "cursor") {
+            setCursor(msg);
           } else if (msg.t === "error") {
             failureReason = msg.message || NotReachable;
           }
           return;
         }
-        drawTile(event.data as ArrayBuffer);
+        const data = event.data as ArrayBuffer;
+        frameChainRef.current = frameChainRef.current.then(() => drawFrame(data));
       };
 
       ws.onclose = () => {
@@ -164,15 +175,62 @@ export default function RdpView(props: ConnectionProps) {
     });
   };
 
-  const drawTile = (data: ArrayBuffer) => {
+  // A frame is every tile of one screen change. All of them are decoded first
+  // and drawn together, in the order the frames arrived, so a repainted window
+  // appears at once.
+  const drawFrame = async(data: ArrayBuffer) => {
     const view = new DataView(data);
-    const x = view.getUint16(0, true);
-    const y = view.getUint16(2, true);
-    const blob = new Blob([data.slice(8)], {type: "image/png"});
-    createImageBitmap(blob).then((bmp) => {
-      ctxRef.current?.drawImage(bmp, x, y);
-      bmp.close();
-    }).catch(() => undefined);
+    const count = view.getUint16(0, true);
+    const tiles: {x: number; y: number; image: Promise<ImageBitmap>}[] = [];
+    let offset = 2;
+    for (let i = 0; i < count && offset + 12 <= data.byteLength; i++) {
+      const x = view.getUint16(offset, true);
+      const y = view.getUint16(offset + 2, true);
+      const length = view.getUint32(offset + 8, true);
+      const blob = new Blob([new Uint8Array(data, offset + 12, length)], {type: "image/png"});
+      tiles.push({x, y, image: createImageBitmap(blob)});
+      offset += 12 + length;
+    }
+    const images = await Promise.allSettled(tiles.map((tile) => tile.image));
+    const ctx = ctxRef.current;
+    images.forEach((result, i) => {
+      if (result.status === "fulfilled") {
+        ctx?.drawImage(result.value, tiles[i].x, tiles[i].y);
+        result.value.close();
+      }
+    });
+  };
+
+  // Show the remote cursor shape on the canvas. Its image is in remote pixels,
+  // so it is scaled to the size the desktop is displayed at.
+  const setCursor = (msg: {hidden?: boolean; default?: boolean; png?: string; x?: number; y?: number; width?: number; height?: number}) => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    if (msg.hidden) {
+      canvas.style.cursor = "none";
+      return;
+    }
+    if (msg.default || !msg.png || !msg.width || !msg.height) {
+      canvas.style.cursor = "default";
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const ratio = canvas.width ? Math.min(rect.width / canvas.width, rect.height / canvas.height) : 1;
+    const width = Math.max(1, Math.round(msg.width * ratio));
+    const height = Math.max(1, Math.round(msg.height * ratio));
+    const hotX = Math.min(width - 1, Math.round((msg.x ?? 0) * ratio));
+    const hotY = Math.min(height - 1, Math.round((msg.y ?? 0) * ratio));
+    const image = new Image();
+    image.onload = () => {
+      const scaled = document.createElement("canvas");
+      scaled.width = width;
+      scaled.height = height;
+      scaled.getContext("2d")?.drawImage(image, 0, 0, width, height);
+      canvas.style.cursor = `url(${scaled.toDataURL()}) ${hotX} ${hotY}, default`;
+    };
+    image.src = `data:image/png;base64,${msg.png}`;
   };
 
   React.useEffect(() => {
@@ -220,7 +278,8 @@ export default function RdpView(props: ConnectionProps) {
         }
         lastWidth = width;
         lastHeight = height;
-        send({t: "resize", width, height});
+        const ratio = pixelRatio();
+        send({t: "resize", width: Math.round(width * ratio), height: Math.round(height * ratio)});
       }, 500);
     });
     observer.observe(container);

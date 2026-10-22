@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -23,9 +24,11 @@ import (
 	"image/png"
 	"net"
 	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -37,8 +40,9 @@ import (
 )
 
 // GetAssetRdp connects to an RDP asset with the native gordp client,
-// decodes the screen on the gateway and streams changed rectangles to the
-// browser as PNG tiles, while relaying the browser's mouse and keyboard input.
+// decodes the screen on the gateway and streams each frame of changed
+// rectangles to the browser as PNG tiles, while relaying the browser's mouse
+// and keyboard input.
 func (c *ApiController) GetAssetRdp() {
 	c.EnableRender = false
 	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
@@ -62,6 +66,9 @@ func (c *ApiController) GetAssetRdp() {
 	if err != nil || height <= 0 {
 		height = 768
 	}
+	// The browser asks for its physical pixel size and its display scaling,
+	// so the remote desktop is drawn 1:1 on high-DPI screens.
+	scale, _ := strconv.Atoi(c.Input().Get("scale"))
 
 	session, asset, code, err := c.getTunnelSessionAndAsset(sessionId, c.Input().Get("username"), c.Input().Get("password"))
 	if err != nil {
@@ -73,6 +80,7 @@ func (c *ApiController) GetAssetRdp() {
 	options := []gordp.Option{
 		gordp.WithDesktopSize(uint16(width), uint16(height)),
 		gordp.WithServerCertFingerprint(asset.Fingerprint),
+		gordp.WithScaleFactor(scale),
 	}
 
 	// The remote desktop sees a gateway directory of its own as
@@ -112,17 +120,30 @@ func (c *ApiController) GetAssetRdp() {
 		}
 	}
 
+	// Rectangles are collected while a frame is pumped and sent together, so
+	// the browser shows a repainted window at once instead of tile by tile.
+	var dirty []image.Rectangle
 	client.OnBitmap = func(rects []bitmap.Rect) {
-		syncSize()
 		for _, rect := range rects {
-			frame, err := encodeTile(rect)
-			if err != nil {
-				continue
-			}
-			if _, err = stream.Write(frame); err != nil {
-				return
-			}
+			dirty = append(dirty, image.Rect(rect.DestLeft, rect.DestTop, rect.DestLeft+rect.Width, rect.DestTop+rect.Height))
 		}
+	}
+	flush := func() error {
+		if len(dirty) == 0 {
+			return nil
+		}
+		syncSize()
+		frame := encodeFrame(client.Framebuffer(), dirty)
+		dirty = dirty[:0]
+		if frame == nil {
+			return nil
+		}
+		_, err := stream.Write(frame)
+		return err
+	}
+
+	client.OnPointer = func(p *gordp.Pointer) {
+		_ = stream.WriteJSON(cursorMessage(p))
 	}
 
 	if slices.Contains(session.Operations, "copy") {
@@ -179,7 +200,10 @@ func (c *ApiController) GetAssetRdp() {
 	go c.readRdpInput(ws, client, session, asset, ops)
 
 	for {
-		if _, err := client.PumpUpdates(100 * time.Millisecond); err != nil {
+		if _, err := client.PumpFrame(50 * time.Millisecond); err != nil {
+			break
+		}
+		if err := flush(); err != nil {
 			break
 		}
 		for pending := true; pending; {
@@ -288,6 +312,9 @@ type rdpMessage struct {
 	Code     int    `json:"code,omitempty"`
 	Extended bool   `json:"extended,omitempty"`
 	Text     string `json:"text,omitempty"`
+	Hidden   bool   `json:"hidden,omitempty"`
+	Default  bool   `json:"default,omitempty"`
+	Png      string `json:"png,omitempty"`
 }
 
 func mouseButton(button int) gordp.MouseButton {
@@ -301,23 +328,133 @@ func mouseButton(button int) gordp.MouseButton {
 	}
 }
 
-// encodeTile builds a binary frame: an 8-byte header (x, y, width, height as
-// little-endian uint16) followed by the PNG-encoded rectangle.
-func encodeTile(rect bitmap.Rect) ([]byte, error) {
-	img := &image.RGBA{
-		Pix:    rect.RGBA,
-		Stride: rect.Width * 4,
-		Rect:   image.Rect(0, 0, rect.Width, rect.Height),
+// cursorMessage tells the browser which mouse cursor the remote session shows,
+// with the cursor image as a PNG and its hotspot.
+func cursorMessage(p *gordp.Pointer) rdpMessage {
+	msg := rdpMessage{Type: "cursor", Hidden: p.Hidden, Default: p.Default}
+	if p.Hidden || p.Default || p.Width == 0 || p.Height == 0 {
+		return msg
 	}
+	img := &image.NRGBA{Pix: p.RGBA, Stride: p.Width * 4, Rect: image.Rect(0, 0, p.Width, p.Height)}
 	var buf bytes.Buffer
-	var header [8]byte
-	binary.LittleEndian.PutUint16(header[0:], uint16(rect.DestLeft))
-	binary.LittleEndian.PutUint16(header[2:], uint16(rect.DestTop))
-	binary.LittleEndian.PutUint16(header[4:], uint16(rect.Width))
-	binary.LittleEndian.PutUint16(header[6:], uint16(rect.Height))
-	buf.Write(header[:])
 	if err := png.Encode(&buf, img); err != nil {
-		return nil, err
+		msg.Default = true
+		return msg
 	}
-	return buf.Bytes(), nil
+	msg.X, msg.Y = p.HotX, p.HotY
+	msg.Width, msg.Height = p.Width, p.Height
+	msg.Png = base64.StdEncoding.EncodeToString(buf.Bytes())
+	return msg
+}
+
+var tileEncoder = png.Encoder{CompressionLevel: png.BestSpeed, BufferPool: &tileBufferPool{}}
+
+type tileBufferPool struct{ pool sync.Pool }
+
+func (p *tileBufferPool) Get() *png.EncoderBuffer {
+	b, _ := p.pool.Get().(*png.EncoderBuffer)
+	return b
+}
+
+func (p *tileBufferPool) Put(b *png.EncoderBuffer) { p.pool.Put(b) }
+
+// encodeFrame builds one binary frame with the changed regions of the desktop:
+// a tile count (uint16), then per tile an 8-byte header (x, y, width, height as
+// little-endian uint16), the PNG length (uint32) and the PNG. Windows sends a
+// repaint as many 64x64 tiles; when they cover most of their bounding box they
+// are sent as that one region, which the browser decodes much faster.
+func encodeFrame(fb *image.RGBA, dirty []image.Rectangle) []byte {
+	bounds := fb.Bounds()
+	var regions []image.Rectangle
+	union := image.Rectangle{}
+	area := 0
+	for _, r := range dirty {
+		r = r.Intersect(bounds)
+		if r.Empty() {
+			continue
+		}
+		union = union.Union(r)
+		area += r.Dx() * r.Dy()
+		regions = append(regions, r)
+	}
+	if len(regions) == 0 {
+		return nil
+	}
+	if len(regions) > 1 && area*10 >= union.Dx()*union.Dy()*6 {
+		regions = splitBands([]image.Rectangle{union})
+	} else {
+		regions = splitBands(mergeRegions(regions))
+	}
+
+	encoded := make([][]byte, len(regions))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, runtime.GOMAXPROCS(0))
+	for i, r := range regions {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int, r image.Rectangle) {
+			defer func() { <-sem; wg.Done() }()
+			var buf bytes.Buffer
+			if tileEncoder.Encode(&buf, fb.SubImage(r)) == nil {
+				encoded[i] = buf.Bytes()
+			}
+		}(i, r)
+	}
+	wg.Wait()
+
+	var out bytes.Buffer
+	var header [12]byte
+	binary.LittleEndian.PutUint16(header[0:], uint16(len(regions)))
+	out.Write(header[:2])
+	for i, r := range regions {
+		data := encoded[i]
+		binary.LittleEndian.PutUint16(header[0:], uint16(r.Min.X))
+		binary.LittleEndian.PutUint16(header[2:], uint16(r.Min.Y))
+		binary.LittleEndian.PutUint16(header[4:], uint16(r.Dx()))
+		binary.LittleEndian.PutUint16(header[6:], uint16(r.Dy()))
+		binary.LittleEndian.PutUint32(header[8:], uint32(len(data)))
+		out.Write(header[:])
+		out.Write(data)
+	}
+	return out.Bytes()
+}
+
+// splitBands cuts tall regions into bands of 128 rows, which the gateway
+// encodes and the browser decodes in parallel.
+func splitBands(regions []image.Rectangle) []image.Rectangle {
+	const band = 128
+	var out []image.Rectangle
+	for _, r := range regions {
+		for y := r.Min.Y; y < r.Max.Y; y += band {
+			out = append(out, image.Rect(r.Min.X, y, r.Max.X, min(y+band, r.Max.Y)))
+		}
+	}
+	return out
+}
+
+// mergeRegions drops duplicate rectangles (a tile repainted twice in one frame)
+// and joins tiles that sit side by side in the same row, so a changed line of
+// text is one image rather than a dozen.
+func mergeRegions(regions []image.Rectangle) []image.Rectangle {
+	slices.SortFunc(regions, func(a, b image.Rectangle) int {
+		if a.Min.Y != b.Min.Y {
+			return a.Min.Y - b.Min.Y
+		}
+		return a.Min.X - b.Min.X
+	})
+	var out []image.Rectangle
+	for _, r := range regions {
+		if n := len(out); n > 0 {
+			last := &out[n-1]
+			if r.In(*last) {
+				continue
+			}
+			if r.Min.Y == last.Min.Y && r.Max.Y == last.Max.Y && r.Min.X <= last.Max.X {
+				last.Max.X = max(last.Max.X, r.Max.X)
+				continue
+			}
+		}
+		out = append(out, r)
+	}
+	return out
 }
