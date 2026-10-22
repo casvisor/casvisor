@@ -15,10 +15,13 @@
 package main
 
 import (
+	"os"
+
 	"github.com/beego/beego"
 	"github.com/beego/beego/logs"
 	"github.com/beego/beego/plugins/cors"
 	_ "github.com/beego/beego/session/redis"
+	"github.com/casvisor/casvisor/agent"
 	"github.com/casvisor/casvisor/authz"
 	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/demo"
@@ -30,6 +33,11 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "agent" {
+		agent.Main(os.Args[2:])
+		return
+	}
+
 	object.InitAdapter()
 	err := object.EncryptAssetCredentials()
 	if err != nil {

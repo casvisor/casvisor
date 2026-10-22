@@ -25,12 +25,17 @@ import (
 	"time"
 
 	"github.com/beego/beego/logs"
+	"github.com/casvisor/casvisor/agent"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"golang.org/x/crypto/ssh"
 )
 
-const sshKeyExtension = "casvisor-ssh-key"
+const (
+	sshKeyExtension   = "casvisor-ssh-key"
+	agentExtension    = "casvisor-agent"
+	agentKeyExtension = "casvisor-agent-key"
+)
 
 func IsEnabled() bool {
 	return conf.GetConfigString("sshGatewayPort") != "" && !conf.GetConfigBool("isDemoMode")
@@ -79,6 +84,14 @@ func listen(port string) error {
 }
 
 func checkPublicKey(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+	if meta.User() == agent.Username {
+		gateway, err := object.GetNetworkGatewayByAgentKey(key)
+		if err != nil {
+			return nil, err
+		}
+		return &ssh.Permissions{Extensions: map[string]string{agentExtension: gateway.GetId(), agentKeyExtension: gateway.AgentKey}}, nil
+	}
+
 	sshKey, err := object.GetSshKeyByFingerprint(ssh.FingerprintSHA256(key))
 	if err != nil {
 		return nil, err
@@ -105,6 +118,11 @@ func handleConn(conn net.Conn, config *ssh.ServerConfig) {
 	_ = conn.SetDeadline(time.Time{})
 	defer serverConn.Close()
 
+	if id, ok := serverConn.Permissions.Extensions[agentExtension]; ok {
+		serveAgent(id, serverConn.Permissions.Extensions[agentKeyExtension], serverConn, chans, reqs, getHost(conn.RemoteAddr()))
+		return
+	}
+
 	go rejectRequests(reqs)
 
 	g := &gatewayConn{
@@ -129,6 +147,14 @@ func handleConn(conn net.Conn, config *ssh.ServerConfig) {
 			_ = newChannel.Reject(ssh.UnknownChannelType, "unsupported channel type")
 		}
 	}
+}
+
+func serveAgent(id string, key string, conn *ssh.ServerConn, chans <-chan ssh.NewChannel, reqs <-chan *ssh.Request, ip string) {
+	gateway, err := object.GetNetworkGateway(id)
+	if err != nil || gateway == nil || gateway.AgentKey != key {
+		return
+	}
+	object.ServeAgent(gateway, conn, chans, reqs, ip)
 }
 
 func rejectRequests(reqs <-chan *ssh.Request) {

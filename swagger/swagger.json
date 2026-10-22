@@ -601,6 +601,32 @@
                 }
             }
         },
+        "/generate-network-gateway-token": {
+            "post": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "generate a new token for the agent of an agent network gateway, the agent with the old token is disconnected. The token is only returned this once",
+                "operationId": "ApiController.GenerateNetworkGatewayToken",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the network gateway",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/get-asset": {
             "get": {
                 "tags": [
@@ -1302,6 +1328,32 @@
                 }
             }
         },
+        "/revoke-network-gateway-token": {
+            "post": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "revoke the token of an agent network gateway and disconnect its agent",
+                "operationId": "ApiController.RevokeNetworkGatewayToken",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the network gateway",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/start-patch-job": {
             "post": {
                 "tags": [
@@ -1968,6 +2020,21 @@
             "title": "NetworkGateway",
             "type": "object",
             "properties": {
+                "agentIp": {
+                    "type": "string"
+                },
+                "agentKey": {
+                    "type": "string"
+                },
+                "agentVersion": {
+                    "type": "string"
+                },
+                "allowedNetworks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "createdTime": {
                     "type": "string"
                 },
@@ -1986,6 +2053,12 @@
                 "isEnabled": {
                     "type": "boolean"
                 },
+                "isOnline": {
+                    "type": "boolean"
+                },
+                "lastOnlineTime": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2000,6 +2073,9 @@
                     "format": "int64"
                 },
                 "privateKey": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 },
                 "updatedTime": {

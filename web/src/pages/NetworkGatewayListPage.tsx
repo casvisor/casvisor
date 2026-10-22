@@ -17,11 +17,22 @@ import i18next from "i18next";
 import dayjs from "dayjs";
 import * as NetworkGatewayBackend from "@/backend/NetworkGatewayBackend";
 import type {NetworkGateway} from "@/backend/types";
+import {Badge} from "@/components/ui/badge";
 import {CrudListPage} from "@/components/crud/CrudListPage";
 import {boolColumn, dateColumn, linkColumn, textColumn} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
 import * as Setting from "@/lib/setting";
+
+export function NetworkGatewayStatus({gateway}: {gateway: NetworkGateway}) {
+  if (gateway.type !== "Agent") {
+    return null;
+  }
+  if (gateway.isOnline) {
+    return <Badge variant="success">{i18next.t("networkGateway:Online")}</Badge>;
+  }
+  return <Badge variant="secondary">{i18next.t("networkGateway:Offline")}</Badge>;
+}
 
 export default function NetworkGatewayListPage() {
   const {account} = useAccount();
@@ -47,6 +58,7 @@ export default function NetworkGatewayListPage() {
     updatedTime: dayjs().format(),
     displayName: `New Network Gateway - ${Setting.getRandomName()}`,
     description: "",
+    type: "SSH",
     host: "",
     port: 22,
     username: "root",
@@ -54,6 +66,7 @@ export default function NetworkGatewayListPage() {
     privateKey: "",
     fingerprint: "",
     isEnabled: true,
+    allowedNetworks: [],
   });
 
   const columns: ColumnDef<NetworkGateway>[] = [
@@ -61,8 +74,22 @@ export default function NetworkGatewayListPage() {
     textColumn<NetworkGateway>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 180, searchable: true}),
     dateColumn<NetworkGateway>("createdTime"),
     textColumn<NetworkGateway>({dataIndex: "description", title: i18next.t("general:Description"), width: 200}),
+    {
+      dataIndex: "type",
+      title: i18next.t("general:Type"),
+      width: 130,
+      sortable: true,
+      render: (value) => (value === "Agent" ? i18next.t("networkGateway:Agent") : i18next.t("networkGateway:SSH jump host")),
+    },
+    {
+      dataIndex: "isOnline",
+      title: i18next.t("general:Status"),
+      width: 110,
+      sortable: false,
+      render: (_, gateway) => <NetworkGatewayStatus gateway={gateway} />,
+    },
     textColumn<NetworkGateway>({dataIndex: "host", title: i18next.t("asset:Host"), width: 160, searchable: true}),
-    textColumn<NetworkGateway>({dataIndex: "port", title: i18next.t("general:Port"), width: 90}),
+    {dataIndex: "port", title: i18next.t("general:Port"), width: 90, sortable: true, render: (value) => value || ""},
     textColumn<NetworkGateway>({dataIndex: "username", title: i18next.t("general:Username"), width: 130}),
     boolColumn<NetworkGateway>({dataIndex: "isEnabled", title: i18next.t("permission:Is enabled"), width: 120}),
   ];
@@ -70,7 +97,7 @@ export default function NetworkGatewayListPage() {
   return (
     <CrudListPage<NetworkGateway>
       title={i18next.t("general:Network gateways")}
-      description={i18next.t("general:Reach assets in other networks through SSH jump hosts")}
+      description={i18next.t("general:Reach assets in other networks through SSH jump hosts or agents")}
       columns={columns}
       fetch={fetchGateways}
       deps={[owner]}

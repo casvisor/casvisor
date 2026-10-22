@@ -63,6 +63,19 @@ Open http://localhost:19000 and sign in as `admin` with the password printed in 
 
 Out of the box, Casvisor keeps its data in SQLite (`/db/casvisor.db`) and its own user accounts: administrators add users, groups and permissions in the web console. Port 2222 is the SSH gateway for `ssh`, `scp`, `sftp`, Xshell and VS Code.
 
+## Network gateways
+
+Assets that Casvisor cannot reach directly, such as servers in another data center or behind NAT in an office, are reached through a network gateway. Add one under **Network gateways** and pick it in the asset's **Network gateway** field. Every connection to the asset (web SSH, Telnet, VNC, RDP, the SSH gateway and patch management) then goes through it. There are two types:
+
+- **SSH jump host**: a server in that network that Casvisor can log in to over SSH. Nothing is installed on it; Casvisor opens a `direct-tcpip` channel to each asset, so its sshd needs `AllowTcpForwarding yes`. Its host key is pinned on the first connection.
+- **Agent**: for networks Casvisor cannot connect into at all. Generate a token on the gateway's page and run the agent on any machine in that network:
+
+  ```shell
+  casvisor agent --server casvisor.example.com:2222 --token cva_... --fingerprint SHA256:...
+  ```
+
+  The agent is the same `casvisor` binary, and with Docker it is `docker run -d --restart unless-stopped casbin/casvisor agent --server ...`. It connects out to the SSH gateway port, so `sshGatewayPort` has to be set, keeps the connection open and reconnects by itself. Casvisor opens a channel on that connection for every connection to an asset, and the agent connects to the asset from inside. It listens on no port and only connects where Casvisor asks, within the **Allowed networks** set on the gateway (and `--allow`, if given). The token is shown once and only a hash of it is stored; regenerating or revoking it disconnects the agent at once. `--fingerprint` is the SSH gateway's host key, shown on the **SSH keys** page, and the agent refuses a server with any other key. The token can also be passed in the environment variable `CASVISOR_AGENT_TOKEN`. The gateway's page shows whether the agent is online, when it was last online, its version and the address it connects from.
+
 ## Installation from source
 
 ```shell

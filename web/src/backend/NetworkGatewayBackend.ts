@@ -37,3 +37,11 @@ export function deleteNetworkGateway(gateway: any) {
 export function testNetworkGateway(owner: string, name: string) {
   return post("/api/test-network-gateway", {id: `${owner}/${name}`}, {});
 }
+
+export function generateNetworkGatewayToken(owner: string, name: string) {
+  return post("/api/generate-network-gateway-token", {id: `${owner}/${name}`}, {});
+}
+
+export function revokeNetworkGatewayToken(owner: string, name: string) {
+  return post("/api/revoke-network-gateway-token", {id: `${owner}/${name}`}, {});
+}

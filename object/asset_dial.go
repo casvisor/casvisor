@@ -48,6 +48,9 @@ func DialAsset(asset *Asset) (net.Conn, error) {
 		return nil, fmt.Errorf("the network gateway: %s of the asset: %s is disabled", asset.NetworkGateway, asset.GetId())
 	}
 
+	if gateway.IsAgent() {
+		return gateway.dialAgent(address)
+	}
 	return gateway.Dial(address)
 }
 
@@ -91,7 +94,7 @@ func (gateway *NetworkGateway) DialSsh() (*ssh.Client, error) {
 	return newSshClient(conn, address, config)
 }
 
-// forwardedConn is a connection forwarded by a gateway. SSH channels have no
+// forwardedConn is a connection forwarded by a gateway or an agent. SSH channels have no
 // deadlines, so a deadline closes the connection instead, which is enough for
 // the handshake timeouts the connections are given.
 type forwardedConn struct {
@@ -110,7 +113,9 @@ func (c *forwardedConn) Close() error {
 	c.mu.Unlock()
 
 	err := c.Conn.Close()
-	_ = c.client.Close()
+	if c.client != nil {
+		_ = c.client.Close()
+	}
 	return err
 }
 

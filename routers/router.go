@@ -77,6 +77,8 @@ func initAPI() {
 	beego.Router("/api/add-network-gateway", &controllers.ApiController{}, "POST:AddNetworkGateway")
 	beego.Router("/api/delete-network-gateway", &controllers.ApiController{}, "POST:DeleteNetworkGateway")
 	beego.Router("/api/test-network-gateway", &controllers.ApiController{}, "POST:TestNetworkGateway")
+	beego.Router("/api/generate-network-gateway-token", &controllers.ApiController{}, "POST:GenerateNetworkGatewayToken")
+	beego.Router("/api/revoke-network-gateway-token", &controllers.ApiController{}, "POST:RevokeNetworkGatewayToken")
 
 	beego.Router("/api/get-command-rules", &controllers.ApiController{}, "GET:GetCommandRules")
 	beego.Router("/api/get-command-rule", &controllers.ApiController{}, "GET:GetCommandRule")

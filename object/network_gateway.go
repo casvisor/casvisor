@@ -18,12 +18,19 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/casvisor/casvisor/agent"
 	"github.com/casvisor/casvisor/util"
 	"xorm.io/core"
 )
 
-// NetworkGateway is an SSH jump host in another network, e.g. a data center or an
-// office, that Casvisor reaches its assets there through.
+const (
+	NetworkGatewayTypeSsh   = "SSH"
+	NetworkGatewayTypeAgent = "Agent"
+)
+
+// NetworkGateway is how Casvisor reaches its assets in another network, e.g. a data
+// center or an office: an SSH jump host there, or an agent there that connects out
+// to Casvisor.
 type NetworkGateway struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -31,6 +38,7 @@ type NetworkGateway struct {
 	UpdatedTime string `xorm:"varchar(100)" json:"updatedTime"`
 	DisplayName string `xorm:"varchar(100)" json:"displayName"`
 	Description string `xorm:"varchar(500)" json:"description"`
+	Type        string `xorm:"varchar(100)" json:"type"`
 
 	Host     string `xorm:"varchar(200)" json:"host"`
 	Port     int    `json:"port"`
@@ -40,6 +48,13 @@ type NetworkGateway struct {
 	PrivateKey  string `xorm:"mediumtext" json:"privateKey"`
 	Fingerprint string `xorm:"varchar(200)" json:"fingerprint"`
 	IsEnabled   bool   `json:"isEnabled"`
+
+	AllowedNetworks []string `xorm:"mediumtext" json:"allowedNetworks"`
+	AgentKey        string   `xorm:"varchar(100) index" json:"agentKey"`
+	AgentVersion    string   `xorm:"varchar(100)" json:"agentVersion"`
+	AgentIp         string   `xorm:"varchar(100)" json:"agentIp"`
+	LastOnlineTime  string   `xorm:"varchar(100)" json:"lastOnlineTime"`
+	IsOnline        bool     `xorm:"-" json:"isOnline"`
 }
 
 func GetNetworkGatewayCount(owner, field, value string) (int64, error) {
@@ -109,6 +124,10 @@ func GetMaskedNetworkGateway(gateway *NetworkGateway, errs ...error) (*NetworkGa
 	if gateway.PrivateKey != "" {
 		gateway.PrivateKey = "***"
 	}
+	if gateway.AgentKey != "" {
+		gateway.AgentKey = "***"
+	}
+	gateway.IsOnline = getAgent(gateway.GetId()) != nil
 	return gateway, nil
 }
 
@@ -138,6 +157,11 @@ func UpdateNetworkGateway(id string, gateway *NetworkGateway) (bool, error) {
 	if gateway.PrivateKey == "***" {
 		gateway.PrivateKey = old.PrivateKey
 	}
+	// The token and the agent's status are only changed by the agent and the token APIs.
+	gateway.AgentKey = old.AgentKey
+	gateway.AgentVersion = old.AgentVersion
+	gateway.AgentIp = old.AgentIp
+	gateway.LastOnlineTime = old.LastOnlineTime
 
 	err = gateway.check()
 	if err != nil {
@@ -166,10 +190,23 @@ func UpdateNetworkGateway(id string, gateway *NetworkGateway) (bool, error) {
 		}
 	}
 
+	if affected != 0 {
+		if gateway.Name != name || !gateway.IsAgent() || !gateway.IsEnabled {
+			disconnectAgent(util.GetIdFromOwnerAndName(owner, name))
+		} else {
+			sendAgentConfig(gateway)
+		}
+	}
+
 	return affected != 0, nil
 }
 
 func AddNetworkGateway(gateway *NetworkGateway) (bool, error) {
+	gateway.AgentKey = ""
+	gateway.AgentVersion = ""
+	gateway.AgentIp = ""
+	gateway.LastOnlineTime = ""
+
 	err := gateway.check()
 	if err != nil {
 		return false, err
@@ -207,6 +244,7 @@ func DeleteNetworkGateway(gateway *NetworkGateway) (bool, error) {
 		return false, err
 	}
 
+	disconnectAgent(gateway.GetId())
 	return affected != 0, nil
 }
 
@@ -220,9 +258,40 @@ func (gateway *NetworkGateway) GetId() string {
 	return util.GetIdFromOwnerAndName(gateway.Owner, gateway.Name)
 }
 
+func (gateway *NetworkGateway) IsAgent() bool {
+	return gateway.Type == NetworkGatewayTypeAgent
+}
+
 func (gateway *NetworkGateway) check() error {
 	if gateway.Name == "" {
 		return fmt.Errorf("the name of the network gateway should not be empty")
+	}
+	if gateway.Type == "" {
+		gateway.Type = NetworkGatewayTypeSsh
+	}
+
+	allowedNetworks := []string{}
+	for _, network := range gateway.AllowedNetworks {
+		network = strings.TrimSpace(network)
+		if network != "" {
+			allowedNetworks = append(allowedNetworks, network)
+		}
+	}
+	gateway.AllowedNetworks = allowedNetworks
+
+	if gateway.IsAgent() {
+		gateway.Host = ""
+		gateway.Port = 0
+		gateway.Username = ""
+		gateway.Password = ""
+		gateway.PrivateKey = ""
+		gateway.Fingerprint = ""
+		_, err := agent.ParseNetworks(gateway.AllowedNetworks)
+		return err
+	}
+	gateway.AgentKey = ""
+	if gateway.Type != NetworkGatewayTypeSsh {
+		return fmt.Errorf("invalid type of the network gateway: %s", gateway.Type)
 	}
 	if gateway.Host == "" {
 		return fmt.Errorf("the host of the network gateway should not be empty")

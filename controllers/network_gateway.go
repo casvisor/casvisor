@@ -180,6 +180,16 @@ func (c *ApiController) TestNetworkGateway() {
 		return
 	}
 
+	if gateway.IsAgent() {
+		version, err := object.PingAgent(gateway)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		c.ResponseOk(gateway.Fingerprint, version)
+		return
+	}
+
 	client, err := gateway.DialSsh()
 	if err != nil {
 		c.ResponseError(err.Error())
@@ -189,4 +199,66 @@ func (c *ApiController) TestNetworkGateway() {
 	_ = client.Close()
 
 	c.ResponseOk(gateway.Fingerprint, version)
+}
+
+func (c *ApiController) getOwnedNetworkGateway() *object.NetworkGateway {
+	id := c.Input().Get("id")
+
+	gateway, err := object.GetNetworkGateway(id)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return nil
+	}
+	if gateway == nil {
+		c.ResponseError(fmt.Sprintf("the network gateway: %s does not exist", id))
+		return nil
+	}
+	if !c.checkOwner(gateway.Owner) {
+		return nil
+	}
+	return gateway
+}
+
+// GenerateNetworkGatewayToken
+// @Title GenerateNetworkGatewayToken
+// @Tag Network Gateway API
+// @Description generate a new token for the agent of an agent network gateway, the agent with the old token is disconnected. The token is only returned this once
+// @Param   id     query    string  true        "The id ( owner/name ) of the network gateway"
+// @Success 200 {object} controllers.Response The Response object
+// @router /generate-network-gateway-token [post]
+func (c *ApiController) GenerateNetworkGatewayToken() {
+	gateway := c.getOwnedNetworkGateway()
+	if gateway == nil {
+		return
+	}
+
+	token, err := object.GenerateNetworkGatewayToken(gateway)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.ResponseOk(token)
+}
+
+// RevokeNetworkGatewayToken
+// @Title RevokeNetworkGatewayToken
+// @Tag Network Gateway API
+// @Description revoke the token of an agent network gateway and disconnect its agent
+// @Param   id     query    string  true        "The id ( owner/name ) of the network gateway"
+// @Success 200 {object} controllers.Response The Response object
+// @router /revoke-network-gateway-token [post]
+func (c *ApiController) RevokeNetworkGatewayToken() {
+	gateway := c.getOwnedNetworkGateway()
+	if gateway == nil {
+		return
+	}
+
+	err := object.RevokeNetworkGatewayToken(gateway)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.ResponseOk()
 }

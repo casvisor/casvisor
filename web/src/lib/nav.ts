@@ -66,7 +66,7 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         key: "/network-gateways",
         label: i18next.t("general:Network gateways"),
         icon: Network,
-        description: i18next.t("general:Reach assets in other networks through SSH jump hosts"),
+        description: i18next.t("general:Reach assets in other networks through SSH jump hosts or agents"),
       },
       {
         key: "/permissions",

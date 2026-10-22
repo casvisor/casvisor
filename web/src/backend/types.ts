@@ -45,6 +45,13 @@ export interface NetworkGateway {
   privateKey: string;
   fingerprint: string;
   isEnabled: boolean;
+  type: string;
+  allowedNetworks: string[];
+  agentKey?: string;
+  agentVersion?: string;
+  agentIp?: string;
+  lastOnlineTime?: string;
+  isOnline?: boolean;
 }
 
 export interface Permission {
