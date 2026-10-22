@@ -22,10 +22,11 @@ import (
 	"image"
 	"image/png"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/casvisor/casvisor/object"
 	gordp "github.com/casvisor/gordp"
@@ -71,19 +72,35 @@ func (c *ApiController) GetAssetRdp() {
 		gordp.WithDesktopSize(uint16(width), uint16(height)),
 		gordp.WithServerCertFingerprint(asset.Fingerprint))
 
-	var writeMu sync.Mutex
+	// Clipboard and resize calls are queued to run between pumps, on the
+	// goroutine that owns the client state.
+	ops := make(chan func(), 16)
+	lastW, lastH := 0, 0
+	syncSize := func() {
+		w, h := client.DesktopSize()
+		if w != lastW || h != lastH {
+			lastW, lastH = w, h
+			_ = stream.WriteJSON(rdpMessage{Type: "size", Width: w, Height: h})
+		}
+	}
+
 	client.OnBitmap = func(rects []bitmap.Rect) {
+		syncSize()
 		for _, rect := range rects {
 			frame, err := encodeTile(rect)
 			if err != nil {
 				continue
 			}
-			writeMu.Lock()
-			err = ws.WriteMessage(websocket.BinaryMessage, frame)
-			writeMu.Unlock()
-			if err != nil {
+			if _, err = stream.Write(frame); err != nil {
 				return
 			}
+		}
+	}
+
+	if slices.Contains(session.Operations, "copy") {
+		client.OnClipboard = func(text string) {
+			_ = stream.WriteJSON(rdpMessage{Type: "clipboard", Text: text})
+			c.auditRdpClipboard(asset, "clipboard-copy", text)
 		}
 	}
 
@@ -113,24 +130,38 @@ func (c *ApiController) GetAssetRdp() {
 	})
 	c.addLiveSession(sessionId, asset)
 
-	w, h := client.DesktopSize()
-	writeMu.Lock()
-	_ = ws.WriteJSON(rdpMessage{Type: "init", Width: w, Height: h})
-	writeMu.Unlock()
+	lastW, lastH = client.DesktopSize()
+	_ = stream.WriteJSON(rdpMessage{Type: "init", Width: lastW, Height: lastH})
 
-	go c.readRdpInput(ws, client)
+	go c.readRdpInput(ws, client, session, asset, ops)
 
 	for {
-		if _, err := client.PumpUpdates(1 * time.Second); err != nil {
+		if _, err := client.PumpUpdates(100 * time.Millisecond); err != nil {
 			break
 		}
+		for pending := true; pending; {
+			select {
+			case op := <-ops:
+				op()
+			default:
+				pending = false
+			}
+		}
+		syncSize()
 	}
 
 	closeTunnelSession(sessionId, "Normal user exit")
 }
 
 // readRdpInput reads input events from the browser and drives the RDP client.
-func (c *ApiController) readRdpInput(ws *websocket.Conn, client *gordp.Client) {
+func (c *ApiController) readRdpInput(ws *websocket.Conn, client *gordp.Client, session *object.Session, asset *object.Asset, ops chan<- func()) {
+	canPaste := slices.Contains(session.Operations, "paste")
+	queue := func(op func()) {
+		select {
+		case ops <- op:
+		default:
+		}
+	}
 	for {
 		messageType, data, err := ws.ReadMessage()
 		if err != nil {
@@ -155,8 +186,48 @@ func (c *ApiController) readRdpInput(ws *websocket.Conn, client *gordp.Client) {
 			_ = client.KeyScancode(byte(msg.Code), msg.Down, msg.Extended)
 		case "u":
 			_ = client.KeyUnicode(rune(msg.Code))
+		case "clipboard":
+			if !canPaste {
+				continue
+			}
+			text := msg.Text
+			queue(func() { _ = client.SetClipboard(text) })
+			c.auditRdpClipboard(asset, "clipboard-paste", text)
+		case "resize":
+			if msg.Width <= 0 || msg.Height <= 0 {
+				continue
+			}
+			w, h := uint16(min(msg.Width, 8192)), uint16(min(msg.Height, 8192))
+			queue(func() { _ = client.Resize(w, h) })
 		}
 	}
+}
+
+func (c *ApiController) auditRdpClipboard(asset *object.Asset, action string, text string) {
+	user := c.GetSessionUser()
+	if user == nil {
+		return
+	}
+	object.AddAuditRecord(&object.AuditEvent{
+		Organization: asset.Owner,
+		User:         user.Name,
+		ClientIp:     c.getClientIp(),
+		UserAgent:    c.getUserAgent(),
+		Method:       "RDP",
+		Action:       action,
+		Asset:        asset.GetId(),
+		Detail:       truncateRunes(text, 1000),
+	})
+}
+
+func truncateRunes(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
 }
 
 // rdpMessage is the JSON control message exchanged with the browser. Pixel data
@@ -173,6 +244,7 @@ type rdpMessage struct {
 	Delta    int    `json:"delta,omitempty"`
 	Code     int    `json:"code,omitempty"`
 	Extended bool   `json:"extended,omitempty"`
+	Text     string `json:"text,omitempty"`
 }
 
 func mouseButton(button int) gordp.MouseButton {

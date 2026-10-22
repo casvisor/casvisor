@@ -31,6 +31,8 @@ github.com/casdoor/xorm-adapter/v3 v3.1.0 h1:NodWayRtSLVSeCvL9H3Hc61k0G17KhV9Iym
 github.com/casdoor/xorm-adapter/v3 v3.1.0/go.mod h1:4WTcUw+bTgBylGHeGHzTtBvuTXRS23dtwzFLl9tsgFM=
 github.com/casvisor/gordp v0.0.0-20261021173141-0caceae0deea h1:OZ8ooIH3DeIS+EuUfe+5Svz3xDq5ibX8e2BnxvLvs+4=
 github.com/casvisor/gordp v0.0.0-20261021173141-0caceae0deea/go.mod h1:X3Cm7Q0HY/VX0yGZZjdj5kivKjpdid3XRUtplgOcQ30=
+github.com/casvisor/gordp v1.2.1 h1:bDOVVZfoXat0zlTp0CeFOn+B04ZUUG1R+IHIeQxIMJA=
+github.com/casvisor/gordp v1.2.1/go.mod h1:T76q8DjbJgnNiW1ssn/+cw7L3F1lyW+8rTQtbJ0aiPw=
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
@@ -117,6 +119,7 @@ github.com/indece-official/go-ebcdic v1.2.0 h1:nKCubkNoXrGvBp3MSYuplOQnhANCDEY51
 github.com/indece-official/go-ebcdic v1.2.0/go.mod h1:RBddVJt0Ks0eDLRG5dhPwBDRiTNA7n+yv0dVFpSs46Q=
 github.com/jcmturner/aescts/v2 v2.0.0 h1:9YKLH6ey7H4eDBXW8khjYslgyqG2xZikXP0EQFKrle8=
 github.com/jcmturner/aescts/v2 v2.0.0/go.mod h1:AiaICIRyfYg35RUkr8yESTqvSy7csK90qZ5xfvvsoNs=
+github.com/jcmturner/dnsutils/v2 v2.0.0 h1:lltnkeZGL0wILNvrNiVCR6Ro5PGU/SeBvVO/8c/iPbo=
 github.com/jcmturner/dnsutils/v2 v2.0.0/go.mod h1:b0TnjGOvI/n42bZa+hmXL+kFJZsFT7G4t3HTlQ184QM=
 github.com/jcmturner/gofork v1.7.6 h1:QH0l3hzAU1tfT3rZCnW5zXl+orbkNMMRGJfdJjHVETg=
 github.com/jcmturner/gofork v1.7.6/go.mod h1:1622LH6i/EZqLloHfE7IeZ0uEJwMSUyQ/nDd82IeqRo=
@@ -124,6 +127,7 @@ github.com/jcmturner/goidentity/v6 v6.0.1 h1:VKnZd2oEIMorCTsFBnJWbExfNN7yZr3EhJA
 github.com/jcmturner/goidentity/v6 v6.0.1/go.mod h1:X1YW3bgtvwAXju7V3LCIMpY0Gbxyjn/mY9zx4tFonSg=
 github.com/jcmturner/gokrb5/v8 v8.4.4 h1:x1Sv4HaTpepFkXbt2IkL29DXRf8sOfZXo8eRKh687T8=
 github.com/jcmturner/gokrb5/v8 v8.4.4/go.mod h1:1btQEpgT6k+unzCwX1KdWMEwPPkkgBtP+F6aCACiMrs=
+github.com/jcmturner/rpc/v2 v2.0.3 h1:7FXXj8Ti1IaVFpSAziCZWNzbNuZmnvw/i6CqLNdWfZY=
 github.com/jcmturner/rpc/v2 v2.0.3/go.mod h1:VUJYCIDm3PVOEHw8sgt091/20OJjskO/YJki3ELg/Hc=
 github.com/json-iterator/go v1.1.6/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/json-iterator/go v1.1.10/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=

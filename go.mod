@@ -9,7 +9,7 @@ require (
 	github.com/casbin/casbin/v2 v2.82.0
 	github.com/casdoor/casdoor-go-sdk v0.35.1
 	github.com/casdoor/xorm-adapter/v3 v3.1.0
-	github.com/casvisor/gordp v0.0.0-20261021173141-0caceae0deea
+	github.com/casvisor/gordp v1.2.1
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
@@ -37,8 +37,11 @@ require (
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/indece-official/go-ebcdic v1.2.0 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
+	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.7.6 // indirect
+	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
+	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect

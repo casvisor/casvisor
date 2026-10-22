@@ -16,7 +16,7 @@ import * as React from "react";
 import i18next from "i18next";
 import qs from "qs";
 import * as SessionBackend from "@/backend/SessionBackend";
-import {ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
+import {ClipboardDialog, ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
 import {closeView, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
@@ -33,6 +33,10 @@ export default function RdpView(props: ConnectionProps) {
   const wsRef = React.useRef<WebSocket | null>(null);
   const ctxRef = React.useRef<CanvasRenderingContext2D | null>(null);
   const activeRef = React.useRef(false);
+  const operationsRef = React.useRef<string[]>([]);
+  const lastClipboardRef = React.useRef("");
+  const [clipboardText, setClipboardText] = React.useState("");
+  const [clipboardOpen, setClipboardOpen] = React.useState(false);
   const [failure, setFailure] = React.useState<string | null>(null);
   const status = useConnectionToast(assetId);
 
@@ -41,6 +45,17 @@ export default function RdpView(props: ConnectionProps) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     }
+  };
+
+  const hasOperation = (operation: string) => operationsRef.current.includes(operation);
+
+  // Offer text to the remote clipboard, skipping what it already has.
+  const sendClipboard = (text: string) => {
+    if (!text || text === lastClipboardRef.current || !hasOperation("paste")) {
+      return;
+    }
+    lastClipboardRef.current = text;
+    send({t: "clipboard", text});
   };
 
   const disconnect = () => {
@@ -74,6 +89,8 @@ export default function RdpView(props: ConnectionProps) {
       }
 
       const session = res.data;
+      operationsRef.current = session.operations ?? [];
+      lastClipboardRef.current = "";
       const canvas = canvasRef.current!;
       const params: Record<string, any> = {
         sessionId: `${session.owner}/${session.name}`,
@@ -102,6 +119,15 @@ export default function RdpView(props: ConnectionProps) {
             status.success(i18next.t("asset:Connection successful"));
             SessionBackend.connect(`${session.owner}/${session.name}`);
             canvas.focus();
+          } else if (msg.t === "size") {
+            if (canvas.width !== msg.width || canvas.height !== msg.height) {
+              canvas.width = msg.width;
+              canvas.height = msg.height;
+            }
+          } else if (msg.t === "clipboard") {
+            lastClipboardRef.current = msg.text;
+            setClipboardText(msg.text);
+            navigator.clipboard?.writeText(msg.text).catch(() => undefined);
           } else if (msg.t === "error") {
             failureReason = msg.message || NotReachable;
           }
@@ -157,6 +183,48 @@ export default function RdpView(props: ConnectionProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetId]);
 
+  React.useEffect(() => {
+    // what the user copied on this machine is there to paste on the remote one
+    const handleWindowFocus = () => {
+      if (navigator.clipboard && wsRef.current && hasOperation("paste")) {
+        navigator.clipboard.readText().then(sendClipboard).catch(() => undefined);
+      }
+    };
+    window.addEventListener("focus", handleWindowFocus);
+    return () => window.removeEventListener("focus", handleWindowFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  React.useEffect(() => {
+    // follow the size of the view with the remote desktop once resizing settles
+    const container = canvasRef.current?.parentElement;
+    if (!container) {
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastWidth = Math.round(container.clientWidth);
+    let lastHeight = Math.round(container.clientHeight);
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const width = Math.round(container.clientWidth);
+        const height = Math.round(container.clientHeight);
+        if ((width === lastWidth && height === lastHeight) || width < 200 || height < 200) {
+          return;
+        }
+        lastWidth = width;
+        lastHeight = height;
+        send({t: "resize", width, height});
+      }, 500);
+    });
+    observer.observe(container);
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const onMouseMove = (e: React.MouseEvent) => {
     const {x, y} = toRemote(e);
     send({t: "mm", x, y});
@@ -210,7 +278,26 @@ export default function RdpView(props: ConnectionProps) {
           toggleFullscreen();
           canvasRef.current?.focus();
         }}
+        onClipboard={() => setClipboardOpen(true)}
         onHotKey={sendCombinationKey}
+      />
+      <ClipboardDialog
+        open={clipboardOpen}
+        text={clipboardText}
+        onOk={(text) => {
+          if (!hasOperation("paste")) {
+            Setting.showMessage("warning", i18next.t("asset:Can not paste"));
+          } else {
+            sendClipboard(text);
+            setClipboardText(text);
+          }
+          setClipboardOpen(false);
+          canvasRef.current?.focus();
+        }}
+        onCancel={() => {
+          setClipboardOpen(false);
+          canvasRef.current?.focus();
+        }}
       />
       <FailureDialog
         assetName={assetName}
