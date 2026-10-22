@@ -42,17 +42,21 @@ var (
 )
 
 // patchHost runs the scan, install and reboot of one platform over an SSH connection.
+// The install runs detached on the asset, so it goes on when the connection or Casvisor goes away,
+// and waitInstall reads its log from job.RemoteOffset until it ends.
 type patchHost interface {
 	scan(r *patchRun) (*PatchStatus, error)
-	install(r *patchRun, ids []string) error
+	startInstall(r *patchRun, ids []string) error
+	waitInstall(r *patchRun) error
 	reboot(r *patchRun) error
 	bootId() (string, error)
 	close()
 }
 
 type patchRun struct {
-	asset *Asset
-	job   *PatchJob
+	asset   *Asset
+	job     *PatchJob
+	resumed bool
 
 	lock  sync.Mutex
 	out   strings.Builder
@@ -135,7 +139,27 @@ func (r *patchRun) Write(p []byte) (int, error) {
 
 func (r *patchRun) logf(format string, args ...interface{}) {
 	line := fmt.Sprintf("[%s] %s\n", time.Now().Format("15:04:05"), fmt.Sprintf(format, args...))
+	r.lock.Lock()
+	if r.out.Len() > 0 && !strings.HasSuffix(r.out.String(), "\n") {
+		line = "\n" + line
+	}
+	r.lock.Unlock()
 	_, _ = r.Write([]byte(line))
+}
+
+// readRemote appends what was read from the log on the asset and moves the offset past it.
+func (r *patchRun) readRemote(p []byte, offset int64) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.out.Write(p)
+	r.job.RemoteOffset = offset
+	r.dirty = true
+}
+
+func (r *patchRun) remoteOffset() int64 {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.job.RemoteOffset
 }
 
 func (r *patchRun) output() string {
@@ -158,7 +182,10 @@ func (r *patchRun) flush() {
 	}
 
 	r.job.Output = r.output()
-	_, err := adapter.engine.ID(core.PK{r.job.Owner, r.job.Name}).Cols("output").Update(r.job)
+	r.lock.Lock()
+	job := PatchJob{Output: r.job.Output, RemoteOffset: r.job.RemoteOffset}
+	r.lock.Unlock()
+	_, err := adapter.engine.ID(core.PK{r.job.Owner, r.job.Name}).Cols("output", "remote_offset").Update(&job)
 	if err != nil {
 		logs.Error("failed to save the output of the patch job: %s: %s", r.job.Name, err.Error())
 	}
@@ -226,12 +253,20 @@ func (r *patchRun) execute() error {
 
 	switch r.job.Type {
 	case PatchJobInstall:
-		if len(r.job.Updates) == 0 {
-			r.logf("Installing all available updates")
+		if r.resumed {
+			r.logf("Casvisor was restarted, following the install again")
 		} else {
-			r.logf("Installing %d selected updates", len(r.job.Updates))
+			if len(r.job.Updates) == 0 {
+				r.logf("Installing all available updates")
+			} else {
+				r.logf("Installing %d selected updates", len(r.job.Updates))
+			}
+			err = host.startInstall(r, r.job.Updates)
+			if err != nil {
+				return err
+			}
 		}
-		err = host.install(r, r.job.Updates)
+		err = host.waitInstall(r)
 		if err != nil {
 			return err
 		}
@@ -354,21 +389,67 @@ func runSshCommand(client *ssh.Client, command string, stdin string, stdout io.W
 	return 0, nil
 }
 
-// InitPatchJobs fails the jobs left running by a previous run of Casvisor.
+// InitPatchJobs picks up the installs left running by a previous run of Casvisor, which go on on the assets,
+// and fails the scans and restarts, which do not.
 func InitPatchJobs() {
-	_, err := adapter.engine.Where("status = ?", PatchJobRunning).Cols("status", "message", "end_time").Update(&PatchJob{
-		Status:  PatchJobFailed,
-		Message: "interrupted, Casvisor was restarted",
-		EndTime: util.GetCurrentTime(),
-	})
+	jobs := []*PatchJob{}
+	err := adapter.engine.Where("status = ?", PatchJobRunning).Find(&jobs)
 	if err != nil {
-		logs.Error("failed to clean up the patch jobs: %s", err.Error())
+		logs.Error("failed to get the running patch jobs: %s", err.Error())
+		return
 	}
 
 	_, err = adapter.engine.Where("job <> ''").Cols("job", "job_type").Update(&PatchStatus{})
 	if err != nil {
 		logs.Error("failed to clean up the patch statuses: %s", err.Error())
 	}
+
+	for _, job := range jobs {
+		err = resumePatchJob(job)
+		if err == nil {
+			continue
+		}
+
+		job.Status = PatchJobFailed
+		job.Message = truncate(err.Error(), 1000)
+		job.EndTime = util.GetCurrentTime()
+		_, err = adapter.engine.ID(core.PK{job.Owner, job.Name}).Cols("status", "message", "end_time").Update(job)
+		if err != nil {
+			logs.Error("failed to fail the patch job: %s: %s", job.Name, err.Error())
+		}
+	}
+}
+
+func resumePatchJob(job *PatchJob) error {
+	if job.Type != PatchJobInstall {
+		return fmt.Errorf("interrupted, Casvisor was restarted")
+	}
+
+	asset, err := GetAsset(job.Asset)
+	if err != nil {
+		return err
+	}
+	if asset == nil {
+		return fmt.Errorf("the asset: %s does not exist", job.Asset)
+	}
+
+	run := &patchRun{asset: asset, job: job, resumed: true}
+	run.out.WriteString(job.Output)
+
+	patchRunsLock.Lock()
+	patchRuns[asset.GetId()] = run
+	patchRunsLock.Unlock()
+
+	err = savePatchStatus(&PatchStatus{Owner: asset.Owner, Name: asset.Name, Job: job.Name, JobType: job.Type}, "job", "job_type")
+	if err != nil {
+		patchRunsLock.Lock()
+		delete(patchRuns, asset.GetId())
+		patchRunsLock.Unlock()
+		return err
+	}
+
+	go run.run()
+	return nil
 }
 
 // ScanStalePatches rescans the assets scanned before when nothing has run on them for patchScanInterval hours (24 by default, 0 turns it off).

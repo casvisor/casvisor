@@ -19,7 +19,9 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -82,6 +84,54 @@ elif command -v dnf >/dev/null 2>&1; then
 else
   yum -y update $PACKAGES </dev/null
 fi
+`
+
+// The install runs detached under setsid with its output in /var/tmp/casvisor-patch/<job>.log and its exit code in <job>.done,
+// so a dropped connection or a restart of Casvisor does not stop the package manager halfway.
+const linuxStartInstallScript = `
+set -e
+dir=/var/tmp/casvisor-patch
+job=%s
+mkdir -p $dir
+cd $dir
+if [ -f running ] && kill -0 "$(cat running)" 2>/dev/null; then
+  echo "another Casvisor update job is still running on this machine" >&2
+  exit 3
+fi
+find $dir -type f -mtime +7 -exec rm -f {} + 2>/dev/null || true
+cat > $job.sh <<'CASVISOR_EOF'
+%s
+CASVISOR_EOF
+cat > $job.run <<'CASVISOR_EOF'
+cd /var/tmp/casvisor-patch
+echo $$ > running
+sh "$1.sh" > "$1.log" 2>&1
+echo $? > "$1.done"
+rm -f running
+CASVISOR_EOF
+if command -v setsid >/dev/null 2>&1; then
+  setsid nohup sh $job.run $job </dev/null >/dev/null 2>&1 &
+else
+  nohup sh $job.run $job </dev/null >/dev/null 2>&1 &
+fi
+echo started
+`
+
+// The first line is "STATE|<log size>|<exit code, once done>|<1 while running>", the rest is the log from the offset.
+const linuxPollInstallScript = `
+job=%s
+offset=%d
+cd /var/tmp/casvisor-patch 2>/dev/null || { echo "STATE|0||0"; exit 0; }
+done=""
+if [ -f $job.done ]; then done=$(cat $job.done); fi
+size=0
+if [ -f $job.log ]; then size=$(wc -c < $job.log | tr -d ' '); fi
+alive=0
+if [ -f running ] && kill -0 "$(cat running)" 2>/dev/null; then alive=1; fi
+echo "STATE|$size|$done|$alive"
+if [ "$size" -gt "$offset" ]; then tail -c +$((offset + 1)) $job.log | head -c $((size - offset)); fi
+if [ -n "$done" ]; then rm -f $job.sh $job.run $job.log $job.done; fi
+exit 0
 `
 
 const linuxRebootScript = `
@@ -265,20 +315,84 @@ func markRpmSecurityUpdates(updates map[string]*PatchUpdate, lines []string) {
 	}
 }
 
-func (h *linuxHost) install(r *patchRun, ids []string) error {
+func (h *linuxHost) startInstall(r *patchRun, ids []string) error {
 	err := h.requireRoot()
 	if err != nil {
 		return err
 	}
 
-	code, err := h.runScript(fmt.Sprintf(linuxInstallScript, strings.Join(ids, " ")), r, r)
+	script := fmt.Sprintf(linuxStartInstallScript, r.job.Name, fmt.Sprintf(linuxInstallScript, strings.Join(ids, " ")))
+	var stderr bytes.Buffer
+	code, err := h.runScript(script, io.Discard, &stderr)
 	if err != nil {
 		return err
 	}
 	if code != 0 {
-		return fmt.Errorf("the package manager exited with code %d", code)
+		return fmt.Errorf("failed to start the install: %s", strings.TrimSpace(stderr.String()))
 	}
+	r.logf("Started the package manager in the background on the asset")
 	return nil
+}
+
+// waitInstall reads the log of the detached install, job.RemoteOffset being the bytes read so far.
+func (h *linuxHost) waitInstall(r *patchRun) error {
+	stopped := 0
+	failures := 0
+	deadline := time.Now().Add(6 * time.Hour)
+	for time.Now().Before(deadline) {
+		time.Sleep(2 * time.Second)
+
+		offset := r.remoteOffset()
+		var stdout bytes.Buffer
+		_, err := h.runScript(fmt.Sprintf(linuxPollInstallScript, r.job.Name, offset), &stdout, io.Discard)
+		header, content, _ := strings.Cut(stdout.String(), "\n")
+		fields := strings.Split(strings.TrimSpace(header), "|")
+		if err == nil && (len(fields) != 4 || fields[0] != "STATE") {
+			err = fmt.Errorf("unexpected progress: %s", truncate(header, 200))
+		}
+		if err != nil {
+			r.logf("Failed to read the progress: %s", err.Error())
+			failures++
+			if failures >= 30 {
+				return fmt.Errorf("lost the asset while installing updates: %s", err.Error())
+			}
+			h.reconnect(r)
+			continue
+		}
+		failures = 0
+
+		size, _ := strconv.ParseInt(fields[1], 10, 64)
+		if size > offset {
+			r.readRemote([]byte(content), offset+int64(len(content)))
+		}
+
+		if fields[2] != "" {
+			if fields[2] != "0" {
+				return fmt.Errorf("the package manager exited with code %s", fields[2])
+			}
+			return nil
+		}
+
+		if fields[3] != "1" {
+			stopped++
+			if stopped >= 3 {
+				return fmt.Errorf("the install stopped without a result")
+			}
+		} else {
+			stopped = 0
+		}
+	}
+
+	return fmt.Errorf("the updates did not finish installing in 6 hours")
+}
+
+func (h *linuxHost) reconnect(r *patchRun) {
+	client, err := DialSsh(r.asset)
+	if err != nil {
+		return
+	}
+	h.client.Close()
+	h.client = client
 }
 
 func (h *linuxHost) reboot(r *patchRun) error {

@@ -261,7 +261,7 @@ func (h *windowsHost) scan(r *patchRun) (*PatchStatus, error) {
 	return status, nil
 }
 
-func (h *windowsHost) install(r *patchRun, ids []string) error {
+func (h *windowsHost) startInstall(r *patchRun, ids []string) error {
 	quoted := []string{}
 	for _, id := range ids {
 		quoted = append(quoted, "'"+id+"'")
@@ -276,8 +276,11 @@ func (h *windowsHost) install(r *patchRun, ids []string) error {
 		return fmt.Errorf("failed to start the update task: %s", err.Error())
 	}
 	r.logf("Started the scheduled task \"Casvisor Patch\" to install the updates as SYSTEM")
+	return nil
+}
 
-	from := 0
+// waitInstall reads the log of the scheduled task, job.RemoteOffset being the number of lines read so far.
+func (h *windowsHost) waitInstall(r *patchRun) error {
 	stopped := 0
 	failures := 0
 	deadline := time.Now().Add(6 * time.Hour)
@@ -290,7 +293,7 @@ func (h *windowsHost) install(r *patchRun, ids []string) error {
 			Done  string   `json:"done"`
 			State string   `json:"state"`
 		}
-		err = h.runScript(fmt.Sprintf(windowsPollInstallScript, r.job.Name, from), &poll)
+		err := h.runScript(fmt.Sprintf(windowsPollInstallScript, r.job.Name, r.remoteOffset()), &poll)
 		if err != nil {
 			r.logf("Failed to read the progress: %s", err.Error())
 			failures++
@@ -302,10 +305,11 @@ func (h *windowsHost) install(r *patchRun, ids []string) error {
 		}
 		failures = 0
 
+		text := ""
 		for _, line := range poll.Lines {
-			_, _ = r.Write([]byte(line + "\n"))
+			text += line + "\n"
 		}
-		from = poll.Count
+		r.readRemote([]byte(text), int64(poll.Count))
 
 		if poll.Done != "" {
 			var done struct {

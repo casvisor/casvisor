@@ -83,6 +83,9 @@ type PatchJob struct {
 	Status  string   `xorm:"varchar(20)" json:"status"`
 	Message string   `xorm:"varchar(1000)" json:"message"`
 	Output  string   `xorm:"mediumtext" json:"output"`
+
+	// how far the log of the install on the asset has been read, to pick it up again after Casvisor restarts
+	RemoteOffset int64 `json:"remoteOffset"`
 }
 
 func GetPatchStatuses(owner string) ([]*PatchStatus, error) {
