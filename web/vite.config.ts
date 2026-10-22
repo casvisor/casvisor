@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     port: 18001,
     proxy: {
-      // /api also carries the guacd, SSH and VNC websockets
+      // /api also carries the SSH, Telnet, VNC and RDP websockets
       "/api": {target: backend, changeOrigin: true, ws: true},
       "/swagger": {target: backend, changeOrigin: true},
     },

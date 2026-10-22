@@ -36,7 +36,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// GetAssetRdp connects to an RDP asset with the native gordp client (no guacd),
+// GetAssetRdp connects to an RDP asset with the native gordp client,
 // decodes the screen on the gateway and streams changed rectangles to the
 // browser as PNG tiles, while relaying the browser's mouse and keyboard input.
 func (c *ApiController) GetAssetRdp() {

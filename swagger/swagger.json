@@ -1618,9 +1618,6 @@
                 "displayName": {
                     "type": "string"
                 },
-                "enableRemoteApp": {
-                    "type": "boolean"
-                },
                 "fingerprint": {
                     "type": "string"
                 },
@@ -1648,12 +1645,6 @@
                 },
                 "protocol": {
                     "type": "string"
-                },
-                "remoteApps": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/object.RemoteApp"
-                    }
                 },
                 "tag": {
                     "type": "string"
@@ -2056,25 +2047,6 @@
                 }
             }
         },
-        "object.RemoteApp": {
-            "title": "RemoteApp",
-            "type": "object",
-            "properties": {
-                "no": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "remoteAppArgs": {
-                    "type": "string"
-                },
-                "remoteAppDir": {
-                    "type": "string"
-                },
-                "remoteAppName": {
-                    "type": "string"
-                }
-            }
-        },
         "object.Session": {
             "title": "Session",
             "type": "object",
@@ -2095,9 +2067,6 @@
                 "commandCount": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "connectionId": {
-                    "type": "string"
                 },
                 "createdTime": {
                     "type": "string"
@@ -2131,9 +2100,6 @@
                     "type": "string"
                 },
                 "protocol": {
-                    "type": "string"
-                },
-                "recording": {
                     "type": "string"
                 },
                 "reviewed": {

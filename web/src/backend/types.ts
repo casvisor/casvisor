@@ -12,13 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export interface RemoteApp {
-  no: number;
-  remoteAppName: string;
-  remoteAppDir: string;
-  remoteAppArgs: string;
-}
-
 export interface Asset {
   owner: string;
   name: string;
@@ -35,8 +28,6 @@ export interface Asset {
   password: string;
   privateKey: string;
   fingerprint: string;
-  enableRemoteApp: boolean;
-  remoteApps: RemoteApp[] | null;
 }
 
 export interface Permission {
@@ -64,7 +55,6 @@ export interface Session {
   startTime: string;
   endTime: string;
   protocol: string;
-  connectionId: string;
   asset: string;
   creator: string;
   clientIp: string;

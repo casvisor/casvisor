@@ -33,9 +33,9 @@ export function deleteSession(session: any) {
   return post("/api/delete-session", {}, session);
 }
 
-/** Creates the session a connection runs in; "native" is the SSH and VNC path that skips guacd. */
-export function addAssetTunnel(assetId: string, mode: "guacd" | "native" = "guacd") {
-  return post("/api/add-asset-tunnel", {assetId, mode});
+/** Creates the session a connection runs in. */
+export function addAssetTunnel(assetId: string) {
+  return post("/api/add-asset-tunnel", {assetId});
 }
 
 export function connect(sessionId: string) {

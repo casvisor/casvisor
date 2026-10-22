@@ -25,7 +25,7 @@ import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
 /** An RDP screen drawn on a canvas from PNG tiles, decoded on the gateway by the
- *  native gordp client without guacd. Mouse and keyboard are relayed back. */
+ *  native gordp client. Mouse and keyboard are relayed back. */
 export default function RdpView(props: ConnectionProps) {
   const {assetId, inTab, addClient, username, password} = props;
   const assetName = Setting.getShortName(assetId);
@@ -81,7 +81,7 @@ export default function RdpView(props: ConnectionProps) {
   const connect = () => {
     status.loading(i18next.t("asset:Connecting..."));
 
-    SessionBackend.addAssetTunnel(assetId, "native").then((res) => {
+    SessionBackend.addAssetTunnel(assetId).then((res) => {
       if (!activeRef.current) {
         return;
       }

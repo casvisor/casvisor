@@ -9,15 +9,9 @@ services:
       - "19000:19000"
       - "2222:2222"
     environment:
-      guacamoleEndpoint: "guacd:4822"
       # the first password of "admin"; when empty, a random one is printed in the log
       adminPassword: ""
     volumes:
       - casvisor-db:/db
-    depends_on:
-      - guacd
-  guacd:
-    restart: always
-    image: guacamole/guacd:1.5.5
 volumes:
   casvisor-db:

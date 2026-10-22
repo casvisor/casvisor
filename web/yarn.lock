@@ -2132,11 +2132,6 @@ graphemer@^1.4.0:
   resolved "https://registry.yarnpkg.com/graphemer/-/graphemer-1.4.0.tgz#fb2f1d55e0e3a1849aeffc90c4fa0dd53a0e66c6"
   integrity sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==
 
-guacamole-common-js@1.4.0-a:
-  version "1.4.0-a"
-  resolved "https://registry.yarnpkg.com/guacamole-common-js/-/guacamole-common-js-1.4.0-a.tgz#fc0489333f49dabdf237e6ce442667c526505740"
-  integrity sha512-4TFgc9iahkTUTpp5pA7WSu+TMhEQ/GgA1S6XCYoEtjDqaVAlLHaN6KFaKVMhs+xUuyIMoa2Cgj8peMB87TgYJQ==
-
 has-bigints@^1.0.2:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/has-bigints/-/has-bigints-1.1.0.tgz#28607e965ac967e03cd2a2c70a2636a1edad49fe"

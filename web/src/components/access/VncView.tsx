@@ -23,7 +23,7 @@ import * as Setting from "@/lib/setting";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
-/** A VNC screen in noVNC, talking to the backend's native VNC tunnel without guacd. */
+/** A VNC screen in noVNC, talking to the backend's native VNC tunnel. */
 export default function VncView(props: ConnectionProps) {
   const {assetId, inTab, addClient, username, password} = props;
   const assetName = Setting.getShortName(assetId);
@@ -52,7 +52,7 @@ export default function VncView(props: ConnectionProps) {
   const connect = () => {
     status.loading(i18next.t("asset:Connecting..."));
 
-    SessionBackend.addAssetTunnel(assetId, "native").then((res) => {
+    SessionBackend.addAssetTunnel(assetId).then((res) => {
       if (!activeRef.current) {
         return;
       }

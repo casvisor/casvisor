@@ -1062,8 +1062,6 @@ definitions:
         type: string
       displayName:
         type: string
-      enableRemoteApp:
-        type: boolean
       fingerprint:
         type: string
       host:
@@ -1083,10 +1081,6 @@ definitions:
         type: string
       protocol:
         type: string
-      remoteApps:
-        type: array
-        items:
-          $ref: '#/definitions/object.RemoteApp'
       tag:
         type: string
       updatedTime:
@@ -1354,19 +1348,6 @@ definitions:
         type: string
       userAgent:
         type: string
-  object.RemoteApp:
-    title: RemoteApp
-    type: object
-    properties:
-      "no":
-        type: integer
-        format: int64
-      remoteAppArgs:
-        type: string
-      remoteAppDir:
-        type: string
-      remoteAppName:
-        type: string
   object.Session:
     title: Session
     type: object
@@ -1383,8 +1364,6 @@ definitions:
       commandCount:
         type: integer
         format: int64
-      connectionId:
-        type: string
       createdTime:
         type: string
       creator:
@@ -1407,8 +1386,6 @@ definitions:
       owner:
         type: string
       protocol:
-        type: string
-      recording:
         type: string
       reviewed:
         type: boolean

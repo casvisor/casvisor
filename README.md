@@ -63,8 +63,6 @@ Open http://localhost:19000 and sign in as `admin` with the password printed in 
 
 Out of the box, Casvisor keeps its data in SQLite (`/db/casvisor.db`) and its own user accounts: administrators add users, groups and permissions in the web console. Port 2222 is the SSH gateway for `ssh`, `scp`, `sftp`, Xshell and VS Code.
 
-To run Telnet sessions as well, use `docker compose up -d` with the [docker-compose.yml](docker-compose.yml) of this repository, which adds guacd.
-
 ## Installation from source
 
 ```shell

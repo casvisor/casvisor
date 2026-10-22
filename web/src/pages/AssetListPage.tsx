@@ -20,7 +20,7 @@ import type {Asset} from "@/backend/types";
 import {ConnectButton} from "@/components/access/ConnectButton";
 import {SshCommandButton} from "@/components/access/SshCommandButton";
 import {CrudListPage} from "@/components/crud/CrudListPage";
-import {boolColumn, dateColumn, linkColumn, textColumn, valueFilters} from "@/components/crud/columns";
+import {dateColumn, linkColumn, textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
 import {Protocols} from "@/lib/asset";
@@ -62,8 +62,6 @@ export default function AssetListPage() {
     password: "",
     privateKey: "",
     fingerprint: "",
-    enableRemoteApp: false,
-    remoteApps: [],
   });
 
   const columns: ColumnDef<Asset>[] = [
@@ -84,13 +82,6 @@ export default function AssetListPage() {
     textColumn<Asset>({dataIndex: "host", title: i18next.t("asset:Host"), width: 140, searchable: true}),
     textColumn<Asset>({dataIndex: "port", title: i18next.t("general:Port"), width: 90}),
     textColumn<Asset>({dataIndex: "username", title: i18next.t("general:Username"), width: 130}),
-    boolColumn<Asset>({dataIndex: "enableRemoteApp", title: i18next.t("general:Enable Remote App"), width: 150}),
-    {
-      dataIndex: "remoteApps",
-      title: i18next.t("general:Remote Apps"),
-      width: 120,
-      render: (_value, asset) => `${asset.enableRemoteApp ? 1 : 0} / ${asset.remoteApps?.length ?? 0}`,
-    },
   ];
 
   return (

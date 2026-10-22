@@ -64,35 +64,3 @@ export const HotKeys: {label: string; keys: number[]}[] = [
   {label: "Windows+X", keys: [0xffeb, 0x78]},
   {label: "Windows", keys: [0xffeb]},
 ];
-
-/** What guacd's status codes mean, as the antd page spelled them out. */
-export function getGuacdErrorMessage(code: number, message: string) {
-  const messages: Record<number, string> = {
-    256: "Unsupported access",
-    512: "Remote service exception, please check if the target device can be accessed normally.",
-    513: "Server busy",
-    514: "Server connection timed out",
-    515: "Remote service exception",
-    516: "Resource not found",
-    517: "Resource conflict",
-    518: "Resource closed",
-    519: "Remote service not found",
-    520: "Remote service unavailable",
-    521: "Session conflict",
-    522: "Session connection timed out",
-    523: "Session closed",
-    768: "Network unreachable",
-    769: "Server password authentication failed",
-    771: "Client is forbidden",
-    776: "Client connection timed out",
-    781: "Client exception",
-    783: "Incorrect request type",
-    800: "Session does not exist",
-    801: "Failed to create tunnel, please check if Guacd service is functioning correctly.",
-    802: "Admin forcefully closed this session",
-    804: `Check that the parameters (width,height) are in the correct format: ${message}`,
-    805: `Failed to find the asset: ${message}`,
-    806: `Failed to update session status: ${message}`,
-  };
-  return messages[code];
-}

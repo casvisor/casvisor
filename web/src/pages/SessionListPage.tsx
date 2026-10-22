@@ -151,7 +151,7 @@ export default function SessionListPage() {
       remove={isOnline ? undefined : SessionBackend.deleteSession}
       actionColumnWidth={200}
       rowActions={(session, _index, {refresh}) => [
-        isOnline && session.protocol === "SSH" && (session.mode === "native" || session.mode === "gateway")
+        isOnline && (session.protocol === "SSH" || session.protocol === "Telnet") && (session.mode === "native" || session.mode === "gateway")
           ? {
             key: "monitor",
             label: i18next.t("session:Monitor"),

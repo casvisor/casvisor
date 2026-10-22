@@ -36,10 +36,10 @@ var userApis = map[string]bool{
 	"/api/get-assets":       true,
 	"/api/get-asset":        true,
 	"/api/add-asset-tunnel": true,
-	"/api/get-asset-tunnel": true,
 	"/api/get-asset-ssh":    true,
 	"/api/get-asset-vnc":    true,
 	"/api/get-asset-rdp":    true,
+	"/api/get-asset-telnet": true,
 	"/api/start-session":    true,
 
 	"/api/get-session-files":     true,

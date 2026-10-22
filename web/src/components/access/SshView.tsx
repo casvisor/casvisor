@@ -26,9 +26,9 @@ import * as Setting from "@/lib/setting";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
-/** An SSH shell in xterm.js, talking to the backend's native SSH tunnel. */
-export default function SshView(props: ConnectionProps) {
-  const {assetId, inTab, addClient, username, password} = props;
+/** An SSH or Telnet shell in xterm.js, talking to the backend's native tunnel. */
+export default function SshView(props: ConnectionProps & {protocol: string}) {
+  const {assetId, inTab, addClient, username, password, protocol} = props;
   const assetName = Setting.getShortName(assetId);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -55,7 +55,7 @@ export default function SshView(props: ConnectionProps) {
     status.loading(i18next.t("asset:Connecting..."));
     setSession(null);
 
-    SessionBackend.addAssetTunnel(assetId, "native").then((res) => {
+    SessionBackend.addAssetTunnel(assetId).then((res) => {
       if (terminalRef.current !== terminal) {
         return;
       }
@@ -80,7 +80,7 @@ export default function SshView(props: ConnectionProps) {
 
       let errorMessage = "";
       let connected = false;
-      const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-asset-ssh?${qs.stringify(params)}`));
+      const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-asset-${protocol === "Telnet" ? "telnet" : "ssh"}?${qs.stringify(params)}`));
       ws.binaryType = "arraybuffer";
       wsRef.current = ws;
 
@@ -166,7 +166,7 @@ export default function SshView(props: ConnectionProps) {
     connect();
   };
 
-  const canTransfer = session !== null && session.operations.includes("fileSystem");
+  const canTransfer = session !== null && protocol === "SSH" && session.operations.includes("fileSystem");
 
   return (
     <div className="flex h-full w-full">

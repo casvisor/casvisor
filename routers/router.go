@@ -85,10 +85,10 @@ func initAPI() {
 	beego.Router("/api/start-patch-job", &controllers.ApiController{}, "POST:StartPatchJob")
 
 	beego.Router("/api/add-asset-tunnel", &controllers.ApiController{}, "POST:AddAssetTunnel")
-	beego.Router("/api/get-asset-tunnel", &controllers.ApiController{}, "GET:GetAssetTunnel")
 	beego.Router("/api/get-asset-ssh", &controllers.ApiController{}, "GET:GetAssetSsh")
 	beego.Router("/api/get-asset-vnc", &controllers.ApiController{}, "GET:GetAssetVnc")
 	beego.Router("/api/get-asset-rdp", &controllers.ApiController{}, "GET:GetAssetRdp")
+	beego.Router("/api/get-asset-telnet", &controllers.ApiController{}, "GET:GetAssetTelnet")
 
 	beego.Router("/api/get-session-files", &controllers.ApiController{}, "GET:GetSessionFiles")
 	beego.Router("/api/download-session-file", &controllers.ApiController{}, "GET:DownloadSessionFile")

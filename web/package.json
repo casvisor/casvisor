@@ -36,7 +36,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
     "dayjs": "^1.11.13",
-    "guacamole-common-js": "1.4.0-a",
     "i18next": "^23.16.8",
     "js-base64": "3.7.2",
     "lucide-react": "^0.468.0",

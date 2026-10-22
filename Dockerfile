@@ -1,4 +1,3 @@
-FROM casbin/guacd:1.5.4 as guacd
 FROM --platform=$BUILDPLATFORM node:20 AS FRONT
 WORKDIR /web
 COPY ./web/package.json ./web/yarn.lock ./
@@ -48,7 +47,7 @@ EXPOSE 19000 2222
 ENTRYPOINT ["/server"]
 
 
-FROM guacd AS ALLINONE
+FROM debian:bookworm-slim AS ALLINONE
 LABEL MAINTAINER="https://casvisor.org/"
 ARG TARGETOS
 ARG TARGETARCH
@@ -58,7 +57,6 @@ ENV sshGatewayPort=2222
 ENV driverName=mysql
 ENV dataSourceName="root:123456@tcp(localhost:3306)/"
 ENV dbName=casvisor
-ENV guacamoleEndpoint=127.0.0.1:4822
 
 WORKDIR /
 

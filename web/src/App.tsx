@@ -22,7 +22,7 @@ import * as Setting from "@/lib/setting";
 const pageModules = import.meta.glob("./pages/*.tsx");
 const lazyCache = new Map<string, React.LazyExoticComponent<React.ComponentType<any>>>();
 
-// every page is its own chunk, so the console does not download xterm, noVNC and guacamole
+// every page is its own chunk, so the console does not download xterm and noVNC
 function page(name: string) {
   let component = lazyCache.get(name);
   if (!component) {

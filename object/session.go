@@ -16,12 +16,10 @@ package object
 
 import (
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/casvisor/casvisor/util"
-	"github.com/casvisor/casvisor/util/guacamole"
 	"xorm.io/core"
 )
 
@@ -41,7 +39,6 @@ type Session struct {
 	EndTime   string `xorm:"varchar(100)" json:"endTime"`
 
 	Protocol      string `xorm:"varchar(20)" json:"protocol"`
-	ConnectionId  string `xorm:"varchar(50)" json:"connectionId"`
 	Asset         string `xorm:"varchar(200) index" json:"asset"`
 	Creator       string `xorm:"varchar(36) index" json:"creator"`
 	ClientIp      string `xorm:"varchar(200)" json:"clientIp"`
@@ -51,7 +48,6 @@ type Session struct {
 	Width         int    `json:"width"`
 	Height        int    `json:"height"`
 	Status        string `xorm:"varchar(20) index" json:"status"`
-	Recording     string `xorm:"varchar(1000)" json:"recording"`
 	Code          int    `json:"code"`
 	Message       string `json:"message"`
 
@@ -238,30 +234,12 @@ func CloseDBSession(id string, code int, msg string) error {
 	return nil
 }
 
-func WriteCloseMessage(session *guacamole.Session, mode string, code int, msg string) {
-	err := guacamole.NewInstruction("error", "", strconv.Itoa(code))
-	_ = session.WriteString(err.String())
-	disconnect := guacamole.NewInstruction("disconnect")
-	_ = session.WriteString(disconnect.String())
-}
-
 var mutex sync.Mutex
 
 func CloseSession(id string, code int, msg string) error {
 	mutex.Lock()
 	defer mutex.Unlock()
-	guacSession := guacamole.GlobalSessionManager.Get(id)
 
-	if guacSession != nil {
-		WriteCloseMessage(guacSession, guacSession.Mode, code, msg)
-
-		if guacSession.Observer != nil {
-			guacSession.Observer.Range(func(key string, ob *guacamole.Session) {
-				WriteCloseMessage(ob, ob.Mode, code, msg)
-			})
-		}
-	}
-	guacamole.GlobalSessionManager.Delete(id)
 	closeNativeSession(id, code, msg)
 	removeLiveSession(id)
 

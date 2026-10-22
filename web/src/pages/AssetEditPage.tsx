@@ -16,15 +16,13 @@ import * as React from "react";
 import i18next from "i18next";
 import {useNavigate, useParams} from "react-router-dom";
 import * as AssetBackend from "@/backend/AssetBackend";
-import type {Asset, RemoteApp} from "@/backend/types";
+import type {Asset} from "@/backend/types";
 import {Input} from "@/components/ui/input";
-import {Switch} from "@/components/ui/switch";
 import {Textarea} from "@/components/ui/textarea";
 import {Loading} from "@/components/common/Loading";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import {SelectField} from "@/components/common/SelectField";
 import {UnauthorizedPage} from "@/components/common/UnauthorizedPage";
-import {EditableTable} from "@/components/crud/EditableTable";
 import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
@@ -33,49 +31,6 @@ import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
 import NotFoundPage from "@/pages/NotFoundPage";
 
-function RemoteAppTable({rows, onChange}: {rows: RemoteApp[]; onChange: (rows: RemoteApp[]) => void}) {
-  return (
-    <EditableTable<RemoteApp>
-      rows={rows}
-      onChange={onChange}
-      newRow={() => ({no: rows.length, remoteAppName: "||cmd", remoteAppDir: "C:\\Windows\\System32\\cmd.exe", remoteAppArgs: ""})}
-      columns={[
-        {
-          key: "no",
-          title: "No.",
-          width: 80,
-          render: (row, _index, update) => (
-            <Input value={row.no} onChange={(e) => update({no: Setting.myParseInt(e.target.value)})} />
-          ),
-        },
-        {
-          key: "remoteAppName",
-          title: i18next.t("asset:Remote App"),
-          width: 160,
-          render: (row, _index, update) => (
-            <Input value={row.remoteAppName} onChange={(e) => update({remoteAppName: e.target.value})} />
-          ),
-        },
-        {
-          key: "remoteAppDir",
-          title: i18next.t("asset:Remote App Dir"),
-          render: (row, _index, update) => (
-            <Input value={row.remoteAppDir} onChange={(e) => update({remoteAppDir: e.target.value})} />
-          ),
-        },
-        {
-          key: "remoteAppArgs",
-          title: i18next.t("asset:Remote App Args"),
-          width: 200,
-          render: (row, _index, update) => (
-            <Input value={row.remoteAppArgs} onChange={(e) => update({remoteAppArgs: e.target.value})} />
-          ),
-        },
-      ]}
-    />
-  );
-}
-
 export default function AssetEditPage() {
   const {owner = "", name = ""} = useParams();
   const navigate = useNavigate();
@@ -83,7 +38,6 @@ export default function AssetEditPage() {
 
   const {record: asset, updateField, updateFields, loading, notFound, denied, mode} = useEditRecord<Asset>({
     fetch: () => AssetBackend.getAsset(owner, name),
-    transform: (asset) => ({...asset, remoteApps: asset.remoteApps ?? []}),
     deps: [owner, name],
   });
 
@@ -113,14 +67,6 @@ export default function AssetEditPage() {
       },
       onFailed: () => updateField("name", name),
     }).finally(() => setSaving(false));
-  };
-
-  const setEnableRemoteApp = (checked: boolean) => {
-    if (checked && (asset.remoteApps ?? []).length === 0) {
-      Setting.showMessage("error", i18next.t("asset:Cannot enable Remote App when Remote Apps are empty. Please add at least one Remote App in below table first, then enable again"));
-      return;
-    }
-    updateField("enableRemoteApp", checked);
   };
 
   return (
@@ -207,16 +153,6 @@ export default function AssetEditPage() {
       <FormRow labelKey="general:Tag">
         <Input value={asset.tag} onChange={(e) => updateField("tag", e.target.value)} />
       </FormRow>
-      {asset.protocol === "RDP" ? (
-        <FormRow labelKey="general:Enable Remote App">
-          <Switch checked={asset.enableRemoteApp} onCheckedChange={setEnableRemoteApp} />
-        </FormRow>
-      ) : null}
-      {asset.protocol === "RDP" ? (
-        <FormRow labelKey="general:Remote Apps" block>
-          <RemoteAppTable rows={asset.remoteApps ?? []} onChange={(rows) => updateField("remoteApps", rows)} />
-        </FormRow>
-      ) : null}
     </EditPageShell>
   );
 }
