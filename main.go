@@ -26,6 +26,7 @@ import (
 	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/demo"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/routers"
 	"github.com/casvisor/casvisor/sshgateway"
 	"github.com/casvisor/casvisor/task"
@@ -48,6 +49,7 @@ func main() {
 		panic(err)
 	}
 	object.InitPatchJobs()
+	recording.StartRetention()
 	err = controllers.ClearSessionDrives()
 	if err != nil {
 		logs.Warning("failed to clear the drives of earlier RDP sessions: %s", err.Error())

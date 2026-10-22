@@ -25,6 +25,7 @@ import (
 	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/util"
 	"github.com/gorilla/websocket"
 )
@@ -42,6 +43,8 @@ type wsStream struct {
 	ws      *websocket.Conn
 	reader  io.Reader
 	writeMu sync.Mutex
+	// rec records what the viewer is sent, once the screen is up
+	rec *recording.Recording
 }
 
 func newWsStream(ws *websocket.Conn) *wsStream {
@@ -77,6 +80,7 @@ func (s *wsStream) Write(p []byte) (int, error) {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
+	s.rec.Write(recording.KindData, p)
 	err := s.ws.WriteMessage(websocket.BinaryMessage, p)
 	if err != nil {
 		return 0, err
@@ -88,7 +92,69 @@ func (s *wsStream) WriteJSON(v interface{}) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
+	s.rec.WriteJson(recording.KindText, v)
 	return s.ws.WriteJSON(v)
+}
+
+// record adds a message to the recording without sending it.
+func (s *wsStream) record(kind byte, v interface{}) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
+	s.rec.WriteJson(kind, v)
+}
+
+// writeBinary sends data that is left out of the recording.
+func (s *wsStream) writeBinary(p []byte) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
+	return s.ws.WriteMessage(websocket.BinaryMessage, p)
+}
+
+// WriteJSONUnrecorded sends a message that is left out of the recording, like the clipboard.
+func (s *wsStream) WriteJSONUnrecorded(v interface{}) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
+	return s.ws.WriteJSON(v)
+}
+
+// startRecording records everything the viewer is sent from now on.
+func (s *wsStream) startRecording(c *ApiController, sessionId string, asset *object.Asset, width int, height int) {
+	rec, err := recording.Start(recording.Header{
+		Protocol: asset.Protocol,
+		Session:  sessionId,
+		Asset:    asset.GetId(),
+		User:     getUserId(c.GetSessionUser()),
+		Width:    width,
+		Height:   height,
+	})
+	if err != nil {
+		logs.Error(fmt.Sprintf("startRecording(): %s", err.Error()))
+		return
+	}
+	if rec == nil {
+		return
+	}
+
+	err = object.AddSessionRecording(sessionId, rec.Name)
+	if err != nil {
+		logs.Error(fmt.Sprintf("startRecording(): %s", err.Error()))
+	}
+
+	s.writeMu.Lock()
+	s.rec = rec
+	s.writeMu.Unlock()
+}
+
+func (s *wsStream) stopRecording() {
+	s.writeMu.Lock()
+	rec := s.rec
+	s.rec = nil
+	s.writeMu.Unlock()
+
+	rec.Close()
 }
 
 func (s *wsStream) Close(code int, msg string) {

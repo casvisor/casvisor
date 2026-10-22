@@ -54,8 +54,9 @@ type Session struct {
 	Mode       string   `xorm:"varchar(10)" json:"mode"`
 	Operations []string `xorm:"json varchar(1000)" json:"operations"`
 
-	Reviewed     bool  `json:"reviewed"`
-	CommandCount int64 `json:"commandCount"`
+	Reviewed     bool     `json:"reviewed"`
+	CommandCount int64    `json:"commandCount"`
+	Recordings   []string `xorm:"json mediumtext" json:"recordings"`
 }
 
 func (s *Session) GetId() string {
@@ -129,7 +130,8 @@ func UpdateSession(id string, session *Session, columns ...string) (bool, error)
 	}
 
 	if len(columns) == 0 {
-		_, err := adapter.engine.ID(core.PK{owner, name}).AllCols().Update(session)
+		// the recordings are only added by AddSessionRecording, while the session is live
+		_, err := adapter.engine.ID(core.PK{owner, name}).AllCols().Omit("recordings").Update(session)
 		if err != nil {
 			return false, err
 		}
@@ -141,6 +143,28 @@ func UpdateSession(id string, session *Session, columns ...string) (bool, error)
 	}
 
 	return true, nil
+}
+
+var recordingMutex sync.Mutex
+
+// AddSessionRecording notes a recording file of the session; a session of the
+// SSH gateway can show more than one terminal.
+func AddSessionRecording(id string, name string) error {
+	recordingMutex.Lock()
+	defer recordingMutex.Unlock()
+
+	owner, name0 := util.GetOwnerAndNameFromId(id)
+	session, err := getSession(owner, name0)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return fmt.Errorf("the session: %s does not exist", id)
+	}
+
+	session.Recordings = append(session.Recordings, name)
+	_, err = adapter.engine.ID(core.PK{owner, name0}).Cols("recordings").Update(session)
+	return err
 }
 
 func DeleteSession(session *Session) (bool, error) {

@@ -31,8 +31,8 @@ RUN apk add ca-certificates && update-ca-certificates
 RUN adduser -D $USER -u 1000 \
     && echo "$USER ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USER \
     && chmod 0440 /etc/sudoers.d/$USER \
-    && mkdir logs db \
-    && chown -R $USER:$USER logs db
+    && mkdir logs db recordings \
+    && chown -R $USER:$USER logs db recordings
 
 USER 1000
 WORKDIR /
@@ -42,7 +42,7 @@ COPY --from=BACK --chown=$USER:$USER /go/src/casvisor/data ./data
 COPY --from=BACK --chown=$USER:$USER /go/src/casvisor/conf/app.conf ./conf/app.conf
 COPY --from=FRONT --chown=$USER:$USER /web/build ./web/build
 
-VOLUME /db
+VOLUME /db /recordings
 EXPOSE 19000 2222
 ENTRYPOINT ["/server"]
 

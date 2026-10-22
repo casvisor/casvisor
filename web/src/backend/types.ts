@@ -88,6 +88,7 @@ export interface Session {
   status: string;
   mode: string;
   operations: string[] | null;
+  recordings: string[] | null;
   [key: string]: any;
 }
 

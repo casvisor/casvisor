@@ -34,6 +34,7 @@ import (
 
 	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/recording"
 	gordp "github.com/casvisor/gordp"
 	"github.com/casvisor/gordp/bitmap"
 	"github.com/casvisor/gordp/rdpdr"
@@ -164,7 +165,7 @@ func (c *ApiController) GetAssetRdp() {
 
 	if slices.Contains(session.Operations, "copy") {
 		client.OnClipboard = func(text string) {
-			_ = stream.WriteJSON(rdpMessage{Type: "clipboard", Text: text})
+			_ = stream.WriteJSONUnrecorded(rdpMessage{Type: "clipboard", Text: text})
 			c.auditRdp(asset, "clipboard-copy", truncateRunes(text, 1000))
 		}
 	}
@@ -211,9 +212,11 @@ func (c *ApiController) GetAssetRdp() {
 	c.addLiveSession(sessionId, asset)
 
 	lastW, lastH = client.DesktopSize()
+	stream.startRecording(c, sessionId, asset, lastW, lastH)
+	defer stream.stopRecording()
 	_ = stream.WriteJSON(rdpMessage{Type: "init", Width: lastW, Height: lastH})
 
-	go c.readRdpInput(ws, client, session, asset, ops)
+	go c.readRdpInput(ws, stream, client, session, asset, ops)
 
 	for {
 		if _, err := client.PumpFrame(50 * time.Millisecond); err != nil {
@@ -246,8 +249,17 @@ func (c *ApiController) GetAssetRdp() {
 }
 
 // readRdpInput reads input events from the browser and drives the RDP client.
-func (c *ApiController) readRdpInput(ws *websocket.Conn, client *gordp.Client, session *object.Session, asset *object.Asset, ops chan<- func()) {
+func (c *ApiController) readRdpInput(ws *websocket.Conn, stream *wsStream, client *gordp.Client, session *object.Session, asset *object.Asset, ops chan<- func()) {
 	canPaste := slices.Contains(session.Operations, "paste")
+	// The pointer is drawn by the browser, so the recording keeps where it was,
+	// at most 20 times a second while it moves.
+	var lastPointer time.Time
+	recordPointer := func(x int, y int, force bool) {
+		if force || time.Since(lastPointer) >= 50*time.Millisecond {
+			lastPointer = time.Now()
+			stream.record(recording.KindText, rdpMessage{Type: "pointer", X: x, Y: y})
+		}
+	}
 	queue := func(op func()) {
 		select {
 		case ops <- op:
@@ -270,8 +282,10 @@ func (c *ApiController) readRdpInput(ws *websocket.Conn, client *gordp.Client, s
 		switch msg.Type {
 		case "mm":
 			_ = client.MouseMove(uint16(msg.X), uint16(msg.Y))
+			recordPointer(msg.X, msg.Y, false)
 		case "mb":
 			_ = client.MouseButton(mouseButton(msg.Button), msg.Down, uint16(msg.X), uint16(msg.Y))
+			recordPointer(msg.X, msg.Y, true)
 		case "mw":
 			_ = client.MouseWheel(uint16(msg.X), uint16(msg.Y), int16(msg.Delta))
 		case "k":

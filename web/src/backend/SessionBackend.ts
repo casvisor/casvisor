@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import {get, listQuery, post, type ListParams} from "@/backend/request";
+import * as Setting from "@/lib/setting";
 
 export const Connected = "connected";
 export const Disconnected = "disconnected";
@@ -44,4 +45,38 @@ export function connect(sessionId: string) {
 
 export function disconnect(sessionId: string) {
   return post("/api/stop-session", {id: sessionId});
+}
+
+/** Downloads a recording of a session, reporting the bytes received so far. */
+export async function downloadRecording(sessionId: string, index: number, onProgress?: (loaded: number) => void): Promise<ArrayBuffer> {
+  const query = new URLSearchParams({id: sessionId, index: String(index)});
+  const res = await fetch(`${Setting.ServerUrl}/api/get-session-recording?${query}`, {credentials: "include"});
+  if ((res.headers.get("Content-Type") ?? "").includes("json")) {
+    const body = await res.json();
+    throw new Error(body.msg ?? "failed to download the recording");
+  }
+  if (!res.ok || !res.body) {
+    throw new Error(res.statusText);
+  }
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  for (;;) {
+    const {done, value} = await reader.read();
+    if (done) {
+      break;
+    }
+    chunks.push(value);
+    loaded += value.length;
+    onProgress?.(loaded);
+  }
+
+  const buffer = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return buffer.buffer;
 }

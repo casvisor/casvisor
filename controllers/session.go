@@ -21,6 +21,7 @@ import (
 	"github.com/beego/beego/utils/pagination"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/util"
 )
 
@@ -104,10 +105,19 @@ func (c *ApiController) DeleteSession() {
 		return
 	}
 
+	old, err := object.GetConnSession(session.GetId())
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
 	affected, err := object.DeleteSession(&session)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
+	}
+	if affected && old != nil && recording.Get(old.GetId()) == nil {
+		recording.Delete(old.Recordings)
 	}
 
 	c.Data["json"] = wrapActionResponse(affected)

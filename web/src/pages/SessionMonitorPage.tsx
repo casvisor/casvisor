@@ -20,9 +20,11 @@ import {Terminal} from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {Button} from "@/components/ui/button";
+import {createScreen, type ReplayScreen} from "@/components/replay/screens";
 import * as Setting from "@/lib/setting";
 
-/** Watches a connected SSH session live, read only, at the size the user's terminal has. */
+/** Watches a connected session live, read only: a terminal at the size the
+ *  user's has, or a VNC or RDP screen drawn from the session's recording. */
 export default function SessionMonitorPage() {
   const {owner = "", name = ""} = useParams();
   const sessionId = `${owner}/${name}`;
@@ -30,6 +32,7 @@ export default function SessionMonitorPage() {
   const [status, setStatus] = React.useState<"connecting" | "watching" | "ended">("connecting");
   const [message, setMessage] = React.useState("");
   const [asset, setAsset] = React.useState("");
+  const [isScreen, setIsScreen] = React.useState(false);
 
   React.useEffect(() => {
     SessionBackend.getSession(owner, name).then((res) => {
@@ -41,25 +44,42 @@ export default function SessionMonitorPage() {
 
   React.useEffect(() => {
     document.title = `${i18next.t("session:Monitor")} | ${name}`;
-    const terminal = new Terminal({
-      disableStdin: true,
-      cursorBlink: false,
-      fontSize: 14,
-      fontFamily: "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
-      theme: {background: "#1b1b1b"},
-    });
-    terminal.open(containerRef.current!);
+    const container = containerRef.current!;
+    let terminal: Terminal | null = null;
+    let screen: ReplayScreen | null = null;
+    const getTerminal = () => {
+      if (!terminal) {
+        terminal = new Terminal({
+          disableStdin: true,
+          cursorBlink: false,
+          fontSize: 14,
+          fontFamily: "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+          theme: {background: "#1b1b1b"},
+        });
+        terminal.open(container);
+      }
+      return terminal;
+    };
 
     const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-session-monitor?id=${encodeURIComponent(sessionId)}`));
     ws.binaryType = "arraybuffer";
     ws.onmessage = (event) => {
       if (typeof event.data !== "string") {
-        terminal.write(new Uint8Array(event.data));
+        const data = new Uint8Array(event.data);
+        if (screen) {
+          // a frame of the recording: its kind, then its data
+          void screen.apply(data[0], data.subarray(1));
+        } else {
+          getTerminal().write(data);
+        }
         return;
       }
       const msg = JSON.parse(event.data);
-      if (msg.type === "resize" && msg.cols > 0 && msg.rows > 0) {
-        terminal.resize(msg.cols, msg.rows);
+      if (msg.type === "header") {
+        setIsScreen(true);
+        screen = createScreen(container, msg.header);
+      } else if (msg.type === "resize" && msg.cols > 0 && msg.rows > 0) {
+        getTerminal().resize(msg.cols, msg.rows);
       } else if (msg.type === "connected") {
         setStatus("watching");
       } else if (msg.type === "error") {
@@ -75,7 +95,8 @@ export default function SessionMonitorPage() {
 
     return () => {
       ws.close();
-      terminal.dispose();
+      terminal?.dispose();
+      screen?.dispose();
     };
   }, [sessionId, name]);
 
@@ -94,8 +115,8 @@ export default function SessionMonitorPage() {
         ) : null}
       </div>
       {message ? <div className="bg-neutral-800 px-4 py-2 text-sm text-amber-300">{message}</div> : null}
-      <div className="min-h-0 flex-1 overflow-auto p-2">
-        <div ref={containerRef} />
+      <div className={isScreen ? "min-h-0 flex-1" : "min-h-0 flex-1 overflow-auto p-2"}>
+        <div ref={containerRef} className={isScreen ? "h-full w-full" : undefined} />
       </div>
     </div>
   );

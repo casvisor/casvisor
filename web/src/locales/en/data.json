@@ -338,11 +338,17 @@
     "View Record": "View Record"
   },
   "session": {
+    "Download": "Download",
     "Ended": "Ended",
     "History": "History",
     "Live": "Live",
+    "Loading the recording": "Loading the recording",
     "Monitor": "Monitor",
-    "Online": "Online"
+    "Online": "Online",
+    "Pause": "Pause",
+    "Play": "Play",
+    "Replay": "Replay",
+    "Skip idle time": "Skip idle time"
   },
   "sshKey": {
     "Add SSH key": "Add SSH key",

@@ -78,6 +78,7 @@ export default function App() {
         <Route path="/access/:owner/:name" element={<RequireAuth>{page("AccessPage")}</RequireAuth>} />
         <Route path="/workbench" element={<RequireAuth>{page("WorkbenchPage")}</RequireAuth>} />
         <Route path="/sessions/:owner/:name/monitor" element={<RequireAuth>{page("SessionMonitorPage")}</RequireAuth>} />
+        <Route path="/sessions/:owner/:name/replay" element={<RequireAuth>{page("SessionReplayPage")}</RequireAuth>} />
 
         <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
           <Route path="/" element={page("HomePage")} />

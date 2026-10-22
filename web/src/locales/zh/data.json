@@ -338,11 +338,17 @@
     "View Record": "查看日志"
   },
   "session": {
+    "Download": "下载",
     "Ended": "已结束",
     "History": "历史",
     "Live": "实时",
+    "Loading the recording": "正在加载录像",
     "Monitor": "旁观",
-    "Online": "在线"
+    "Online": "在线",
+    "Pause": "暂停",
+    "Play": "播放",
+    "Replay": "回放",
+    "Skip idle time": "跳过空闲"
   },
   "sshKey": {
     "Add SSH key": "添加 SSH 公钥",

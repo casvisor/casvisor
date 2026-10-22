@@ -27,6 +27,7 @@ import (
 	"github.com/beego/beego/logs"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/util"
 	"github.com/hinshun/vt10x"
 )
@@ -69,6 +70,8 @@ type Recorder struct {
 	history    []byte
 	viewers    map[*Viewer]struct{}
 	closed     bool
+	rec        *recording.Recording
+	recStarted bool
 
 	// only touched by the input goroutine
 	lineStarted bool
@@ -118,6 +121,7 @@ func (r *Recorder) Close() {
 		return
 	}
 	r.closed = true
+	r.rec.Close()
 	close(r.input)
 	for viewer := range r.viewers {
 		viewer.close()
@@ -143,6 +147,9 @@ func (r *Recorder) Output(p []byte) {
 	}
 	r.lastOutput = time.Now()
 
+	r.startRecording()
+	r.rec.Write(recording.KindData, p)
+
 	r.history = append(r.history, p...)
 	if len(r.history) > historySize {
 		r.history = append([]byte{}, r.history[len(r.history)-historySize:]...)
@@ -155,6 +162,41 @@ func (r *Recorder) Output(p []byte) {
 	}
 }
 
+// startRecording starts the recording at the first output, so a session that
+// never showed anything leaves no file; the caller holds the lock.
+func (r *Recorder) startRecording() {
+	if r.recStarted || r.closed || r.opts.Asset == nil {
+		return
+	}
+	r.recStarted = true
+
+	user := ""
+	if r.opts.User != nil {
+		user = util.GetIdFromOwnerAndName(r.opts.User.Owner, r.opts.User.Name)
+	}
+	rec, err := recording.Start(recording.Header{
+		Protocol: r.opts.Asset.Protocol,
+		Session:  r.opts.SessionId,
+		Asset:    r.opts.Asset.GetId(),
+		User:     user,
+		Cols:     r.cols,
+		Rows:     r.rows,
+	})
+	if err != nil {
+		logs.Error(fmt.Sprintf("Recorder.startRecording(): %s", err.Error()))
+		return
+	}
+	if rec == nil {
+		return
+	}
+
+	err = object.AddSessionRecording(r.opts.SessionId, rec.Name)
+	if err != nil {
+		logs.Error(fmt.Sprintf("Recorder.startRecording(): %s", err.Error()))
+	}
+	r.rec = rec
+}
+
 func (r *Recorder) Resize(cols, rows int) {
 	if cols <= 0 || rows <= 0 {
 		return
@@ -165,6 +207,7 @@ func (r *Recorder) Resize(cols, rows int) {
 
 	r.vt.Resize(cols, rows)
 	r.cols, r.rows = cols, rows
+	r.rec.WriteJson(recording.KindResize, map[string]int{"cols": cols, "rows": rows})
 	for viewer := range r.viewers {
 		if !viewer.send(Event{Cols: cols, Rows: rows}) {
 			delete(r.viewers, viewer)

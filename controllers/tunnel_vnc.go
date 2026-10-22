@@ -55,6 +55,9 @@ func (c *ApiController) GetAssetVnc() {
 	}
 	defer conn.Close()
 
+	stream.startRecording(c, sessionId, asset, 0, 0)
+	defer stream.stopRecording()
+
 	err = vnc.AcceptClient(stream)
 	if err != nil {
 		stream.Close(ParametersError, err.Error())

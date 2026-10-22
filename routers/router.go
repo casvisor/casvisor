@@ -70,6 +70,7 @@ func initAPI() {
 	beego.Router("/api/start-session", &controllers.ApiController{}, "POST:StartSession")
 	beego.Router("/api/stop-session", &controllers.ApiController{}, "POST:StopSession")
 	beego.Router("/api/get-session-monitor", &controllers.ApiController{}, "GET:GetSessionMonitor")
+	beego.Router("/api/get-session-recording", &controllers.ApiController{}, "GET:GetSessionRecording")
 
 	beego.Router("/api/get-network-gateways", &controllers.ApiController{}, "GET:GetNetworkGateways")
 	beego.Router("/api/get-network-gateway", &controllers.ApiController{}, "GET:GetNetworkGateway")

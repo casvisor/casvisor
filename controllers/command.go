@@ -17,6 +17,7 @@ package controllers
 import (
 	"github.com/beego/beego/utils/pagination"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/terminal"
 	"github.com/casvisor/casvisor/util"
 )
@@ -60,7 +61,7 @@ func (c *ApiController) GetCommands() {
 // GetSessionMonitor
 // @Title GetSessionMonitor
 // @Tag Session API
-// @Description watch a connected SSH session live over a websocket, read only
+// @Description watch a connected session live over a websocket, read only
 // @Param   id     query    string  true        "The id of the session"
 // @router /get-session-monitor [get]
 func (c *ApiController) GetSessionMonitor() {
@@ -75,7 +76,13 @@ func (c *ApiController) GetSessionMonitor() {
 	sessionId := c.Input().Get("id")
 	recorder := terminal.GetRecorder(sessionId)
 	if recorder == nil {
-		message := "the session is not connected, or it is not an interactive SSH session"
+		if rec := recording.Get(sessionId); rec != nil {
+			c.auditMonitor(sessionId, rec.Header.Protocol)
+			c.monitorRecording(ws, stream, rec)
+			return
+		}
+
+		message := "the session is not connected, or it is not an interactive session"
 		_ = stream.WriteJSON(terminalMessage{Type: "error", Code: SessionNotFound, Message: message})
 		stream.Close(SessionNotFound, message)
 		return
@@ -84,16 +91,7 @@ func (c *ApiController) GetSessionMonitor() {
 	history, cols, rows, viewer := recorder.Watch()
 	defer recorder.Unwatch(viewer)
 
-	user := c.GetSessionUser()
-	object.AddAuditRecord(&object.AuditEvent{
-		Organization: user.Owner,
-		User:         user.Name,
-		ClientIp:     c.getClientIp(),
-		UserAgent:    c.getUserAgent(),
-		Method:       "SSH",
-		Action:       "session-monitor",
-		Detail:       sessionId,
-	})
+	c.auditMonitor(sessionId, "SSH")
 
 	go func() {
 		for {
@@ -120,4 +118,17 @@ func (c *ApiController) GetSessionMonitor() {
 	}
 
 	stream.Close(Normal, "The session has ended")
+}
+
+func (c *ApiController) auditMonitor(sessionId string, method string) {
+	user := c.GetSessionUser()
+	object.AddAuditRecord(&object.AuditEvent{
+		Organization: user.Owner,
+		User:         user.Name,
+		ClientIp:     c.getClientIp(),
+		UserAgent:    c.getUserAgent(),
+		Method:       method,
+		Action:       "session-monitor",
+		Detail:       sessionId,
+	})
 }

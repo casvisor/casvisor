@@ -149,14 +149,23 @@ export default function SessionListPage() {
       deps={[owner, status]}
       tableId={`/sessions/${status}`}
       remove={isOnline ? undefined : SessionBackend.deleteSession}
-      actionColumnWidth={200}
+      actionColumnWidth={260}
       rowActions={(session, _index, {refresh}) => [
-        isOnline && (session.protocol === "SSH" || session.protocol === "Telnet") && (session.mode === "native" || session.mode === "gateway")
+        isOnline && (session.mode === "native" || session.mode === "gateway")
           ? {
             key: "monitor",
             label: i18next.t("session:Monitor"),
             onSelect: () => {
               window.open(`/sessions/${session.owner}/${session.name}/monitor`, "_blank");
+            },
+          }
+          : null,
+        (session.recordings?.length ?? 0) > 0
+          ? {
+            key: "replay",
+            label: i18next.t("session:Replay"),
+            onSelect: () => {
+              window.open(`/sessions/${session.owner}/${session.name}/replay`, "_blank");
             },
           }
           : null,

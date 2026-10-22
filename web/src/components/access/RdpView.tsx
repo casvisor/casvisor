@@ -21,11 +21,7 @@ import {FilePanel} from "@/components/access/FilePanel";
 import {closeView, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
-import {GfxRenderer} from "@/components/access/rdpGfx";
-
-// Binary frames start with their kind: bitmap tiles or graphics pipeline
-// commands (see controllers/tunnel_rdp_gfx.go).
-const FrameGfx = 2;
+import {RdpScreen, setCanvasCursor} from "@/components/access/rdpScreen";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
@@ -39,9 +35,7 @@ export default function RdpView(props: ConnectionProps) {
 
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const wsRef = React.useRef<WebSocket | null>(null);
-  const ctxRef = React.useRef<CanvasRenderingContext2D | null>(null);
   const activeRef = React.useRef(false);
-  const frameChainRef = React.useRef<Promise<void>>(Promise.resolve());
   const operationsRef = React.useRef<string[]>([]);
   const lastClipboardRef = React.useRef("");
   const [clipboardText, setClipboardText] = React.useState("");
@@ -106,7 +100,6 @@ export default function RdpView(props: ConnectionProps) {
       const session = res.data;
       operationsRef.current = session.operations ?? [];
       lastClipboardRef.current = "";
-      frameChainRef.current = Promise.resolve();
       const canvas = canvasRef.current!;
       const ratio = pixelRatio();
       const params: Record<string, any> = {
@@ -126,46 +119,32 @@ export default function RdpView(props: ConnectionProps) {
       wsRef.current = ws;
       let connected = false;
       let failureReason = "";
-      const gfx = new GfxRenderer(() => ctxRef.current, (width, height) => {
-        if (canvas.width !== width || canvas.height !== height) {
-          canvas.width = width;
-          canvas.height = height;
-        }
-      });
+      const screen = new RdpScreen(canvas);
 
       ws.onmessage = (event) => {
         if (typeof event.data === "string") {
           const msg = JSON.parse(event.data);
           if (msg.t === "init") {
-            canvas.width = msg.width;
-            canvas.height = msg.height;
-            ctxRef.current = canvas.getContext("2d");
+            screen.init(msg.width, msg.height);
             connected = true;
             status.success(i18next.t("asset:Connection successful"));
             SessionBackend.connect(`${session.owner}/${session.name}`);
             setSession({id: `${session.owner}/${session.name}`, operations: session.operations ?? []});
             canvas.focus();
           } else if (msg.t === "size") {
-            if (canvas.width !== msg.width || canvas.height !== msg.height) {
-              canvas.width = msg.width;
-              canvas.height = msg.height;
-            }
+            screen.setSize(msg.width, msg.height);
           } else if (msg.t === "clipboard") {
             lastClipboardRef.current = msg.text;
             setClipboardText(msg.text);
             navigator.clipboard?.writeText(msg.text).catch(() => undefined);
           } else if (msg.t === "cursor") {
-            setCursor(msg);
+            setCanvasCursor(canvas, msg);
           } else if (msg.t === "error") {
             failureReason = msg.message || NotReachable;
           }
           return;
         }
-        const data = event.data as ArrayBuffer;
-        const kind = new DataView(data).getUint8(0);
-        frameChainRef.current = frameChainRef.current
-          .then(() => (kind === FrameGfx ? gfx.frame(data) : drawFrame(data)))
-          .catch(() => undefined);
+        screen.frame(event.data as ArrayBuffer);
       };
 
       ws.onclose = () => {
@@ -190,64 +169,6 @@ export default function RdpView(props: ConnectionProps) {
         }
       };
     });
-  };
-
-  // A frame is every tile of one screen change. All of them are decoded first
-  // and drawn together, in the order the frames arrived, so a repainted window
-  // appears at once.
-  const drawFrame = async(data: ArrayBuffer) => {
-    const view = new DataView(data);
-    const count = view.getUint16(1, true);
-    const tiles: {x: number; y: number; image: Promise<ImageBitmap>}[] = [];
-    let offset = 3;
-    for (let i = 0; i < count && offset + 12 <= data.byteLength; i++) {
-      const x = view.getUint16(offset, true);
-      const y = view.getUint16(offset + 2, true);
-      const length = view.getUint32(offset + 8, true);
-      const blob = new Blob([new Uint8Array(data, offset + 12, length)], {type: "image/png"});
-      tiles.push({x, y, image: createImageBitmap(blob)});
-      offset += 12 + length;
-    }
-    const images = await Promise.allSettled(tiles.map((tile) => tile.image));
-    const ctx = ctxRef.current;
-    images.forEach((result, i) => {
-      if (result.status === "fulfilled") {
-        ctx?.drawImage(result.value, tiles[i].x, tiles[i].y);
-        result.value.close();
-      }
-    });
-  };
-
-  // Show the remote cursor shape on the canvas. Its image is in remote pixels,
-  // so it is scaled to the size the desktop is displayed at.
-  const setCursor = (msg: {hidden?: boolean; default?: boolean; png?: string; x?: number; y?: number; width?: number; height?: number}) => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-    if (msg.hidden) {
-      canvas.style.cursor = "none";
-      return;
-    }
-    if (msg.default || !msg.png || !msg.width || !msg.height) {
-      canvas.style.cursor = "default";
-      return;
-    }
-    const rect = canvas.getBoundingClientRect();
-    const ratio = canvas.width ? Math.min(rect.width / canvas.width, rect.height / canvas.height) : 1;
-    const width = Math.max(1, Math.round(msg.width * ratio));
-    const height = Math.max(1, Math.round(msg.height * ratio));
-    const hotX = Math.min(width - 1, Math.round((msg.x ?? 0) * ratio));
-    const hotY = Math.min(height - 1, Math.round((msg.y ?? 0) * ratio));
-    const image = new Image();
-    image.onload = () => {
-      const scaled = document.createElement("canvas");
-      scaled.width = width;
-      scaled.height = height;
-      scaled.getContext("2d")?.drawImage(image, 0, 0, width, height);
-      canvas.style.cursor = `url(${scaled.toDataURL()}) ${hotX} ${hotY}, default`;
-    };
-    image.src = `data:image/png;base64,${msg.png}`;
   };
 
   React.useEffect(() => {

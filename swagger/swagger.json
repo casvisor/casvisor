@@ -292,7 +292,7 @@
                 "operationId": "ApiController.ConnectAgent",
                 "responses": {
                     "101": {
-                        "description": "Switching Protocols"
+                        "description": "{string} Switching Protocols"
                     }
                 }
             }
@@ -1205,7 +1205,7 @@
                 "tags": [
                     "Session API"
                 ],
-                "description": "watch a connected SSH session live over a websocket, read only",
+                "description": "watch a connected session live over a websocket, read only",
                 "operationId": "ApiController.GetSessionMonitor",
                 "parameters": [
                     {
@@ -1213,6 +1213,37 @@
                         "name": "id",
                         "description": "The id of the session",
                         "required": true,
+                        "type": "string"
+                    }
+                ]
+            }
+        },
+        "/get-session-recording": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "download a recording of a session, as a Casvisor recording or, for SSH and Telnet, as an asciicast",
+                "operationId": "ApiController.GetSessionRecording",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "index",
+                        "description": "Which recording of the session, from 0",
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "description": "cast for an asciicast v2 file",
                         "type": "string"
                     }
                 ]
@@ -2413,6 +2444,12 @@
                 },
                 "protocol": {
                     "type": "string"
+                },
+                "recordings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "reviewed": {
                     "type": "boolean"
