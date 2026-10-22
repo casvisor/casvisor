@@ -26,7 +26,7 @@
 
 Casvisor sits between the people who run your servers and the servers themselves. People open SSH, RDP, VNC and Telnet sessions from a browser tab, or use their own `ssh`, `scp` and VS Code through Casvisor's SSH gateway. They only reach the servers a permission gives them, never see the servers' passwords, and every session is recorded.
 
-- **One Go binary.** All four protocols are handled inside Casvisor, with no guacd, Java or agent on the servers. It runs on SQLite with its own accounts out of the box.
+- **One Go binary.** All four protocols are handled inside Casvisor, with nothing to install on the servers. It runs on SQLite with its own accounts out of the box.
 - **Apache-2.0, no enterprise edition.** Recording, the SSH gateway, network gateways and everything else in this README are in the open-source project.
 - **Policy you can read.** Permissions are enforced with [Casbin](https://casbin.apache.org), and sign-in can be handed to [Casdoor](https://casdoor.ai) for SSO, MFA, LDAP and social logins.
 
