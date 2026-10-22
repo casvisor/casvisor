@@ -21,11 +21,18 @@ import {FilePanel} from "@/components/access/FilePanel";
 import {closeView, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
+import {GfxRenderer} from "@/components/access/rdpGfx";
+
+// Binary frames start with their kind: bitmap tiles or graphics pipeline
+// commands (see controllers/tunnel_rdp_gfx.go).
+const FrameGfx = 2;
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
-/** An RDP screen drawn on a canvas from frames of PNG tiles, decoded on the
- *  gateway by the native gordp client. Mouse and keyboard are relayed back. */
+/** An RDP screen drawn on a canvas. The gateway's native gordp client speaks
+ *  the graphics pipeline and decodes its codecs; this view keeps the surfaces
+ *  and caches and draws each server frame at once. Mouse and keyboard are
+ *  relayed back. */
 export default function RdpView(props: ConnectionProps) {
   const {assetId, inTab, addClient, username, password} = props;
   const assetName = Setting.getShortName(assetId);
@@ -107,6 +114,7 @@ export default function RdpView(props: ConnectionProps) {
         width: Math.round((canvas.parentElement?.clientWidth || 1024) * ratio),
         height: Math.round((canvas.parentElement?.clientHeight || 768) * ratio),
         scale: Math.round(ratio * 100),
+        gfx: 1,
       };
       if (username || password) {
         params.username = username;
@@ -118,6 +126,12 @@ export default function RdpView(props: ConnectionProps) {
       wsRef.current = ws;
       let connected = false;
       let failureReason = "";
+      const gfx = new GfxRenderer(() => ctxRef.current, (width, height) => {
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+      });
 
       ws.onmessage = (event) => {
         if (typeof event.data === "string") {
@@ -148,7 +162,10 @@ export default function RdpView(props: ConnectionProps) {
           return;
         }
         const data = event.data as ArrayBuffer;
-        frameChainRef.current = frameChainRef.current.then(() => drawFrame(data));
+        const kind = new DataView(data).getUint8(0);
+        frameChainRef.current = frameChainRef.current
+          .then(() => (kind === FrameGfx ? gfx.frame(data) : drawFrame(data)))
+          .catch(() => undefined);
       };
 
       ws.onclose = () => {
@@ -180,9 +197,9 @@ export default function RdpView(props: ConnectionProps) {
   // appears at once.
   const drawFrame = async(data: ArrayBuffer) => {
     const view = new DataView(data);
-    const count = view.getUint16(0, true);
+    const count = view.getUint16(1, true);
     const tiles: {x: number; y: number; image: Promise<ImageBitmap>}[] = [];
-    let offset = 2;
+    let offset = 3;
     for (let i = 0; i < count && offset + 12 <= data.byteLength; i++) {
       const x = view.getUint16(offset, true);
       const y = view.getUint16(offset + 2, true);

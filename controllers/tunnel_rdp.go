@@ -32,6 +32,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/object"
 	gordp "github.com/casvisor/gordp"
 	"github.com/casvisor/gordp/bitmap"
@@ -104,6 +105,18 @@ func (c *ApiController) GetAssetRdp() {
 			ReadOnly:  !canDownload,
 			WriteOnly: !canUpload,
 		}))
+	}
+
+	// The graphics pipeline is how current Windows clients get the screen:
+	// whole frames, caches and the lossless and progressive codecs. The
+	// browser keeps the surfaces; the gateway decodes the codecs.
+	var gfx *rdpGfxWriter
+	if c.Input().Get("gfx") == "1" {
+		gfx = &rdpGfxWriter{send: func(frame []byte) error {
+			_, err := stream.Write(frame)
+			return err
+		}}
+		options = append(options, gordp.WithGFX(gfx, gordp.GFXOptions{}))
 	}
 
 	client := gordp.NewClient(addr, "", asset.Username, asset.Password, options...)
@@ -206,6 +219,12 @@ func (c *ApiController) GetAssetRdp() {
 		if err := flush(); err != nil {
 			break
 		}
+		if gfx != nil {
+			gfx.flush()
+			if gfx.err != nil {
+				break
+			}
+		}
 		for pending := true; pending; {
 			select {
 			case op := <-ops:
@@ -217,6 +236,9 @@ func (c *ApiController) GetAssetRdp() {
 		syncSize()
 	}
 
+	if unsupported := client.GFXUnsupported(); len(unsupported) > 0 {
+		logs.Warning(fmt.Sprintf("GetAssetRdp(): %s used graphics codecs that are not decoded (codec ID: commands): %v", asset.GetId(), unsupported))
+	}
 	closeTunnelSession(sessionId, "Normal user exit")
 }
 
@@ -359,10 +381,11 @@ func (p *tileBufferPool) Get() *png.EncoderBuffer {
 func (p *tileBufferPool) Put(b *png.EncoderBuffer) { p.pool.Put(b) }
 
 // encodeFrame builds one binary frame with the changed regions of the desktop:
-// a tile count (uint16), then per tile an 8-byte header (x, y, width, height as
-// little-endian uint16), the PNG length (uint32) and the PNG. Windows sends a
-// repaint as many 64x64 tiles; when they cover most of their bounding box they
-// are sent as that one region, which the browser decodes much faster.
+// the kind byte, a tile count (uint16), then per tile an 8-byte header (x, y,
+// width, height as little-endian uint16), the PNG length (uint32) and the PNG.
+// Windows sends a repaint as many 64x64 tiles; when they cover most of their
+// bounding box they are sent as that one region, which the browser decodes much
+// faster.
 func encodeFrame(fb *image.RGBA, dirty []image.Rectangle) []byte {
 	bounds := fb.Bounds()
 	var regions []image.Rectangle
@@ -404,6 +427,7 @@ func encodeFrame(fb *image.RGBA, dirty []image.Rectangle) []byte {
 
 	var out bytes.Buffer
 	var header [12]byte
+	out.WriteByte(rdpFrameBitmap)
 	binary.LittleEndian.PutUint16(header[0:], uint16(len(regions)))
 	out.Write(header[:2])
 	for i, r := range regions {

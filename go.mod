@@ -9,7 +9,7 @@ require (
 	github.com/casbin/casbin/v2 v2.82.0
 	github.com/casdoor/casdoor-go-sdk v0.35.1
 	github.com/casdoor/xorm-adapter/v3 v3.1.0
-	github.com/casvisor/gordp v1.4.0
+	github.com/casvisor/gordp v1.6.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
