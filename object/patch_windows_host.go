@@ -16,23 +16,26 @@ package object
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
-	"unicode/utf16"
 
+	"github.com/casvisor/casvisor/util"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
-// The scripts come in on stdin, so they are not limited by the length of the command line.
+// The scripts are uploaded over SFTP and run with -File: security software such as Alibaba Cloud Security Center
+// blocks powershell -EncodedCommand, and a command line is limited to 8191 characters.
 // Their output is JSON on a line starting with "CASVISOR:", escaped to ASCII so the console code page does not matter.
-const windowsBootstrap = `$ProgressPreference='SilentlyContinue';$s=[Console]::In.ReadToEnd();& ([ScriptBlock]::Create($s))`
+const windowsScriptDir = "C:/ProgramData/Casvisor/run"
 
 const windowsScriptHeader = `
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 function Out-Result($o) {
   $j = ConvertTo-Json -InputObject $o -Depth 5 -Compress
   'CASVISOR:' + [regex]::Replace($j, '[^\x00-\x7F]', { param($m) '\u{0:x4}' -f [int][char]$m.Value })
@@ -185,24 +188,53 @@ var windowsClassifications = map[string]string{
 	"3689bdc8-b205-4af4-8d4a-a63924c5e9d5": "Upgrades",
 }
 
-var windowsBootstrapCommand = func() string {
-	encoded := utf16.Encode([]rune(windowsBootstrap))
-	b := make([]byte, len(encoded)*2)
-	for i, c := range encoded {
-		b[i*2] = byte(c)
-		b[i*2+1] = byte(c >> 8)
-	}
-	return "powershell -NoProfile -NonInteractive -EncodedCommand " + base64.StdEncoding.EncodeToString(b)
-}()
-
 type windowsHost struct {
 	client *ssh.Client
+	// the default shell of the SSH server is PowerShell, so the scripts run in it instead of in a child powershell.exe,
+	// which some security software does not let the SSH session start
+	inPowerShell bool
+}
+
+func newWindowsHost(client *ssh.Client) *windowsHost {
+	var out bytes.Buffer
+	_, err := runSshCommand(client, "$PSVersionTable.PSVersion.Major", "", &out, io.Discard)
+	_, atoiErr := strconv.Atoi(strings.TrimSpace(out.String()))
+	return &windowsHost{client: client, inPowerShell: err == nil && atoiErr == nil}
 }
 
 // runScript runs a PowerShell script and decodes its result into v.
 func (h *windowsHost) runScript(script string, v interface{}) error {
+	sftpClient, err := sftp.NewClient(h.client)
+	if err != nil {
+		return fmt.Errorf("failed to open SFTP to upload the script: %s", err.Error())
+	}
+	defer sftpClient.Close()
+
+	err = sftpClient.MkdirAll("/" + windowsScriptDir)
+	if err != nil {
+		return fmt.Errorf("failed to create %s: %s", windowsScriptDir, err.Error())
+	}
+	path := windowsScriptDir + "/" + util.GenerateId() + ".ps1"
+	file, err := sftpClient.Create("/" + path)
+	if err != nil {
+		return fmt.Errorf("failed to upload the script: %s", err.Error())
+	}
+	_, err = file.Write([]byte(windowsScriptHeader + script + windowsScriptFooter))
+	closeErr := file.Close()
+	defer func() { _ = sftpClient.Remove("/" + path) }()
+	if err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return fmt.Errorf("failed to upload the script: %s", err.Error())
+	}
+
 	var stdout bytes.Buffer
-	_, err := runSshCommand(h.client, windowsBootstrapCommand, windowsScriptHeader+script+windowsScriptFooter, &stdout, io.Discard)
+	command := "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File " + strings.ReplaceAll(path, "/", "\\")
+	if h.inPowerShell {
+		command = "& '" + path + "'"
+	}
+	_, err = runSshCommand(h.client, command, "", &stdout, io.Discard)
 	if err != nil {
 		return err
 	}

@@ -361,10 +361,13 @@ func connectPatchHost(asset *Asset) (patchHost, error) {
 	out.Reset()
 	_, err = runSshCommand(client, "cmd /c ver", "", &out, io.Discard)
 	if err == nil && strings.Contains(out.String(), "Windows") {
-		return &windowsHost{client: client}, nil
+		return newWindowsHost(client), nil
 	}
 
 	client.Close()
+	if err != nil {
+		return nil, fmt.Errorf("the SSH server of the asset: %s cannot run commands: %s", asset.GetId(), err.Error())
+	}
 	return nil, fmt.Errorf("the asset: %s is neither Linux nor Windows", asset.GetId())
 }
 
