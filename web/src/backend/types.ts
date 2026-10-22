@@ -99,3 +99,30 @@ export interface Principal {
   name: string;
   displayName: string;
 }
+
+export interface SshKey {
+  owner: string;
+  name: string;
+  createdTime: string;
+  displayName: string;
+  user: string;
+  publicKey: string;
+  fingerprint: string;
+  lastUsedTime: string;
+}
+
+export interface SshGateway {
+  enabled: boolean;
+  host: string;
+  port: string;
+  fingerprint: string;
+}
+
+export interface SessionFile {
+  name: string;
+  size: number;
+  mode: string;
+  isDir: boolean;
+  isLink: boolean;
+  modifiedTime: string;
+}

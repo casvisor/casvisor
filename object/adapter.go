@@ -120,6 +120,16 @@ func (a *Adapter) createTable() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = a.engine.Sync2(new(SshKey))
+	if err != nil {
+		panic(err)
+	}
+
+	err = a.engine.Sync2(new(SshHostKey))
+	if err != nil {
+		panic(err)
+	}
 }
 
 func GetSession(owner string, offset, limit int, field, value, sortField, sortOrder string) *xorm.Session {

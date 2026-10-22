@@ -22,4 +22,4 @@ export function getDefaultPort(protocol: string) {
 }
 
 /** The actions a permission can grant, in the order the antd page listed them. */
-export const PermissionActions = ["Connect", "Copy", "Paste", "Upload", "Download"];
+export const PermissionActions = ["Connect", "Copy", "Paste", "Upload", "Download", "Forward"];

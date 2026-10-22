@@ -22,6 +22,7 @@ ARG USER=casvisor
 ARG TARGETOS
 ARG TARGETARCH
 ENV BUILDX_ARCH="${TARGETOS:-linux}_${TARGETARCH:-amd64}"
+ENV sshGatewayPort=2222
 
 RUN sed -i 's/https/http/' /etc/apk/repositories
 RUN apk add --update sudo
@@ -42,6 +43,7 @@ COPY --from=BACK --chown=$USER:$USER /go/src/casvisor/data ./data
 COPY --from=BACK --chown=$USER:$USER /go/src/casvisor/conf/app.conf ./conf/app.conf
 COPY --from=FRONT --chown=$USER:$USER /web/build ./web/build
 
+EXPOSE 19000 2222
 ENTRYPOINT ["/server"]
 
 
@@ -50,6 +52,7 @@ LABEL MAINTAINER="https://casvisor.org/"
 ARG TARGETOS
 ARG TARGETARCH
 ENV BUILDX_ARCH="${TARGETOS:-linux}_${TARGETARCH:-amd64}"
+ENV sshGatewayPort=2222
 
 WORKDIR /
 
@@ -69,6 +72,6 @@ COPY --from=BACK /go/src/casvisor/docker-entrypoint.sh /docker-entrypoint.sh
 COPY --from=BACK /go/src/casvisor/conf/app.conf ./conf/app.conf
 COPY --from=FRONT /web/build ./web/build
 
-EXPOSE 19000
+EXPOSE 19000 2222
 ENTRYPOINT ["/bin/bash"]
 CMD ["/docker-entrypoint.sh"]

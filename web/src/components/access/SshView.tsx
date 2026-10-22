@@ -20,6 +20,7 @@ import {FitAddon} from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
+import {FilePanel} from "@/components/access/FilePanel";
 import {closeView, debounce, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 
@@ -35,6 +36,8 @@ export default function SshView(props: ConnectionProps) {
   const fitAddonRef = React.useRef<FitAddon | null>(null);
   const wsRef = React.useRef<WebSocket | null>(null);
   const [failure, setFailure] = React.useState<string | null>(null);
+  const [session, setSession] = React.useState<{id: string; operations: string[]} | null>(null);
+  const [showFiles, setShowFiles] = React.useState(false);
   const status = useConnectionToast(assetId);
 
   const send = (msg: any) => {
@@ -50,6 +53,7 @@ export default function SshView(props: ConnectionProps) {
       return;
     }
     status.loading(i18next.t("asset:Connecting..."));
+    setSession(null);
 
     SessionBackend.addAssetTunnel(assetId, "native").then((res) => {
       if (terminalRef.current !== terminal) {
@@ -89,6 +93,7 @@ export default function SshView(props: ConnectionProps) {
         const msg = JSON.parse(event.data);
         if (msg.type === "connected") {
           connected = true;
+          setSession({id: `${session.owner}/${session.name}`, operations: session.operations ?? []});
           status.success(i18next.t("asset:Connection successful"));
           terminal.focus();
         } else if (msg.type === "error") {
@@ -101,6 +106,8 @@ export default function SshView(props: ConnectionProps) {
           return;
         }
         status.dismiss();
+        setSession(null);
+        setShowFiles(false);
         if (errorMessage) {
           setFailure(errorMessage);
         } else if (!connected) {
@@ -159,15 +166,23 @@ export default function SshView(props: ConnectionProps) {
     connect();
   };
 
+  const canTransfer = session !== null && session.operations.includes("fileSystem");
+
   return (
-    <div className="relative h-full w-full bg-[#1b1b1b] p-2">
-      <div ref={containerRef} className="h-full w-full" />
-      <ConnectionToolbar
-        onFullscreen={() => {
-          toggleFullscreen();
-          terminalRef.current?.focus();
-        }}
-      />
+    <div className="flex h-full w-full">
+      <div className="relative h-full min-w-0 flex-1 bg-[#1b1b1b] p-2">
+        <div ref={containerRef} className="h-full w-full" />
+        <ConnectionToolbar
+          onFullscreen={() => {
+            toggleFullscreen();
+            terminalRef.current?.focus();
+          }}
+          onFiles={canTransfer ? () => setShowFiles(!showFiles) : undefined}
+        />
+      </div>
+      {canTransfer && showFiles ? (
+        <FilePanel sessionId={session.id} operations={session.operations} onClose={() => setShowFiles(false)} />
+      ) : null}
       <FailureDialog assetName={assetName} message={failure} onReconnect={reconnect} onClose={() => closeView(props)} />
     </div>
   );

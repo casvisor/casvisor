@@ -18,17 +18,20 @@ import dayjs from "dayjs";
 import * as AssetBackend from "@/backend/AssetBackend";
 import type {Asset} from "@/backend/types";
 import {ConnectButton} from "@/components/access/ConnectButton";
+import {SshCommandButton} from "@/components/access/SshCommandButton";
 import {CrudListPage} from "@/components/crud/CrudListPage";
 import {boolColumn, dateColumn, linkColumn, textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
 import {Protocols} from "@/lib/asset";
+import {useSshGateway} from "@/lib/gateway";
 import * as Setting from "@/lib/setting";
 
 export default function AssetListPage() {
   const {account} = useAccount();
   const isAdmin = Setting.isAdminUser(account);
   const owner = Setting.getRequestOrganization(account);
+  const gateway = useSshGateway();
 
   const fetchAssets = React.useCallback(
     (query: TableQuery) =>
@@ -102,8 +105,13 @@ export default function AssetListPage() {
       remove={isAdmin ? AssetBackend.deleteAsset : undefined}
       editUrl={isAdmin ? (asset) => `/assets/${asset.owner}/${asset.name}` : undefined}
       deleteDisabled={(asset) => asset.owner !== account?.owner}
-      actionColumnWidth={isAdmin ? 240 : 110}
-      rowLeading={(asset) => <ConnectButton asset={asset} disabled={asset.owner !== account?.owner} />}
+      actionColumnWidth={(isAdmin ? 240 : 110) + (gateway ? 40 : 0)}
+      rowLeading={(asset) => (
+        <>
+          <ConnectButton asset={asset} disabled={asset.owner !== account?.owner} />
+          {gateway && asset.protocol === "SSH" ? <SshCommandButton asset={asset} gateway={gateway} account={account} /> : null}
+        </>
+      )}
     />
   );
 }

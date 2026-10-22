@@ -30,9 +30,10 @@ const (
 	ActionPaste    = "Paste"
 	ActionUpload   = "Upload"
 	ActionDownload = "Download"
+	ActionForward  = "Forward"
 )
 
-var AllActions = []string{ActionConnect, ActionCopy, ActionPaste, ActionUpload, ActionDownload}
+var AllActions = []string{ActionConnect, ActionCopy, ActionPaste, ActionUpload, ActionDownload, ActionForward}
 
 type Permission struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`

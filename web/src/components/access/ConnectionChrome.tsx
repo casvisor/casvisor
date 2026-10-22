@@ -14,7 +14,7 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {CircleX, ClipboardPaste, Expand, Keyboard} from "lucide-react";
+import {CircleX, ClipboardPaste, Expand, FolderOpen, Keyboard} from "lucide-react";
 import {toast} from "sonner";
 import {
   AlertDialog,
@@ -66,15 +66,17 @@ function ToolbarButton({label, onClick, children}: {label: string; onClick?: () 
   );
 }
 
-/** The buttons floating over a remote screen: fullscreen, clipboard and key combinations. */
+/** The buttons floating over a remote screen: fullscreen, clipboard, files and key combinations. */
 export function ConnectionToolbar({
   onFullscreen,
   onClipboard,
   onHotKey,
+  onFiles,
 }: {
   onFullscreen: () => void;
   onClipboard?: () => void;
   onHotKey?: (keys: number[]) => void;
+  onFiles?: () => void;
 }) {
   return (
     <div className="absolute right-4 top-4 z-10 flex gap-1.5 opacity-60 transition-opacity hover:opacity-100">
@@ -98,6 +100,11 @@ export function ConnectionToolbar({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+      ) : null}
+      {onFiles ? (
+        <ToolbarButton label={i18next.t("asset:Files")} onClick={onFiles}>
+          <FolderOpen />
+        </ToolbarButton>
       ) : null}
       {onClipboard ? (
         <ToolbarButton label={i18next.t("asset:Clipboard")} onClick={onClipboard}>

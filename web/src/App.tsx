@@ -86,6 +86,7 @@ export default function App() {
           <Route path="/sessions" element={page("SessionListPage")} />
           <Route path="/records" element={page("RecordListPage")} />
           <Route path="/records/:owner/:name" element={page("RecordEditPage")} />
+          <Route path="/ssh-keys" element={page("SshKeyListPage")} />
           <Route path="*" element={page("NotFoundPage")} />
         </Route>
       </Routes>

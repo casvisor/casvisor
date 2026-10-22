@@ -68,4 +68,16 @@ func initAPI() {
 	beego.Router("/api/get-asset-ssh", &controllers.ApiController{}, "GET:GetAssetSsh")
 	beego.Router("/api/get-asset-vnc", &controllers.ApiController{}, "GET:GetAssetVnc")
 	beego.Router("/api/get-asset-rdp", &controllers.ApiController{}, "GET:GetAssetRdp")
+
+	beego.Router("/api/get-session-files", &controllers.ApiController{}, "GET:GetSessionFiles")
+	beego.Router("/api/download-session-file", &controllers.ApiController{}, "GET:DownloadSessionFile")
+	beego.Router("/api/upload-session-file", &controllers.ApiController{}, "POST:UploadSessionFile")
+	beego.Router("/api/create-session-dir", &controllers.ApiController{}, "POST:CreateSessionDir")
+	beego.Router("/api/rename-session-file", &controllers.ApiController{}, "POST:RenameSessionFile")
+	beego.Router("/api/delete-session-file", &controllers.ApiController{}, "POST:DeleteSessionFile")
+
+	beego.Router("/api/get-ssh-keys", &controllers.ApiController{}, "GET:GetSshKeys")
+	beego.Router("/api/add-ssh-key", &controllers.ApiController{}, "POST:AddSshKey")
+	beego.Router("/api/delete-ssh-key", &controllers.ApiController{}, "POST:DeleteSshKey")
+	beego.Router("/api/get-ssh-gateway", &controllers.ApiController{}, "GET:GetSshGateway")
 }

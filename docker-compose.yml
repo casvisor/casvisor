@@ -9,10 +9,12 @@ services:
     entrypoint: /bin/sh -c './server --createDatabase=true'
     ports:
       - "19000:19000"
+      - "2222:2222"
     depends_on:
       - db
     environment:
       RUNNING_IN_DOCKER: "true"
+      sshGatewayPort: "2222"
     volumes:
       - ./conf:/conf/
   db:

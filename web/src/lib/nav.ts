@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {FileCode, History, House, KeyRound, MonitorPlay, ScrollText, Server, type LucideIcon} from "lucide-react";
+import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, ScrollText, Server, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -42,6 +42,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
       label: i18next.t("general:Assets"),
       icon: Server,
       description: i18next.t("general:Machines can be connected via RDP, VNC or SSH"),
+    },
+    {
+      key: "/ssh-keys",
+      label: i18next.t("general:SSH keys"),
+      icon: KeySquare,
+      description: i18next.t("general:Connect to SSH assets with ssh, scp, sftp, Xshell or VS Code"),
     },
   ];
 

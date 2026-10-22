@@ -143,6 +143,67 @@
                 }
             }
         },
+        "/add-ssh-key": {
+            "post": {
+                "tags": [
+                    "SSH Key API"
+                ],
+                "description": "add an SSH public key for the signed-in user to sign in to the SSH gateway with",
+                "operationId": "ApiController.AddSshKey",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The SSH key object",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.SshKey"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/create-session-dir": {
+            "post": {
+                "tags": [
+                    "Session File API"
+                ],
+                "description": "create a directory on the asset of an SSH session",
+                "operationId": "ApiController.CreateSessionDir",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "description": "The absolute path of the new directory",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/delete-asset": {
             "post": {
                 "tags": [
@@ -249,6 +310,97 @@
                         "schema": {
                             "$ref": "#/definitions/Response"
                         }
+                    }
+                }
+            }
+        },
+        "/delete-session-file": {
+            "post": {
+                "tags": [
+                    "Session File API"
+                ],
+                "description": "delete a file, or a directory with everything in it, on the asset of an SSH session",
+                "operationId": "ApiController.DeleteSessionFile",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "description": "The absolute path of the file or directory",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/delete-ssh-key": {
+            "post": {
+                "tags": [
+                    "SSH Key API"
+                ],
+                "description": "delete an SSH public key of the signed-in user",
+                "operationId": "ApiController.DeleteSshKey",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The SSH key object",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.SshKey"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/download-session-file": {
+            "get": {
+                "tags": [
+                    "Session File API"
+                ],
+                "description": "download a file from the asset of an SSH session",
+                "operationId": "ApiController.DownloadSessionFile",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "description": "The absolute path of the file",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{file} file The file"
                     }
                 }
             }
@@ -466,6 +618,38 @@
                 }
             }
         },
+        "/get-session-files": {
+            "get": {
+                "tags": [
+                    "Session File API"
+                ],
+                "description": "list a directory on the asset of an SSH session, the home directory when path is empty",
+                "operationId": "ApiController.GetSessionFiles",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "description": "The absolute path of the directory",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.SessionFiles"
+                        }
+                    }
+                }
+            }
+        },
         "/get-sessions": {
             "get": {
                 "tags": [
@@ -499,6 +683,40 @@
                 }
             }
         },
+        "/get-ssh-gateway": {
+            "get": {
+                "tags": [
+                    "SSH Key API"
+                ],
+                "description": "get the address and host key fingerprint of the SSH gateway",
+                "operationId": "ApiController.GetSshGateway",
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.SshGateway"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-ssh-keys": {
+            "get": {
+                "tags": [
+                    "SSH Key API"
+                ],
+                "description": "get the SSH public keys of the signed-in user",
+                "operationId": "ApiController.GetSshKeys",
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.SshKey"
+                        }
+                    }
+                }
+            }
+        },
         "/get-users": {
             "get": {
                 "tags": [
@@ -511,6 +729,46 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/controllers.Principal"
+                        }
+                    }
+                }
+            }
+        },
+        "/rename-session-file": {
+            "post": {
+                "tags": [
+                    "Session File API"
+                ],
+                "description": "rename or move a file or directory on the asset of an SSH session",
+                "operationId": "ApiController.RenameSessionFile",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "description": "The absolute path of the file",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "newPath",
+                        "description": "The new absolute path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
                         }
                     }
                 }
@@ -655,6 +913,39 @@
                     }
                 }
             }
+        },
+        "/upload-session-file": {
+            "post": {
+                "tags": [
+                    "Session File API"
+                ],
+                "description": "upload files (form field \"files\") into a directory on the asset of an SSH session",
+                "operationId": "ApiController.UploadSessionFile",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "path",
+                        "description": "The absolute path of the directory",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -698,6 +989,64 @@
                 }
             }
         },
+        "controllers.SessionFile": {
+            "title": "SessionFile",
+            "type": "object",
+            "properties": {
+                "isDir": {
+                    "type": "boolean"
+                },
+                "isLink": {
+                    "type": "boolean"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "modifiedTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "controllers.SessionFiles": {
+            "title": "SessionFiles",
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/controllers.SessionFile"
+                    }
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.SshGateway": {
+            "title": "SshGateway",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                }
+            }
+        },
         "object": {
             "title": "object",
             "type": "object"
@@ -718,6 +1067,9 @@
                 "enableRemoteApp": {
                     "type": "boolean"
                 },
+                "fingerprint": {
+                    "type": "string"
+                },
                 "host": {
                     "type": "string"
                 },
@@ -736,6 +1088,9 @@
                 "port": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "privateKey": {
+                    "type": "string"
                 },
                 "protocol": {
                     "type": "string"
@@ -973,6 +1328,36 @@
                 "width": {
                     "type": "integer",
                     "format": "int64"
+                }
+            }
+        },
+        "object.SshKey": {
+            "title": "SshKey",
+            "type": "object",
+            "properties": {
+                "createdTime": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "lastUsedTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "publicKey": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
                 }
             }
         }

@@ -22,6 +22,7 @@ import (
 	"github.com/casvisor/casvisor/demo"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/routers"
+	"github.com/casvisor/casvisor/sshgateway"
 	"github.com/casvisor/casvisor/task"
 	"github.com/casvisor/casvisor/util"
 )
@@ -63,6 +64,7 @@ func main() {
 
 	task.NewTicker().SetupTicker()
 	demo.StartDemoTargets()
+	sshgateway.Start()
 
 	beego.Run()
 }

@@ -40,6 +40,18 @@ var userApis = map[string]bool{
 	"/api/get-asset-vnc":    true,
 	"/api/get-asset-rdp":    true,
 	"/api/start-session":    true,
+
+	"/api/get-session-files":     true,
+	"/api/download-session-file": true,
+	"/api/upload-session-file":   true,
+	"/api/create-session-dir":    true,
+	"/api/rename-session-file":   true,
+	"/api/delete-session-file":   true,
+
+	"/api/get-ssh-keys":    true,
+	"/api/add-ssh-key":     true,
+	"/api/delete-ssh-key":  true,
+	"/api/get-ssh-gateway": true,
 }
 
 func InitAuthz() {
