@@ -15,6 +15,8 @@
 package i18n
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"github.com/casvisor/casvisor/util"
@@ -36,26 +38,27 @@ func readI18nFile(language string) *I18nData {
 }
 
 func writeI18nFile(language string, data *I18nData) {
-	s := util.StructToJson(data)
-	println(s)
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetIndent("", "  ")
+	err := encoder.Encode(data)
+	if err != nil {
+		panic(err)
+	}
 
-	util.WriteStringToPath(s, getI18nFilePath(language))
+	util.WriteStringToPath(buf.String(), getI18nFilePath(language))
 }
 
-func applyData(data1 *I18nData, data2 *I18nData) {
-	for namespace, pairs2 := range *data2 {
-		if _, ok := (*data1)[namespace]; !ok {
-			continue
+func addMissingData(data *I18nData, words *I18nData) {
+	for namespace, pairs := range *words {
+		if _, ok := (*data)[namespace]; !ok {
+			(*data)[namespace] = map[string]string{}
 		}
 
-		pairs1 := (*data1)[namespace]
-
-		for key, value := range pairs2 {
-			if _, ok := pairs1[key]; !ok {
-				continue
+		for key, value := range pairs {
+			if _, ok := (*data)[namespace][key]; !ok {
+				(*data)[namespace][key] = value
 			}
-
-			pairs1[key] = value
 		}
 	}
 }

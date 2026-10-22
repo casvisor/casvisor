@@ -48,7 +48,8 @@
     "Rename": "重命名",
     "Upload": "上传",
     "Uploaded successfully": "上传成功",
-    "View Asset": "查看资产"
+    "View Asset": "查看资产",
+    "Waiting for server response...": "Waiting for server response..."
   },
   "command": {
     "Action": "动作",
@@ -148,7 +149,7 @@
     "Response - Tooltip": "响应 - 工具提示",
     "SSH keys": "SSH 公钥",
     "Save": "保存",
-    "Save & Exit": "保存并退出",
+    "Save \u0026 Exit": "保存并退出",
     "Search": "搜索",
     "Select all": "全选",
     "Selected": "已选择",
@@ -246,6 +247,12 @@
     "No SSH keys yet": "还没有添加 SSH 公钥",
     "Paste the content of ~/.ssh/id_ed25519.pub, or create a key with ssh-keygen -t ed25519": "粘贴 ~/.ssh/id_ed25519.pub 的内容，没有的话用 ssh-keygen -t ed25519 生成",
     "The SSH gateway is not enabled, set sshGatewayPort in conf/app.conf to enable it": "SSH 网关没有开启，在 conf/app.conf 里设置 sshGatewayPort 即可开启"
+  },
+  "theme": {
+    "Dark": "Dark",
+    "Light": "Light",
+    "System": "System",
+    "Theme": "Theme"
   },
   "user": {
     "Language": "语言"

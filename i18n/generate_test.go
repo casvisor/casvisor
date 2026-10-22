@@ -16,24 +16,12 @@ package i18n
 
 import "testing"
 
-func applyToOtherLanguage(dataEn *I18nData, lang string) {
-	dataOther := readI18nFile(lang)
-	println(dataOther)
-
-	applyData(dataEn, dataOther)
-	writeI18nFile(lang, dataEn)
-}
-
 func TestGenerateI18nStrings(t *testing.T) {
-	dataEn := parseToData()
-	writeI18nFile("en", dataEn)
+	words := parseToData()
 
-	applyToOtherLanguage(dataEn, "zh")
-	applyToOtherLanguage(dataEn, "fr")
-	applyToOtherLanguage(dataEn, "de")
-	applyToOtherLanguage(dataEn, "id")
-	applyToOtherLanguage(dataEn, "ja")
-	applyToOtherLanguage(dataEn, "ko")
-	applyToOtherLanguage(dataEn, "ru")
-	applyToOtherLanguage(dataEn, "es")
+	for _, lang := range []string{"en", "zh", "fr", "de", "id", "ja", "ko", "ru", "es"} {
+		data := readI18nFile(lang)
+		addMissingData(data, words)
+		writeI18nFile(lang, data)
+	}
 }

@@ -15,7 +15,6 @@
 package i18n
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -26,27 +25,35 @@ import (
 
 type I18nData map[string]map[string]string
 
-var reI18n *regexp.Regexp
+var (
+	reI18n         *regexp.Regexp
+	reLabelKey     *regexp.Regexp
+	reModeTitleKey *regexp.Regexp
+)
 
 func init() {
-	reI18n, _ = regexp.Compile("i18next.t\\(\"(.*?)\"\\)")
+	reI18n = regexp.MustCompile(`i18next\.t\(\s*(?:"([^"\n]+)"|` + "`([^`$\\n]+)`" + `)\s*[,)]`)
+	reLabelKey = regexp.MustCompile(`labelKey="([^"\n]+)"`)
+	reModeTitleKey = regexp.MustCompile(`getModeTitleKey\("([^"\n]+)"`)
 }
 
 func getAllI18nStrings(fileContent string) []string {
 	res := []string{}
 
-	matches := reI18n.FindAllStringSubmatch(fileContent, -1)
-	if matches == nil {
-		return res
+	for _, match := range reI18n.FindAllStringSubmatch(fileContent, -1) {
+		res = append(res, match[1]+match[2])
 	}
-
-	for _, match := range matches {
+	for _, match := range reLabelKey.FindAllStringSubmatch(fileContent, -1) {
 		res = append(res, match[1])
+	}
+	for _, match := range reModeTitleKey.FindAllStringSubmatch(fileContent, -1) {
+		key := match[1]
+		res = append(res, key, strings.Replace(key, ":Edit ", ":New ", 1), strings.Replace(key, ":Edit ", ":View ", 1))
 	}
 	return res
 }
 
-func getAllJsFilePaths() []string {
+func getAllSourceFilePaths() []string {
 	path := "../web/src"
 
 	res := []string{}
@@ -56,12 +63,19 @@ func getAllJsFilePaths() []string {
 				return err
 			}
 
-			if !strings.HasSuffix(info.Name(), ".js") {
+			if info.IsDir() {
+				if info.Name() == "locales" || info.Name() == "node_modules" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			ext := filepath.Ext(info.Name())
+			if ext != ".ts" && ext != ".tsx" {
 				return nil
 			}
 
 			res = append(res, path)
-			fmt.Println(path, info.Name())
 			return nil
 		})
 	if err != nil {
@@ -72,25 +86,22 @@ func getAllJsFilePaths() []string {
 }
 
 func parseToData() *I18nData {
-	allWords := []string{}
-	paths := getAllJsFilePaths()
-	for _, path := range paths {
-		fileContent := util.ReadStringFromPath(path)
-		words := getAllI18nStrings(fileContent)
-		allWords = append(allWords, words...)
-	}
-	fmt.Printf("%v\n", allWords)
-
 	data := I18nData{}
-	for _, word := range allWords {
-		tokens := strings.Split(word, ":")
-		namespace := tokens[0]
-		key := tokens[1]
+	for _, path := range getAllSourceFilePaths() {
+		fileContent := util.ReadStringFromPath(path)
+		for _, word := range getAllI18nStrings(fileContent) {
+			tokens := strings.SplitN(word, ":", 2)
+			if len(tokens) != 2 || tokens[0] == "" || tokens[1] == "" {
+				continue
+			}
 
-		if _, ok := data[namespace]; !ok {
-			data[namespace] = map[string]string{}
+			namespace := tokens[0]
+			key := tokens[1]
+			if _, ok := data[namespace]; !ok {
+				data[namespace] = map[string]string{}
+			}
+			data[namespace][key] = key
 		}
-		data[namespace][key] = key
 	}
 
 	return &data
