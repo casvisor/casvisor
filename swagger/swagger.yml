@@ -37,6 +37,24 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/Response'
+  /add-command-rule:
+    post:
+      tags:
+      - Command Rule API
+      description: add a command rule
+      operationId: ApiController.AddCommandRule
+      parameters:
+      - in: body
+        name: body
+        description: The details of the command rule
+        required: true
+        schema:
+          $ref: '#/definitions/object.CommandRule'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /add-permission:
     post:
       tags:
@@ -144,6 +162,24 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.Asset'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /delete-command-rule:
+    post:
+      tags:
+      - Command Rule API
+      description: delete a command rule
+      operationId: ApiController.DeleteCommandRule
+      parameters:
+      - in: body
+        name: body
+        description: The details of the command rule
+        required: true
+        schema:
+          $ref: '#/definitions/object.CommandRule'
       responses:
         "200":
           description: The Response object
@@ -301,6 +337,67 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.Asset'
+  /get-command-rule:
+    get:
+      tags:
+      - Command Rule API
+      description: get command rule
+      operationId: ApiController.GetCommandRule
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the command rule
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.CommandRule'
+  /get-command-rules:
+    get:
+      tags:
+      - Command Rule API
+      description: get all command rules
+      operationId: ApiController.GetCommandRules
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of command rules
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.CommandRule'
+  /get-commands:
+    get:
+      tags:
+      - Command API
+      description: get the commands run in SSH sessions, by page
+      operationId: ApiController.GetCommands
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the commands
+        required: true
+        type: string
+      - in: query
+        name: pageSize
+        description: The size of each page
+        required: true
+        type: string
+      - in: query
+        name: p
+        description: The number of the page
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.Command'
   /get-groups:
     get:
       tags:
@@ -423,6 +520,18 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.SessionFiles'
+  /get-session-monitor:
+    get:
+      tags:
+      - Session API
+      description: watch a connected SSH session live over a websocket, read only
+      operationId: ApiController.GetSessionMonitor
+      parameters:
+      - in: query
+        name: id
+        description: The id of the session
+        required: true
+        type: string
   /get-sessions:
     get:
       tags:
@@ -523,6 +632,29 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.Asset'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /update-command-rule:
+    post:
+      tags:
+      - Command Rule API
+      description: update command rule
+      operationId: ApiController.UpdateCommandRule
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the command rule
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The details of the command rule
+        required: true
+        schema:
+          $ref: '#/definitions/object.CommandRule'
       responses:
         "200":
           description: The Response object
@@ -730,6 +862,68 @@ definitions:
         type: string
       username:
         type: string
+  object.Command:
+    title: Command
+    type: object
+    properties:
+      action:
+        type: string
+      asset:
+        type: string
+      clientIp:
+        type: string
+      createdTime:
+        type: string
+      name:
+        type: string
+      owner:
+        type: string
+      rule:
+        type: string
+      session:
+        type: string
+      text:
+        type: string
+      user:
+        type: string
+  object.CommandRule:
+    title: CommandRule
+    type: object
+    properties:
+      action:
+        type: string
+      assetTags:
+        type: array
+        items:
+          type: string
+      assets:
+        type: array
+        items:
+          type: string
+      createdTime:
+        type: string
+      description:
+        type: string
+      displayName:
+        type: string
+      groups:
+        type: array
+        items:
+          type: string
+      isEnabled:
+        type: boolean
+      name:
+        type: string
+      owner:
+        type: string
+      pattern:
+        type: string
+      updatedTime:
+        type: string
+      users:
+        type: array
+        items:
+          type: string
   object.Permission:
     title: Permission
     type: object

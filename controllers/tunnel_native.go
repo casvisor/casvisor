@@ -173,6 +173,15 @@ func setSessionConnected(sessionId string, session *object.Session, width int, h
 	return nil
 }
 
+// addLiveSession lets the session be disconnected once the user loses the permission to the asset.
+func (c *ApiController) addLiveSession(sessionId string, asset *object.Asset) {
+	object.AddLiveSession(sessionId, &object.LiveSession{
+		User:     c.GetSessionUser(),
+		AssetId:  asset.GetId(),
+		ClientIp: c.getAuthzClientIp(),
+	})
+}
+
 func closeTunnelSession(sessionId string, msg string) {
 	object.RemoveSessionCloser(sessionId)
 	err := object.CloseSession(sessionId, Normal, msg)

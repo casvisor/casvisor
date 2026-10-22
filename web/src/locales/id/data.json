@@ -29,6 +29,18 @@
     "Upload": "Upload",
     "Uploaded successfully": "Uploaded successfully"
   },
+  "command": {
+    "Action": "Action",
+    "Alert": "Alert",
+    "Block": "Block",
+    "Command": "Command",
+    "Edit Command Rule": "Edit Command Rule",
+    "New Command Rule": "New Command Rule",
+    "Pattern": "Pattern",
+    "Pattern - Tooltip": "A regular expression, matched anywhere in the command, for example ^\\s*rm\\s+-rf\\s+/\\s*$",
+    "Rule": "Rule",
+    "View Command Rule": "View Command Rule"
+  },
   "general": {
     "Action": "Action",
     "Action - Tooltip": "Action - Tooltip",
@@ -38,10 +50,14 @@
     "Assets": "Assets",
     "Audit logs": "Audit logs",
     "Back Home": "Back Home",
+    "Block or flag dangerous commands in SSH sessions": "Block or flag dangerous commands in SSH sessions",
     "Cancel": "Cancel",
     "Client IP": "Client IP",
     "Client IP - Tooltip": "Client IP - Tooltip",
     "Close": "Close",
+    "Command rules": "Command rules",
+    "Commands": "Commands",
+    "Commands run in SSH sessions": "Commands run in SSH sessions",
     "Connect": "Connect",
     "Connect to SSH assets with ssh, scp, sftp, Xshell or VS Code": "Connect to SSH assets with ssh, scp, sftp, Xshell or VS Code",
     "Connection duration": "Connection duration",
@@ -101,6 +117,7 @@
     "SSH keys": "SSH keys",
     "Save": "Save",
     "Save & Exit": "Save & Exit",
+    "Session": "Session",
     "Sessions": "Sessions",
     "Sorry, you do not have permission to access this page or logged in status invalid.": "Sorry, you do not have permission to access this page or logged in status invalid.",
     "Stop": "Stop",
@@ -115,6 +132,7 @@
     "Tag": "Tag",
     "Tag - Tooltip": "Tag - Tooltip",
     "This is a read-only demo site!": "This is a read-only demo site!",
+    "Time": "Time",
     "User": "User",
     "User - Tooltip": "User - Tooltip",
     "User agent": "User agent",
@@ -164,7 +182,10 @@
     "View Record": "View Record"
   },
   "session": {
+    "Ended": "Ended",
     "History": "History",
+    "Live": "Live",
+    "Monitor": "Monitor",
     "Online": "Online"
   },
   "sshKey": {

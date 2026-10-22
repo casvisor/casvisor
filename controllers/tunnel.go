@@ -215,6 +215,7 @@ func (c *ApiController) GetAssetTunnel() {
 
 	guacSession.Observer = guacamole.NewObserver(sessionId)
 	guacamole.GlobalSessionManager.Add(guacSession)
+	c.addLiveSession(sessionId, asset)
 
 	session.ConnectionId = tunnel.ConnectionID
 	session.Width = intWidth

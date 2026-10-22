@@ -263,6 +263,7 @@ func CloseSession(id string, code int, msg string) error {
 	}
 	guacamole.GlobalSessionManager.Delete(id)
 	closeNativeSession(id, code, msg)
+	removeLiveSession(id)
 
 	err := CloseDBSession(id, code, msg)
 	if err != nil {

@@ -65,6 +65,7 @@ func main() {
 	task.NewTicker().SetupTicker()
 	demo.StartDemoTargets()
 	sshgateway.Start()
+	object.StartLiveSessionChecker()
 
 	beego.Run()
 }

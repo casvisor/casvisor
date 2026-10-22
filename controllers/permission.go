@@ -113,7 +113,11 @@ func (c *ApiController) UpdatePermission() {
 		return
 	}
 
-	c.Data["json"] = wrapActionResponse(object.UpdatePermission(id, &permission))
+	affected, err := object.UpdatePermission(id, &permission)
+	if err == nil {
+		go object.CheckLiveSessions()
+	}
+	c.Data["json"] = wrapActionResponse(affected, err)
 	c.ServeJSON()
 }
 
@@ -155,7 +159,11 @@ func (c *ApiController) DeletePermission() {
 		return
 	}
 
-	c.Data["json"] = wrapActionResponse(object.DeletePermission(&permission))
+	affected, err := object.DeletePermission(&permission)
+	if err == nil {
+		go object.CheckLiveSessions()
+	}
+	c.Data["json"] = wrapActionResponse(affected, err)
 	c.ServeJSON()
 }
 

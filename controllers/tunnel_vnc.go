@@ -68,6 +68,7 @@ func (c *ApiController) GetAssetVnc() {
 		stream.Close(code, msg)
 		_ = conn.Close()
 	})
+	c.addLiveSession(sessionId, asset)
 
 	go func() {
 		_, _ = io.Copy(stream, conn)

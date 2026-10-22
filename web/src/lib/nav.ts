@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, ScrollText, Server, type LucideIcon} from "lucide-react";
+import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, ScrollText, Server, ShieldAlert, SquareTerminal, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -64,6 +64,18 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         label: i18next.t("general:Sessions"),
         icon: History,
         description: i18next.t("general:Active or history connection sessions"),
+      },
+      {
+        key: "/commands",
+        label: i18next.t("general:Commands"),
+        icon: SquareTerminal,
+        description: i18next.t("general:Commands run in SSH sessions"),
+      },
+      {
+        key: "/command-rules",
+        label: i18next.t("general:Command rules"),
+        icon: ShieldAlert,
+        description: i18next.t("general:Block or flag dangerous commands in SSH sessions"),
       },
       {
         key: "/records",

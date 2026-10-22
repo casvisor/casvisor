@@ -76,6 +76,7 @@ export default function App() {
         {/* the remote desktops take the whole window, without the console around them */}
         <Route path="/access/:owner/:name" element={<RequireAuth>{page("AccessPage")}</RequireAuth>} />
         <Route path="/workbench" element={<RequireAuth>{page("WorkbenchPage")}</RequireAuth>} />
+        <Route path="/sessions/:owner/:name/monitor" element={<RequireAuth>{page("SessionMonitorPage")}</RequireAuth>} />
 
         <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
           <Route path="/" element={page("HomePage")} />
@@ -84,6 +85,9 @@ export default function App() {
           <Route path="/permissions" element={page("PermissionListPage")} />
           <Route path="/permissions/:owner/:name" element={page("PermissionEditPage")} />
           <Route path="/sessions" element={page("SessionListPage")} />
+          <Route path="/commands" element={page("CommandListPage")} />
+          <Route path="/command-rules" element={page("CommandRuleListPage")} />
+          <Route path="/command-rules/:owner/:name" element={page("CommandRuleEditPage")} />
           <Route path="/records" element={page("RecordListPage")} />
           <Route path="/records/:owner/:name" element={page("RecordEditPage")} />
           <Route path="/ssh-keys" element={page("SshKeyListPage")} />

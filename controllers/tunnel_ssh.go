@@ -16,10 +16,10 @@ package controllers
 
 import (
 	"encoding/json"
-	"io"
 	"strconv"
 
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/terminal"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
 )
@@ -84,8 +84,26 @@ func (c *ApiController) GetAssetSsh() {
 		fail(NewTunnelError, err)
 		return
 	}
-	sshSession.Stdout = stream
-	sshSession.Stderr = stream
+	recorder := terminal.NewRecorder(terminal.Options{
+		SessionId: sessionId,
+		User:      c.GetSessionUser(),
+		Asset:     asset,
+		ClientIp:  c.getAuthzClientIp(),
+		Cols:      cols,
+		Rows:      rows,
+		Send: func(p []byte) error {
+			_, err := stdin.Write(p)
+			return err
+		},
+		Notify: func(p []byte) {
+			_, _ = stream.Write(p)
+		},
+	})
+	defer recorder.Close()
+
+	output := recordedWriter{stream: stream, recorder: recorder}
+	sshSession.Stdout = output
+	sshSession.Stderr = output
 
 	modes := ssh.TerminalModes{
 		ssh.ECHO:          1,
@@ -110,6 +128,7 @@ func (c *ApiController) GetAssetSsh() {
 	}
 	registerSessionSsh(sessionId, client)
 	defer unregisterSessionSsh(sessionId)
+	c.addLiveSession(sessionId, asset)
 	object.AddSessionCloser(sessionId, func(code int, msg string) {
 		_ = stream.WriteJSON(terminalMessage{Type: "error", Code: code, Message: msg})
 		stream.Close(code, msg)
@@ -139,10 +158,11 @@ func (c *ApiController) GetAssetSsh() {
 
 		switch message.Type {
 		case "data":
-			_, err = io.WriteString(stdin, message.Data)
+			recorder.Input([]byte(message.Data))
 		case "resize":
 			if message.Cols > 0 && message.Rows > 0 {
 				err = sshSession.WindowChange(message.Rows, message.Cols)
+				recorder.Resize(message.Cols, message.Rows)
 			}
 		}
 		if err != nil {
@@ -151,4 +171,15 @@ func (c *ApiController) GetAssetSsh() {
 	}
 
 	closeTunnelSession(sessionId, "Normal user exit")
+}
+
+// recordedWriter sends the asset's output to the browser and to the recorder.
+type recordedWriter struct {
+	stream   *wsStream
+	recorder *terminal.Recorder
+}
+
+func (w recordedWriter) Write(p []byte) (int, error) {
+	w.recorder.Output(p)
+	return w.stream.Write(p)
 }

@@ -117,6 +117,17 @@ export default function SessionListPage() {
       render: (value) => <span className="whitespace-nowrap tabular-nums text-muted-foreground">{Setting.getFormattedDate(value)}</span>,
     },
     {
+      dataIndex: "commandCount",
+      title: i18next.t("general:Commands"),
+      width: 110,
+      render: (value, session) =>
+        session.protocol === "SSH" ? (
+          <Link to={`/commands?session=${encodeURIComponent(Setting.getIdFromObject(session))}`} className="tabular-nums underline-offset-4 hover:underline">
+            {value ?? 0}
+          </Link>
+        ) : null,
+    },
+    {
       key: "duration",
       dataIndex: "startTimeDur",
       title: i18next.t("general:Connection duration"),
@@ -138,8 +149,17 @@ export default function SessionListPage() {
       deps={[owner, status]}
       tableId={`/sessions/${status}`}
       remove={isOnline ? undefined : SessionBackend.deleteSession}
-      actionColumnWidth={120}
+      actionColumnWidth={200}
       rowActions={(session, _index, {refresh}) => [
+        isOnline && session.protocol === "SSH" && (session.mode === "native" || session.mode === "gateway")
+          ? {
+            key: "monitor",
+            label: i18next.t("session:Monitor"),
+            onSelect: () => {
+              window.open(`/sessions/${session.owner}/${session.name}/monitor`, "_blank");
+            },
+          }
+          : null,
         isOnline
           ? {
             key: "stop",

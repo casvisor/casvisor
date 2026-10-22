@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/terminal"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -48,11 +49,12 @@ type sessionChannel struct {
 	g    *gatewayConn
 	down ssh.Channel
 
-	mu      sync.Mutex
-	up      ssh.Channel
-	pty     *ptyRequest
-	envs    [][]byte
-	started bool
+	mu       sync.Mutex
+	up       ssh.Channel
+	pty      *ptyRequest
+	envs     [][]byte
+	started  bool
+	recorder *terminal.Recorder
 }
 
 func (g *gatewayConn) handleSession(newChannel ssh.NewChannel) {
@@ -65,11 +67,17 @@ func (g *gatewayConn) handleSession(newChannel ssh.NewChannel) {
 	for req := range reqs {
 		s.mu.Lock()
 		up := s.up
+		recorder := s.recorder
 		if up != nil {
 			s.mu.Unlock()
 			ok, _ := up.SendRequest(req.Type, req.WantReply, req.Payload)
 			if req.WantReply {
 				_ = req.Reply(ok, nil)
+			}
+
+			size := &windowChange{}
+			if recorder != nil && req.Type == "window-change" && ssh.Unmarshal(req.Payload, size) == nil {
+				recorder.Resize(int(size.Cols), int(size.Rows))
 			}
 			continue
 		}
@@ -149,6 +157,21 @@ func (s *sessionChannel) start(req *ssh.Request) {
 			return
 		}
 
+		_, err = s.g.getClient()
+		if err != nil {
+			s.fail(req, err.Error())
+			return
+		}
+		rule, err := terminal.CheckCommand(s.g.getSessionId(), s.g.user, s.g.getAsset(), s.g.clientIp, payload.Command)
+		if err != nil {
+			s.fail(req, err.Error())
+			return
+		}
+		if rule != nil {
+			s.fail(req, terminal.GetBlockedMessage(rule))
+			return
+		}
+
 		s.openUpstream(req.Type, req.Payload, req)
 	case "shell":
 		if s.g.getAsset() == nil {
@@ -202,30 +225,64 @@ func (s *sessionChannel) openUpstream(reqType string, payload []byte, req *ssh.R
 		return
 	}
 	s.up = up
+	// an interactive shell is followed on a virtual screen, for its commands and for live watching
+	var recorder *terminal.Recorder
+	if reqType == "shell" && s.pty != nil {
+		recorder = terminal.NewRecorder(terminal.Options{
+			SessionId: s.g.getSessionId(),
+			User:      s.g.user,
+			Asset:     s.g.getAsset(),
+			ClientIp:  s.g.clientIp,
+			Cols:      int(s.pty.Cols),
+			Rows:      int(s.pty.Rows),
+			Send: func(p []byte) error {
+				_, err := up.Write(p)
+				return err
+			},
+			Notify: func(p []byte) {
+				_, _ = s.down.Write(p)
+			},
+		})
+		defer recorder.Close()
+		s.recorder = recorder
+	}
 	s.mu.Unlock()
 
 	if req != nil {
 		_ = req.Reply(true, nil)
 	}
-	if reqType == "exec" {
-		var exec struct{ Command string }
-		if ssh.Unmarshal(payload, &exec) == nil {
-			s.g.audit("ssh-exec", exec.Command)
-		}
+
+	var stdout, stderr io.Writer = s.down, s.down.Stderr()
+	if recorder != nil {
+		stdout = recordedWriter{w: s.down, recorder: recorder}
+		stderr = recordedWriter{w: s.down.Stderr(), recorder: recorder}
 	}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		_, _ = io.Copy(s.down, up)
+		_, _ = io.Copy(stdout, up)
 		wg.Done()
 	}()
 	go func() {
-		_, _ = io.Copy(s.down.Stderr(), up.Stderr())
+		_, _ = io.Copy(stderr, up.Stderr())
 		wg.Done()
 	}()
 	go func() {
-		_, _ = io.Copy(up, s.down)
+		if recorder == nil {
+			_, _ = io.Copy(up, s.down)
+		} else {
+			buf := make([]byte, 32*1024)
+			for {
+				n, err := s.down.Read(buf)
+				if n > 0 {
+					recorder.Input(buf[:n])
+				}
+				if err != nil {
+					break
+				}
+			}
+		}
 		_ = up.CloseWrite()
 	}()
 
@@ -352,4 +409,15 @@ func getForwardDestination(channelType string, extraData []byte) string {
 		}
 	}
 	return channelType
+}
+
+// recordedWriter sends the asset's output to the client and to the recorder.
+type recordedWriter struct {
+	w        io.Writer
+	recorder *terminal.Recorder
+}
+
+func (w recordedWriter) Write(p []byte) (int, error) {
+	w.recorder.Output(p)
+	return w.w.Write(p)
 }

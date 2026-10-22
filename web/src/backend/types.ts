@@ -126,3 +126,32 @@ export interface SessionFile {
   isLink: boolean;
   modifiedTime: string;
 }
+
+export interface CommandRule {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  pattern: string;
+  action: string;
+  users: string[] | null;
+  groups: string[] | null;
+  assets: string[] | null;
+  assetTags: string[] | null;
+  isEnabled: boolean;
+}
+
+export interface Command {
+  owner: string;
+  name: string;
+  createdTime: string;
+  session: string;
+  asset: string;
+  user: string;
+  clientIp: string;
+  text: string;
+  action: string;
+  rule: string;
+}

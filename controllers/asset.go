@@ -150,7 +150,11 @@ func (c *ApiController) UpdateAsset() {
 		return
 	}
 
-	c.Data["json"] = wrapActionResponse(object.UpdateAsset(id, &asset))
+	affected, err := object.UpdateAsset(id, &asset)
+	if err == nil {
+		go object.CheckLiveSessions()
+	}
+	c.Data["json"] = wrapActionResponse(affected, err)
 	c.ServeJSON()
 }
 
@@ -192,6 +196,10 @@ func (c *ApiController) DeleteAsset() {
 		return
 	}
 
-	c.Data["json"] = wrapActionResponse(object.DeleteAsset(&asset))
+	affected, err := object.DeleteAsset(&asset)
+	if err == nil {
+		go object.CheckLiveSessions()
+	}
+	c.Data["json"] = wrapActionResponse(affected, err)
 	c.ServeJSON()
 }

@@ -62,6 +62,14 @@ func initAPI() {
 	beego.Router("/api/delete-session", &controllers.ApiController{}, "POST:DeleteSession")
 	beego.Router("/api/start-session", &controllers.ApiController{}, "POST:StartSession")
 	beego.Router("/api/stop-session", &controllers.ApiController{}, "POST:StopSession")
+	beego.Router("/api/get-session-monitor", &controllers.ApiController{}, "GET:GetSessionMonitor")
+
+	beego.Router("/api/get-command-rules", &controllers.ApiController{}, "GET:GetCommandRules")
+	beego.Router("/api/get-command-rule", &controllers.ApiController{}, "GET:GetCommandRule")
+	beego.Router("/api/update-command-rule", &controllers.ApiController{}, "POST:UpdateCommandRule")
+	beego.Router("/api/add-command-rule", &controllers.ApiController{}, "POST:AddCommandRule")
+	beego.Router("/api/delete-command-rule", &controllers.ApiController{}, "POST:DeleteCommandRule")
+	beego.Router("/api/get-commands", &controllers.ApiController{}, "GET:GetCommands")
 
 	beego.Router("/api/add-asset-tunnel", &controllers.ApiController{}, "POST:AddAssetTunnel")
 	beego.Router("/api/get-asset-tunnel", &controllers.ApiController{}, "GET:GetAssetTunnel")

@@ -50,6 +50,18 @@
     "Uploaded successfully": "上传成功",
     "View Asset": "查看资产"
   },
+  "command": {
+    "Action": "动作",
+    "Alert": "告警",
+    "Block": "拦截",
+    "Command": "命令",
+    "Edit Command Rule": "编辑命令规则",
+    "New Command Rule": "新建命令规则",
+    "Pattern": "匹配规则",
+    "Pattern - Tooltip": "正则表达式，命令里任何位置匹配上就算，例如 ^\\s*rm\\s+-rf\\s+/\\s*$",
+    "Rule": "规则",
+    "View Command Rule": "查看命令规则"
+  },
   "general": {
     "Action": "操作",
     "Action - Tooltip": "操作 - 工具提示",
@@ -59,12 +71,16 @@
     "Assets": "资产",
     "Audit logs": "审计日志",
     "Back Home": "返回首页",
+    "Block or flag dangerous commands in SSH sessions": "拦截或标记 SSH 会话里的危险命令",
     "Cancel": "取消",
     "Cancelled successfully": "已取消",
     "Client IP": "客户端IP",
     "Client IP - Tooltip": "客户端IP - 工具提示",
     "Close": "关闭",
     "Columns": "列",
+    "Command rules": "命令规则",
+    "Commands": "命令记录",
+    "Commands run in SSH sessions": "SSH 会话里执行过的命令",
     "Connect": "连接",
     "Connect to SSH assets with ssh, scp, sftp, Xshell or VS Code": "用 ssh、scp、sftp、Xshell 或 VS Code 连接 SSH 资产",
     "Connection duration": "连接持续时间",
@@ -136,6 +152,7 @@
     "Search": "搜索",
     "Select all": "全选",
     "Selected": "已选择",
+    "Session": "会话",
     "Sessions": "会话",
     "Sorry, the page you visited does not exist.": "抱歉，您访问的页面不存在。",
     "Sorry, you do not have permission to access this page or logged in status invalid.": "抱歉，您没有权限访问此页面或登录状态无效。",
@@ -152,6 +169,7 @@
     "Tag": "标签",
     "Tag - Tooltip": "标签 - 工具提示",
     "This is a read-only demo site!": "这是一个只读的演示站点！",
+    "Time": "时间",
     "Up": "上移",
     "User": "用户",
     "User - Tooltip": "用户 - 工具提示",
@@ -211,7 +229,10 @@
     "View Record": "查看日志"
   },
   "session": {
+    "Ended": "已结束",
     "History": "历史",
+    "Live": "实时",
+    "Monitor": "旁观",
     "Online": "在线"
   },
   "sshKey": {

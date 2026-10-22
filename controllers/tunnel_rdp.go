@@ -111,6 +111,7 @@ func (c *ApiController) GetAssetRdp() {
 		_ = client.Close()
 		stream.Close(code, msg)
 	})
+	c.addLiveSession(sessionId, asset)
 
 	w, h := client.DesktopSize()
 	writeMu.Lock()

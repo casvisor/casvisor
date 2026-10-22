@@ -178,6 +178,12 @@ func (g *gatewayConn) getAsset() *object.Asset {
 	return g.asset
 }
 
+func (g *gatewayConn) getSessionId() string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.sessionId
+}
+
 func (g *gatewayConn) can(action string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -240,6 +246,16 @@ func (g *gatewayConn) connect() (*ssh.Client, bool, error) {
 	g.sessionId = session.GetId()
 	object.AddSessionCloser(g.sessionId, func(code int, msg string) {
 		_ = g.conn.Close()
+	})
+	object.AddLiveSession(g.sessionId, &object.LiveSession{
+		User:     g.user,
+		AssetId:  g.asset.GetId(),
+		ClientIp: g.clientIp,
+		OnActions: func(actions []string) {
+			g.mu.Lock()
+			defer g.mu.Unlock()
+			g.actions = actions
+		},
 	})
 	go func() {
 		_ = client.Wait()
