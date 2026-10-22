@@ -18,8 +18,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/beego/beego/logs"
 	"github.com/beego/beego/utils/pagination"
+	"github.com/casvisor/casvisor/agent"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/sshgateway"
 	"github.com/casvisor/casvisor/util"
 )
 
@@ -261,4 +264,23 @@ func (c *ApiController) RevokeNetworkGatewayToken() {
 	}
 
 	c.ResponseOk()
+}
+
+// ConnectAgent
+// @Title ConnectAgent
+// @Tag Network Gateway API
+// @Description the WebSocket endpoint that network gateway agents connect to, carrying an SSH connection signed in with the agent token
+// @Success 101 {string} Switching Protocols
+// @router /connect-agent [get]
+func (c *ApiController) ConnectAgent() {
+	c.EnableRender = false
+	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	if err != nil {
+		return
+	}
+
+	err = sshgateway.ServeAgentConn(agent.NewWebSocketConn(ws), c.getAuthzClientIp())
+	if err != nil {
+		logs.Info(fmt.Sprintf("agent from %s refused: %s", c.getAuthzClientIp(), err.Error()))
+	}
 }

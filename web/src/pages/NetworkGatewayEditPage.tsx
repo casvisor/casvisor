@@ -17,6 +17,7 @@ import i18next from "i18next";
 import {Copy} from "lucide-react";
 import {useNavigate, useParams} from "react-router-dom";
 import * as NetworkGatewayBackend from "@/backend/NetworkGatewayBackend";
+import * as SshKeyBackend from "@/backend/SshKeyBackend";
 import type {NetworkGateway} from "@/backend/types";
 import {Button} from "@/components/ui/button";
 import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog";
@@ -32,7 +33,7 @@ import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
-import {copyText, getGatewayHost, useSshGateway} from "@/lib/gateway";
+import {copyText} from "@/lib/gateway";
 import * as Setting from "@/lib/setting";
 import {NetworkGatewayStatus} from "@/pages/NetworkGatewayListPage";
 import NotFoundPage from "@/pages/NotFoundPage";
@@ -54,7 +55,7 @@ export default function NetworkGatewayEditPage() {
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
   const [token, setToken] = React.useState("");
-  const sshGateway = useSshGateway();
+  const [hostKeyFingerprint, setHostKeyFingerprint] = React.useState("");
 
   const {record: gateway, updateField, updateFields, loading, notFound, denied, mode} = useEditRecord<NetworkGateway>({
     fetch: () => NetworkGatewayBackend.getNetworkGateway(owner, name),
@@ -62,6 +63,18 @@ export default function NetworkGatewayEditPage() {
   });
 
   const isAgent = gateway?.type === "Agent";
+
+  // Agents check Casvisor's SSH host key, whichever way they connect.
+  React.useEffect(() => {
+    if (!isAgent) {
+      return;
+    }
+    SshKeyBackend.getSshGateway().then((res) => {
+      if (res?.status === "ok") {
+        setHostKeyFingerprint(res.data.fingerprint);
+      }
+    }).catch(() => {});
+  }, [isAgent]);
 
   // Keeps the agent's status current while the page is open.
   React.useEffect(() => {
@@ -156,15 +169,13 @@ export default function NetworkGatewayEditPage() {
     }
   };
 
-  const agentCommand = sshGateway
-    ? `casvisor agent --server ${getGatewayHost(sshGateway)}:${sshGateway.port} --token ${token} --fingerprint ${sshGateway.fingerprint}`
-    : "";
+  const agentCommand = `casvisor agent --server ${window.location.origin} --token ${token} --fingerprint ${hostKeyFingerprint}`;
 
   return (
     <EditPageShell
       title={i18next.t(getModeTitleKey("networkGateway:Edit Network Gateway", mode))}
       description={isAgent
-        ? i18next.t("networkGateway:An agent in the other network connects out to the SSH gateway port of Casvisor and keeps the connection open, Casvisor reaches the assets that use the gateway through it")
+        ? i18next.t("networkGateway:An agent in the other network connects out to Casvisor over HTTPS and keeps the connection open, Casvisor reaches the assets that use the gateway through it")
         : i18next.t("networkGateway:Casvisor connects to the gateway over SSH and reaches the assets that use it from there, the gateway needs AllowTcpForwarding")}
       mode={mode}
       backTo="/network-gateways"
@@ -326,13 +337,7 @@ export default function NetworkGatewayEditPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {sshGateway ? (
-              <CommandLine command={agentCommand} />
-            ) : (
-              <p className="text-sm text-destructive">
-                {i18next.t("networkGateway:Agents connect to the SSH gateway, set sshGatewayPort in conf/app.conf to enable it")}
-              </p>
-            )}
+            <CommandLine command={agentCommand} />
             <div className="space-y-1">
               <div className="text-sm font-medium">{i18next.t("networkGateway:Token")}</div>
               <CommandLine command={token} />

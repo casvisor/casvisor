@@ -130,14 +130,15 @@ func (c *ApiController) GetSshGateway() {
 	if res.Enabled {
 		res.Host = conf.GetConfigString("sshGatewayHost")
 		res.Port = conf.GetConfigString("sshGatewayPort")
-
-		signer, err := object.GetSshHostKeySigner()
-		if err != nil {
-			c.ResponseError(err.Error())
-			return
-		}
-		res.Fingerprint = ssh.FingerprintSHA256(signer.PublicKey())
 	}
+
+	// Agents check the same host key when they connect over the web server.
+	signer, err := object.GetSshHostKeySigner()
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	res.Fingerprint = ssh.FingerprintSHA256(signer.PublicKey())
 
 	c.ResponseOk(res)
 }

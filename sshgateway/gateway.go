@@ -83,13 +83,52 @@ func listen(port string) error {
 	}
 }
 
+func checkAgentKey(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+	if meta.User() != agent.Username {
+		return nil, fmt.Errorf("only agents connect here")
+	}
+	gateway, err := object.GetNetworkGatewayByAgentKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return &ssh.Permissions{Extensions: map[string]string{agentExtension: gateway.GetId(), agentKeyExtension: gateway.AgentKey}}, nil
+}
+
+// ServeAgentConn serves an agent that came in over the web server instead of the SSH gateway port.
+func ServeAgentConn(conn net.Conn, ip string) error {
+	if conf.GetConfigBool("isDemoMode") {
+		_ = conn.Close()
+		return fmt.Errorf("agents are not accepted in demo mode")
+	}
+
+	signer, err := object.GetSshHostKeySigner()
+	if err != nil {
+		_ = conn.Close()
+		return err
+	}
+	config := &ssh.ServerConfig{
+		PublicKeyCallback: checkAgentKey,
+		ServerVersion:     "SSH-2.0-Casvisor",
+	}
+	config.AddHostKey(signer)
+
+	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
+	serverConn, chans, reqs, err := ssh.NewServerConn(conn, config)
+	if err != nil {
+		_ = conn.Close()
+		return err
+	}
+	_ = conn.SetDeadline(time.Time{})
+	defer serverConn.Close()
+
+	extensions := serverConn.Permissions.Extensions
+	serveAgent(extensions[agentExtension], extensions[agentKeyExtension], serverConn, chans, reqs, ip)
+	return nil
+}
+
 func checkPublicKey(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 	if meta.User() == agent.Username {
-		gateway, err := object.GetNetworkGatewayByAgentKey(key)
-		if err != nil {
-			return nil, err
-		}
-		return &ssh.Permissions{Extensions: map[string]string{agentExtension: gateway.GetId(), agentKeyExtension: gateway.AgentKey}}, nil
+		return checkAgentKey(meta, key)
 	}
 
 	sshKey, err := object.GetSshKeyByFingerprint(ssh.FingerprintSHA256(key))

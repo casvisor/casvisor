@@ -283,6 +283,20 @@
                 }
             }
         },
+        "/connect-agent": {
+            "get": {
+                "tags": [
+                    "Network Gateway API"
+                ],
+                "description": "the WebSocket endpoint that network gateway agents connect to, carrying an SSH connection signed in with the agent token",
+                "operationId": "ApiController.ConnectAgent",
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols"
+                    }
+                }
+            }
+        },
         "/create-session-dir": {
             "post": {
                 "tags": [

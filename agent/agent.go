@@ -40,6 +40,7 @@ const (
 
 type client struct {
 	server      string
+	wsUrl       string
 	fingerprint string
 	signer      ssh.Signer
 	local       []*net.IPNet
@@ -48,11 +49,12 @@ type client struct {
 	remote []*net.IPNet
 }
 
-// Main runs "casvisor agent --server <host:port> --token <token> --fingerprint <SHA256:...>".
+// Main runs "casvisor agent --server <https://casvisor.example.com or host:port> --token <token> --fingerprint <SHA256:...>".
 func Main(args []string) {
 	flags := flag.NewFlagSet("casvisor agent", flag.ExitOnError)
-	server := flags.String("server", "", "address of Casvisor's SSH gateway, host:port")
+	server := flags.String("server", "", "Casvisor's web address, https://casvisor.example.com, or its SSH gateway, host:port")
 	token := flags.String("token", "", "token of the network gateway, or set CASVISOR_AGENT_TOKEN")
+	tokenFile := flags.String("token-file", "", "file holding the token of the network gateway")
 	fingerprint := flags.String("fingerprint", "", "host key fingerprint of Casvisor's SSH gateway, SHA256:...")
 	allow := flags.String("allow", "", "comma separated networks the agent may reach, checked on top of the ones set on the network gateway")
 	version := flags.Bool("version", false, "print the version")
@@ -63,6 +65,13 @@ func Main(args []string) {
 		return
 	}
 
+	if *token == "" && *tokenFile != "" {
+		data, err := os.ReadFile(*tokenFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		*token = strings.TrimSpace(string(data))
+	}
 	if *token == "" {
 		*token = os.Getenv("CASVISOR_AGENT_TOKEN")
 	}
@@ -70,8 +79,14 @@ func Main(args []string) {
 		flags.Usage()
 		os.Exit(2)
 	}
-	if _, _, err := net.SplitHostPort(*server); err != nil {
-		log.Fatalf("invalid --server: %s, it should be host:port", *server)
+	wsUrl, err := getWebSocketUrl(*server)
+	if err != nil {
+		log.Fatalf("invalid --server: %s: %s", *server, err.Error())
+	}
+	if wsUrl == "" {
+		if _, _, err = net.SplitHostPort(*server); err != nil {
+			log.Fatalf("invalid --server: %s, it should be https://<host> or <host>:<port>", *server)
+		}
 	}
 
 	signer, err := GetSigner(*token)
@@ -85,6 +100,7 @@ func Main(args []string) {
 
 	c := &client{
 		server:      *server,
+		wsUrl:       wsUrl,
 		fingerprint: *fingerprint,
 		signer:      signer,
 		local:       local,
@@ -107,8 +123,15 @@ func (c *client) run() {
 	}
 }
 
+func (c *client) dial() (net.Conn, error) {
+	if c.wsUrl != "" {
+		return dialWebSocket(c.wsUrl)
+	}
+	return net.DialTimeout("tcp", c.server, dialTimeout)
+}
+
 func (c *client) connect() error {
-	conn, err := net.DialTimeout("tcp", c.server, dialTimeout)
+	conn, err := c.dial()
 	if err != nil {
 		return err
 	}

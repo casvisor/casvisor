@@ -110,6 +110,7 @@ p, app, *, *, *, *, *
 p, *, *, POST, /api/signin, *, *
 p, *, *, POST, /api/signout, *, *
 p, *, *, GET, /api/get-account, *, *
+p, *, *, GET, /api/connect-agent, *, *
 `
 
 		sa := stringadapter.NewAdapter(ruleText)
