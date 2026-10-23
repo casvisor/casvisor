@@ -44,7 +44,7 @@ export default function RdpView(props: ConnectionProps) {
   const [session, setSession] = React.useState<{id: string; operations: string[]} | null>(null);
   const [showFiles, setShowFiles] = React.useState(false);
   const status = useConnectionToast(assetId);
-  // Reconnections in a row after the connection dropped, reset once one lasts.
+  // Reconnection attempts in a row that did not get the screen back.
   const reconnectsRef = React.useRef(0);
 
   const send = (msg: any) => {
@@ -65,17 +65,21 @@ export default function RdpView(props: ConnectionProps) {
     send({t: "clipboard", text});
   };
 
-  // The connection dropped (1006) or the gateway failed (1011), as opposed to
-  // being closed on purpose.
-  const shouldReconnect = (code: number, connectedAt: number) => {
-    if (code !== 1006 && code !== 1011) {
+  // Tries again after the connection dropped, waiting longer each time, and
+  // gives up when the screen did not come back after a few tries.
+  const reconnect = () => {
+    if (reconnectsRef.current >= 5) {
       return false;
     }
-    if (Date.now() - connectedAt > 60 * 1000) {
-      reconnectsRef.current = 0;
-    }
+    const delay = Math.min(1000 * 2 ** reconnectsRef.current, 10000);
     reconnectsRef.current++;
-    return reconnectsRef.current <= 3;
+    status.loading(i18next.t("asset:Reconnecting..."));
+    setTimeout(() => {
+      if (activeRef.current && !wsRef.current) {
+        connect(true);
+      }
+    }, delay);
+    return true;
   };
 
   const disconnect = () => {
@@ -107,6 +111,9 @@ export default function RdpView(props: ConnectionProps) {
         return;
       }
       if (res.status !== "ok") {
+        if (reconnecting && reconnect()) {
+          return;
+        }
         status.dismiss();
         Setting.showMessage("error", `${i18next.t("asset:Failed to connect")}: ${res.msg}`);
         return;
@@ -133,7 +140,6 @@ export default function RdpView(props: ConnectionProps) {
       ws.binaryType = "arraybuffer";
       wsRef.current = ws;
       let connected = false;
-      let connectedAt = 0;
       let failureReason = "";
       const screen = new RdpScreen(canvas);
 
@@ -143,7 +149,7 @@ export default function RdpView(props: ConnectionProps) {
           if (msg.t === "init") {
             screen.init(msg.width, msg.height);
             connected = true;
-            connectedAt = Date.now();
+            reconnectsRef.current = 0;
             status.success(i18next.t("asset:Connection successful"));
             SessionBackend.connect(`${session.owner}/${session.name}`);
             setSession({id: `${session.owner}/${session.name}`, operations: session.operations ?? []});
@@ -172,18 +178,16 @@ export default function RdpView(props: ConnectionProps) {
         setSession(null);
         setShowFiles(false);
         status.dismiss();
+        // The remote session goes on, so a connection that dropped (1006) or
+        // that the gateway ended on an error (1011) picks it up again.
+        const dropped = connected ? event.code === 1006 || event.code === 1011 : reconnecting;
+        if (dropped && reconnect()) {
+          return;
+        }
         if (failureReason) {
           setFailure(failureReason);
         } else if (!connected) {
           setFailure(NotReachable);
-        } else if (shouldReconnect(event.code, connectedAt)) {
-          // The remote session goes on, so a dropped connection picks it up again.
-          status.loading(i18next.t("asset:Reconnecting..."));
-          setTimeout(() => {
-            if (activeRef.current && !wsRef.current) {
-              connect(true);
-            }
-          }, 1000);
         } else {
           status.error(i18next.t("asset:Connection closed"));
         }
@@ -193,6 +197,12 @@ export default function RdpView(props: ConnectionProps) {
           failureReason = NotReachable;
         }
       };
+    }).catch(() => {
+      if (reconnecting && activeRef.current && reconnect()) {
+        return;
+      }
+      status.dismiss();
+      Setting.showMessage("error", i18next.t("asset:Failed to connect"));
     });
   };
 
