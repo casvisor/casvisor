@@ -18,7 +18,7 @@ import qs from "qs";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ClipboardDialog, ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
 import {FilePanel} from "@/components/access/FilePanel";
-import {closeView, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
+import {closeView, holdPageLock, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
 import {RdpScreen, setCanvasCursor} from "@/components/access/rdpScreen";
@@ -212,9 +212,11 @@ export default function RdpView(props: ConnectionProps) {
     }
     addClient?.({disconnect});
     activeRef.current = true;
+    const releaseLock = holdPageLock();
     connect();
     return () => {
       activeRef.current = false;
+      releaseLock();
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

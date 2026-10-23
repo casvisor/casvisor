@@ -18,7 +18,7 @@ import qs from "qs";
 import RFB from "@novnc/novnc/core/rfb.js";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ClipboardDialog, ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
-import {closeView, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
+import {closeView, holdPageLock, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
@@ -140,10 +140,12 @@ export default function VncView(props: ConnectionProps) {
 
     addClient?.({disconnect});
     activeRef.current = true;
+    const releaseLock = holdPageLock();
     connect();
 
     return () => {
       activeRef.current = false;
+      releaseLock();
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

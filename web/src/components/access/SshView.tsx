@@ -21,7 +21,7 @@ import "@xterm/xterm/css/xterm.css";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
 import {FilePanel} from "@/components/access/FilePanel";
-import {closeView, debounce, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
+import {closeView, debounce, holdPageLock, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
@@ -147,10 +147,12 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
     resizeObserver.observe(containerRef.current!);
 
     addClient?.({disconnect: () => wsRef.current?.close()});
+    const releaseLock = holdPageLock();
     connect();
 
     return () => {
       resizeObserver.disconnect();
+      releaseLock();
       const ws = wsRef.current;
       wsRef.current = null;
       ws?.close();

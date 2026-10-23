@@ -46,6 +46,25 @@ export interface ConnectionProps {
   onClose?: () => void;
 }
 
+/** Holds a Web Lock until the returned function is called. Chrome freezes a
+ *  page that has been in the background for a while, which closes its
+ *  WebSockets, but it does not freeze a page holding a lock. */
+export function holdPageLock(): () => void {
+  let released = false;
+  let release = () => {
+    released = true;
+  };
+  navigator.locks?.request(`casvisor-connection-${Math.random()}`, () => {
+    if (released) {
+      return undefined;
+    }
+    return new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  }).catch(() => undefined);
+  return () => release();
+}
+
 export function closeView(props: ConnectionProps) {
   if (props.onClose) {
     props.onClose();
