@@ -15,6 +15,8 @@
 package main
 
 import (
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 
 	"github.com/beego/beego"
@@ -23,6 +25,7 @@ import (
 	_ "github.com/beego/beego/session/redis"
 	"github.com/casvisor/casvisor/agent"
 	"github.com/casvisor/casvisor/authz"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/demo"
 	"github.com/casvisor/casvisor/object"
@@ -88,6 +91,14 @@ func main() {
 	demo.StartDemoTargets()
 	sshgateway.Start()
 	object.StartLiveSessionChecker()
+
+	// The profiles of a running server, on an address of its own that is
+	// only set where it is needed, such as 127.0.0.1:6060.
+	if addr := conf.GetConfigString("pprofAddr"); addr != "" {
+		go func() {
+			logs.Error(http.ListenAndServe(addr, nil))
+		}()
+	}
 
 	beego.Run()
 }
