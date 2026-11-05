@@ -15,6 +15,7 @@
 import * as React from "react";
 import i18next from "i18next";
 import qs from "qs";
+import {toast} from "sonner";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ClipboardDialog, ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
 import {FilePanel} from "@/components/access/FilePanel";
@@ -22,6 +23,18 @@ import {closeView, holdPageLock, toggleFullscreen, type ConnectionProps} from "@
 import * as Setting from "@/lib/setting";
 import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
 import {RdpScreen, setCanvasCursor} from "@/components/access/rdpScreen";
+import {
+  ClipboardDownload,
+  type ClipboardFileInfo,
+  FrameClipboardFile,
+  type LocalClipboard,
+  base64ToBlob,
+  blobToBase64,
+  formatBytes,
+  readDataTransfer,
+  sendFileData,
+  toPng,
+} from "@/components/access/rdpClipboard";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
@@ -40,6 +53,18 @@ export default function RdpView(props: ConnectionProps) {
   const lastClipboardRef = React.useRef("");
   const [clipboardText, setClipboardText] = React.useState("");
   const [clipboardOpen, setClipboardOpen] = React.useState(false);
+  const [clipboardImage, setClipboardImage] = React.useState<string | null>(null);
+  const [clipboardFiles, setClipboardFiles] = React.useState<ClipboardFileInfo[]>([]);
+  // What this browser last put on the remote clipboard, so pasting it again
+  // does not send it again.
+  const lastOfferRef = React.useRef("");
+  // Resolved when the remote host took what is being pasted.
+  const offerReadyRef = React.useRef<((ok: boolean) => void) | null>(null);
+  const ctrlHeldRef = React.useRef(false);
+  const pasteTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const downloadsRef = React.useRef(new Map<number, ClipboardDownload>());
+  const downloadIdRef = React.useRef(0);
+  const clipboardToast = React.useRef(`clipboard-${Math.random().toString(36).slice(2)}`).current;
   const [failure, setFailure] = React.useState<string | null>(null);
   const [session, setSession] = React.useState<{id: string; operations: string[]} | null>(null);
   const [showFiles, setShowFiles] = React.useState(false);
@@ -62,7 +87,115 @@ export default function RdpView(props: ConnectionProps) {
       return;
     }
     lastClipboardRef.current = text;
+    lastOfferRef.current = "";
     send({t: "clipboard", text});
+  };
+
+  // Puts what was pasted or dropped on the remote clipboard: text, an image
+  // and files, whose bytes follow. Resolves once the remote host has it.
+  const offerClipboard = async (data: LocalClipboard): Promise<boolean> => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+    if (!hasOperation("paste")) {
+      Setting.showMessage("warning", i18next.t("asset:Can not paste"));
+      return false;
+    }
+    let files = data.files;
+    if (files.length > 0 && !hasOperation("upload")) {
+      Setting.showMessage("warning", i18next.t("asset:Can not paste files"));
+      files = [];
+    }
+    if (!data.text && !data.image && files.length === 0) {
+      return false;
+    }
+    const key = JSON.stringify([data.text, data.image?.size, files.map((f) => [f.info.name, f.info.size, f.file?.lastModified])]);
+    if (key === lastOfferRef.current) {
+      return true;
+    }
+
+    const msg: any = {t: "clipboard", text: data.text};
+    if (data.image) {
+      msg.png = await blobToBase64(await toPng(data.image));
+    }
+    if (files.length > 0) {
+      msg.files = files.map((f) => f.info);
+    }
+    offerReadyRef.current?.(false);
+    const ready = new Promise<boolean>((resolve) => {
+      offerReadyRef.current = resolve;
+    });
+    ws.send(JSON.stringify(msg));
+    const total = files.reduce((n, f) => n + (f.file ? f.info.size : 0), 0);
+    if (total > 0) {
+      const uploading = i18next.t("asset:Copying files to the remote clipboard");
+      toast.loading(`${uploading} 0%`, {id: clipboardToast, duration: Infinity});
+      try {
+        await sendFileData(ws, files, (sent) => {
+          toast.loading(`${uploading} ${Math.floor((sent * 100) / total)}%`, {id: clipboardToast, duration: Infinity});
+        });
+      } catch {
+        toast.dismiss(clipboardToast);
+        return false;
+      }
+    }
+    const timer = setTimeout(() => offerReadyRef.current?.(false), 10000);
+    const ok = await ready;
+    clearTimeout(timer);
+    if (total > 0) {
+      toast.dismiss(clipboardToast);
+    }
+    if (ok) {
+      lastOfferRef.current = key;
+      lastClipboardRef.current = data.text;
+    }
+    return ok;
+  };
+
+  // Ctrl+V on the remote desktop, after the browser's paste reached it.
+  const sendPasteKeys = () => {
+    const ctrl = codeToScancode("ControlLeft")!;
+    const v = codeToScancode("KeyV")!;
+    const pressCtrl = !ctrlHeldRef.current;
+    if (pressCtrl) {
+      send({t: "k", code: ctrl.code, down: true, extended: ctrl.extended});
+    }
+    send({t: "k", code: v.code, down: true, extended: v.extended});
+    send({t: "k", code: v.code, down: false, extended: v.extended});
+    if (pressCtrl) {
+      send({t: "k", code: ctrl.code, down: false, extended: ctrl.extended});
+    }
+  };
+
+  const downloadClipboardFiles = () => {
+    const id = ++downloadIdRef.current;
+    send({t: "clipfile", id});
+    toast.loading(i18next.t("asset:Downloading..."), {id: clipboardToast, duration: Infinity});
+  };
+
+  // Puts what was copied on the remote desktop on this machine's clipboard.
+  const writeLocalClipboard = (text: string, png?: string) => {
+    const items: Record<string, Blob> = {};
+    if (text) {
+      items["text/plain"] = new Blob([text], {type: "text/plain"});
+    }
+    if (png) {
+      items["image/png"] = base64ToBlob(png, "image/png");
+    }
+    if (Object.keys(items).length === 0) {
+      return;
+    }
+    const writeText = () => {
+      if (text) {
+        navigator.clipboard?.writeText(text).catch(() => undefined);
+      }
+    };
+    if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
+      navigator.clipboard.write([new ClipboardItem(items)]).catch(writeText);
+    } else {
+      writeText();
+    }
   };
 
   // Tries again after the connection dropped, waiting longer each time, and
@@ -157,9 +290,43 @@ export default function RdpView(props: ConnectionProps) {
           } else if (msg.t === "size") {
             screen.setSize(msg.width, msg.height);
           } else if (msg.t === "clipboard") {
-            lastClipboardRef.current = msg.text;
-            setClipboardText(msg.text);
-            navigator.clipboard?.writeText(msg.text).catch(() => undefined);
+            const text = msg.text ?? "";
+            lastClipboardRef.current = text;
+            lastOfferRef.current = "";
+            setClipboardText(text);
+            setClipboardImage((old) => {
+              if (old) {
+                URL.revokeObjectURL(old);
+              }
+              return msg.png ? URL.createObjectURL(base64ToBlob(msg.png, "image/png")) : null;
+            });
+            setClipboardFiles(msg.files ?? []);
+            writeLocalClipboard(text, msg.png);
+            if (msg.files?.length) {
+              toast(`${i18next.t("asset:Files copied on the remote desktop")}: ${msg.files.length}`, {
+                id: clipboardToast,
+                duration: 10000,
+                action: {label: i18next.t("asset:Download"), onClick: downloadClipboardFiles},
+              });
+            }
+          } else if (msg.t === "clipboard-ready") {
+            offerReadyRef.current?.(true);
+            offerReadyRef.current = null;
+          } else if (msg.t === "clipboard-error") {
+            offerReadyRef.current?.(false);
+            offerReadyRef.current = null;
+            toast.error(msg.message, {id: clipboardToast});
+          } else if (msg.t === "clipfile-start") {
+            downloadsRef.current.set(msg.id, new ClipboardDownload(msg.name, msg.size));
+          } else if (msg.t === "clipfile-end") {
+            const download = downloadsRef.current.get(msg.id);
+            downloadsRef.current.delete(msg.id);
+            if (msg.message) {
+              toast.error(msg.message, {id: clipboardToast});
+            } else if (download) {
+              download.save();
+              toast.success(`${i18next.t("asset:Downloaded")}: ${download.name}`, {id: clipboardToast, duration: 3000});
+            }
           } else if (msg.t === "cursor") {
             setCanvasCursor(canvas, msg);
           } else if (msg.t === "error") {
@@ -167,7 +334,17 @@ export default function RdpView(props: ConnectionProps) {
           }
           return;
         }
-        screen.frame(event.data as ArrayBuffer);
+        const data = event.data as ArrayBuffer;
+        if (new Uint8Array(data, 0, 1)[0] === FrameClipboardFile) {
+          const download = downloadsRef.current.get(new DataView(data).getUint32(1, true));
+          if (download) {
+            download.add(data);
+            const progress = download.size > 0 ? ` ${Math.floor((download.received * 100) / download.size)}%` : ` ${formatBytes(download.received)}`;
+            toast.loading(`${i18next.t("asset:Downloading...")}${progress}`, {id: clipboardToast, duration: Infinity});
+          }
+          return;
+        }
+        screen.frame(data);
       };
 
       ws.onclose = (event) => {
@@ -175,6 +352,9 @@ export default function RdpView(props: ConnectionProps) {
           return;
         }
         wsRef.current = null;
+        downloadsRef.current.clear();
+        offerReadyRef.current?.(false);
+        offerReadyRef.current = null;
         setSession(null);
         setShowFiles(false);
         status.dismiss();
@@ -284,8 +464,59 @@ export default function RdpView(props: ConnectionProps) {
     if (!mapped) {
       return;
     }
+    if (e.code === "ControlLeft" || e.code === "ControlRight") {
+      ctrlHeldRef.current = down;
+    }
+    // Ctrl+V lets the browser paste first, so what was copied on this machine
+    // (an image or files too) is on the remote clipboard before the remote
+    // desktop pastes. The V is sent once it is there.
+    if (e.code === "KeyV" && e.ctrlKey && !e.altKey && !e.metaKey && hasOperation("paste")) {
+      if (down && !e.repeat) {
+        if (pasteTimerRef.current) {
+          clearTimeout(pasteTimerRef.current);
+        }
+        // in case the browser fires no paste event
+        pasteTimerRef.current = setTimeout(() => {
+          pasteTimerRef.current = null;
+          sendPasteKeys();
+        }, 500);
+      } else {
+        e.preventDefault();
+      }
+      return;
+    }
     e.preventDefault();
     send({t: "k", code: mapped.code, down, extended: mapped.extended});
+  };
+
+  const onPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const fromKey = pasteTimerRef.current !== null;
+    if (pasteTimerRef.current) {
+      clearTimeout(pasteTimerRef.current);
+      pasteTimerRef.current = null;
+    }
+    readDataTransfer(e.clipboardData)
+      .then(offerClipboard)
+      .catch(() => false)
+      .then(() => {
+        if (fromKey) {
+          sendPasteKeys();
+        }
+      });
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    canvasRef.current?.focus();
+    readDataTransfer(e.dataTransfer)
+      .then(offerClipboard)
+      .then((ok) => {
+        if (ok) {
+          toast.success(i18next.t("asset:Copied to the remote clipboard, press Ctrl+V on the remote desktop to paste"), {id: clipboardToast, duration: 5000});
+        }
+      })
+      .catch(() => undefined);
   };
 
   const sendCombinationKey = (keys: number[]) => {
@@ -315,6 +546,12 @@ export default function RdpView(props: ConnectionProps) {
           onWheel={onWheel}
           onKeyDown={(e) => onKey(e, true)}
           onKeyUp={(e) => onKey(e, false)}
+          onPaste={onPaste}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }}
+          onDrop={onDrop}
         />
         <ConnectionToolbar
           onFullscreen={() => {
@@ -332,6 +569,13 @@ export default function RdpView(props: ConnectionProps) {
       <ClipboardDialog
         open={clipboardOpen}
         text={clipboardText}
+        image={clipboardImage}
+        files={clipboardFiles}
+        onDownload={() => {
+          setClipboardOpen(false);
+          downloadClipboardFiles();
+          canvasRef.current?.focus();
+        }}
         onOk={(text) => {
           if (!hasOperation("paste")) {
             Setting.showMessage("warning", i18next.t("asset:Can not paste"));

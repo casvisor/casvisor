@@ -57,6 +57,10 @@ func main() {
 	if err != nil {
 		logs.Warning("failed to clear the drives of earlier RDP sessions: %s", err.Error())
 	}
+	err = controllers.ClearSessionClipboards()
+	if err != nil {
+		logs.Warning("failed to clear the clipboard files of earlier RDP sessions: %s", err.Error())
+	}
 	authz.InitAuthz()
 	util.InitIpDb()
 	util.InitParser()

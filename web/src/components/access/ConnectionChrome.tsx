@@ -14,7 +14,7 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {CircleX, ClipboardPaste, Expand, FolderOpen, Keyboard} from "lucide-react";
+import {CircleX, ClipboardPaste, Download, Expand, FolderOpen, Keyboard} from "lucide-react";
 import {toast} from "sonner";
 import {
   AlertDialog,
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {Textarea} from "@/components/ui/textarea";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
+import {formatBytes} from "@/components/access/rdpClipboard";
 import {HotKeys} from "@/components/access/util";
 
 /** One toast per view, replaced as the connection moves from state to state. */
@@ -118,15 +119,23 @@ export function ConnectionToolbar({
   );
 }
 
-/** Edits the text shared with the remote clipboard; OK sends it over. */
+/** Edits the text shared with the remote clipboard; OK sends it over. An
+ *  image or files copied on the remote desktop are shown, the files with a
+ *  download button. */
 export function ClipboardDialog({
   open,
   text,
+  image,
+  files,
+  onDownload,
   onOk,
   onCancel,
 }: {
   open: boolean;
   text: string;
+  image?: string | null;
+  files?: {name: string; size: number; dir?: boolean}[];
+  onDownload?: () => void;
   onOk: (text: string) => void;
   onCancel: () => void;
 }) {
@@ -143,6 +152,25 @@ export function ClipboardDialog({
         <DialogHeader>
           <DialogTitle>{i18next.t("asset:Clipboard")}</DialogTitle>
         </DialogHeader>
+        {image ? <img src={image} alt="" className="max-h-64 max-w-full self-start rounded border object-contain" /> : null}
+        {files?.length ? (
+          <div className="flex flex-col gap-2">
+            <ul className="max-h-40 overflow-auto rounded border p-2 text-sm">
+              {files.map((file) => (
+                <li key={file.name} className="flex justify-between gap-4">
+                  <span className="truncate">{file.dir ? `${file.name}/` : file.name}</span>
+                  {file.dir ? null : <span className="shrink-0 text-muted-foreground">{formatBytes(file.size)}</span>}
+                </li>
+              ))}
+            </ul>
+            {onDownload ? (
+              <Button variant="secondary" className="self-start" onClick={onDownload}>
+                <Download />
+                {i18next.t("asset:Download")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         <Textarea rows={10} value={draft} onChange={(e) => setDraft(e.target.value)} />
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>{i18next.t("general:Cancel")}</Button>

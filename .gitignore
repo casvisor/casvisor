@@ -34,5 +34,6 @@ commentsRouter*.go
 dist/
 conf/app.local.conf
 data/drives/
+data/clipboard/
 db/
 recordings/

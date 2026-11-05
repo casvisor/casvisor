@@ -24,6 +24,7 @@ import (
 	"image/png"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
@@ -128,6 +129,7 @@ func (c *ApiController) GetAssetRdp() {
 	// Clipboard and resize calls are queued to run between pumps, on the
 	// goroutine that owns the client state.
 	ops := make(chan func(), 16)
+	pumpDone := make(chan struct{})
 	lastW, lastH := 0, 0
 	syncSize := func() {
 		w, h := client.DesktopSize()
@@ -163,11 +165,27 @@ func (c *ApiController) GetAssetRdp() {
 		_ = stream.WriteJSON(cursorMessage(p))
 	}
 
-	if slices.Contains(session.Operations, "copy") {
-		client.OnClipboard = func(text string) {
-			_ = stream.WriteJSONUnrecorded(rdpMessage{Type: "clipboard", Text: text})
-			c.auditRdp(asset, "clipboard-copy", truncateRunes(text, 1000))
-		}
+	// Copy is the remote clipboard reaching the browser, Paste the other way;
+	// files also need Download or Upload.
+	canCopy := slices.Contains(session.Operations, "copy")
+	canPaste := slices.Contains(session.Operations, "paste")
+	clipboard := &rdpClipboard{
+		c:           c,
+		asset:       asset,
+		stream:      stream,
+		client:      client,
+		ops:         ops,
+		done:        pumpDone,
+		dir:         filepath.Join(sessionClipboardsDir, session.Name),
+		canDownload: canCopy && canDownload,
+		canUpload:   canPaste && canUpload,
+	}
+	defer clipboard.close()
+	if canCopy {
+		client.OnClipboardData = clipboard.remoteChanged
+	}
+	client.OnClipboardOffered = func() {
+		_ = stream.WriteJSONUnrecorded(rdpMessage{Type: "clipboard-ready"})
 	}
 
 	client.OnDriveEvent = func(drive string, ev rdpdr.Event) {
@@ -216,9 +234,10 @@ func (c *ApiController) GetAssetRdp() {
 	defer stream.stopRecording()
 	_ = stream.WriteJSON(rdpMessage{Type: "init", Width: lastW, Height: lastH})
 
-	go c.readRdpInput(ws, stream, client, session, asset, ops)
+	go c.readRdpInput(ws, client, session, clipboard, ops)
 
 	p := pumpRdp(client, gfx, ops, flush, syncSize)
+	close(pumpDone)
 
 	if unsupported := client.GFXUnsupported(); len(unsupported) > 0 {
 		logs.Warning(fmt.Sprintf("GetAssetRdp(): %s used graphics codecs that are not decoded (codec ID: commands): %v", asset.GetId(), unsupported))
@@ -270,7 +289,8 @@ func pumpRdp(client *gordp.Client, gfx *rdpGfxWriter, ops chan func(), flush fun
 }
 
 // readRdpInput reads input events from the browser and drives the RDP client.
-func (c *ApiController) readRdpInput(ws *websocket.Conn, stream *wsStream, client *gordp.Client, session *object.Session, asset *object.Asset, ops chan<- func()) {
+func (c *ApiController) readRdpInput(ws *websocket.Conn, client *gordp.Client, session *object.Session, clipboard *rdpClipboard, ops chan<- func()) {
+	stream := clipboard.stream
 	canPaste := slices.Contains(session.Operations, "paste")
 	// The pointer is drawn by the browser, so the recording keeps where it was,
 	// at most 20 times a second while it moves.
@@ -291,7 +311,16 @@ func (c *ApiController) readRdpInput(ws *websocket.Conn, stream *wsStream, clien
 		messageType, data, err := ws.ReadMessage()
 		if err != nil {
 			_ = client.Close()
+			clipboard.abortUpload()
 			return
+		}
+		if messageType == websocket.BinaryMessage {
+			if len(data) > 0 && data[0] == rdpFrameClipboardData {
+				if err = clipboard.write(data[1:]); err != nil {
+					_ = stream.WriteJSONUnrecorded(rdpMessage{Type: "clipboard-error", Message: err.Error()})
+				}
+			}
+			continue
 		}
 		if messageType != websocket.TextMessage {
 			continue
@@ -317,9 +346,11 @@ func (c *ApiController) readRdpInput(ws *websocket.Conn, stream *wsStream, clien
 			if !canPaste {
 				continue
 			}
-			text := msg.Text
-			queue(func() { _ = client.SetClipboard(text) })
-			c.auditRdp(asset, "clipboard-paste", truncateRunes(text, 1000))
+			if err = clipboard.paste(&msg); err != nil {
+				_ = stream.WriteJSONUnrecorded(rdpMessage{Type: "clipboard-error", Message: err.Error()})
+			}
+		case "clipfile":
+			go clipboard.download(msg.Id)
 		case "resize":
 			if msg.Width <= 0 || msg.Height <= 0 {
 				continue
@@ -375,6 +406,11 @@ type rdpMessage struct {
 	Hidden   bool   `json:"hidden,omitempty"`
 	Default  bool   `json:"default,omitempty"`
 	Png      string `json:"png,omitempty"`
+	// clipboard files: what is copied or pasted, and a file being downloaded
+	Files []clipboardFileInfo `json:"files,omitempty"`
+	Id    int                 `json:"id,omitempty"`
+	Name  string              `json:"name,omitempty"`
+	Size  int64               `json:"size,omitempty"`
 }
 
 func mouseButton(button int) gordp.MouseButton {
