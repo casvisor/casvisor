@@ -110,6 +110,26 @@ export async function readDataTransfer(data: DataTransfer): Promise<LocalClipboa
   return result;
 }
 
+/** Reads the text and image on this machine's clipboard, which the browser
+ *  gives out without a paste. Files it does not, those need a paste or a drop. */
+export async function readLocalClipboard(): Promise<LocalClipboard> {
+  const result: LocalClipboard = {text: "", files: []};
+  if (!navigator.clipboard.read) {
+    result.text = await navigator.clipboard.readText();
+    return result;
+  }
+  for (const item of await navigator.clipboard.read()) {
+    if (!result.text && item.types.includes("text/plain")) {
+      result.text = await (await item.getType("text/plain")).text();
+    }
+    const imageType = item.types.find((type) => type.startsWith("image/"));
+    if (!result.image && imageType) {
+      result.image = await item.getType(imageType);
+    }
+  }
+  return result;
+}
+
 /** Converts an image to PNG, the format the gateway takes. */
 export async function toPng(image: Blob): Promise<Blob> {
   if (image.type === "image/png") {

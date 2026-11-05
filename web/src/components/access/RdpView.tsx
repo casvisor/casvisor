@@ -32,11 +32,17 @@ import {
   blobToBase64,
   formatBytes,
   readDataTransfer,
+  readLocalClipboard,
   sendFileData,
   toPng,
 } from "@/components/access/rdpClipboard";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
+
+// Tells apart what is on a clipboard, so the same thing is not offered twice.
+function clipboardKey(data: LocalClipboard) {
+  return JSON.stringify([data.text, data.image?.size, data.files.map((f) => [f.info.name, f.info.size, f.file?.lastModified])]);
+}
 
 /** An RDP screen drawn on a canvas. The gateway's native gordp client speaks
  *  the graphics pipeline and decodes its codecs; this view keeps the surfaces
@@ -110,7 +116,7 @@ export default function RdpView(props: ConnectionProps) {
     if (!data.text && !data.image && files.length === 0) {
       return false;
     }
-    const key = JSON.stringify([data.text, data.image?.size, files.map((f) => [f.info.name, f.info.size, f.file?.lastModified])]);
+    const key = clipboardKey({...data, files});
     if (key === lastOfferRef.current) {
       return true;
     }
@@ -191,8 +197,13 @@ export default function RdpView(props: ConnectionProps) {
         navigator.clipboard?.writeText(text).catch(() => undefined);
       }
     };
+    // what was written is read back once, so it is not offered to the remote
+    // host again when the window gets the focus back
+    const remember = () => readLocalClipboard().then((data) => {
+      lastOfferRef.current = clipboardKey(data);
+    }).catch(() => undefined);
     if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
-      navigator.clipboard.write([new ClipboardItem(items)]).catch(writeText);
+      navigator.clipboard.write([new ClipboardItem(items)]).then(remember, writeText);
     } else {
       writeText();
     }
@@ -407,10 +418,18 @@ export default function RdpView(props: ConnectionProps) {
   }, [assetId]);
 
   React.useEffect(() => {
-    // what the user copied on this machine is there to paste on the remote one
+    // what the user copied on this machine is there to paste on the remote one,
+    // also with the remote desktop's own Paste menu, which the browser does
+    // not see; an image goes along, files only with Ctrl+V or a drop
     const handleWindowFocus = () => {
       if (navigator.clipboard && wsRef.current && hasOperation("paste")) {
-        navigator.clipboard.readText().then(sendClipboard).catch(() => undefined);
+        readLocalClipboard().then((data) => {
+          if (data.image) {
+            offerClipboard(data);
+          } else {
+            sendClipboard(data.text);
+          }
+        }).catch(() => undefined);
       }
     };
     window.addEventListener("focus", handleWindowFocus);
