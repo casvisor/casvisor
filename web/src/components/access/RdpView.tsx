@@ -19,7 +19,7 @@ import {toast} from "sonner";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ClipboardDialog, ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
 import {FilePanel} from "@/components/access/FilePanel";
-import {closeView, holdPageLock, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
+import {closeView, holdPageLock, reloadIfUpdated, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
 import {RdpScreen, setCanvasCursor} from "@/components/access/rdpScreen";
@@ -287,6 +287,10 @@ export default function RdpView(props: ConnectionProps) {
             SessionBackend.connect(`${session.owner}/${session.name}`);
             setSession({id: `${session.owner}/${session.name}`, operations: session.operations ?? []});
             canvas.focus();
+            // the connection usually drops because the server was upgraded
+            if (reconnecting) {
+              reloadIfUpdated(props);
+            }
           } else if (msg.t === "size") {
             screen.setSize(msg.width, msg.height);
           } else if (msg.t === "clipboard") {
@@ -596,7 +600,7 @@ export default function RdpView(props: ConnectionProps) {
         message={failure}
         onReconnect={() => {
           setFailure(null);
-          connect();
+          reloadIfUpdated(props).then((reloaded) => !reloaded && connect());
         }}
         onClose={() => closeView(props)}
       />

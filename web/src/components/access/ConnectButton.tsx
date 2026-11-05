@@ -30,7 +30,7 @@ const takenCredentials = new Map<string, {username: string; password: string}>()
  * through localStorage for a minute rather than the URL, so a password never
  * lands in the browser history or a server log.
  */
-function saveCredentials(assetId: string, username: string, password: string) {
+export function saveCredentials(assetId: string, username: string, password: string) {
   try {
     localStorage.setItem(credentialsKeyPrefix + assetId, JSON.stringify({username, password, time: Date.now()}));
   } catch {

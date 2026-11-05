@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import {saveCredentials} from "@/components/access/ConnectButton";
+
 export function debounce<T extends (...args: any[]) => void>(fn: T, delay = 500) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   return (...args: Parameters<T>) => {
@@ -63,6 +65,37 @@ export function holdPageLock(): () => void {
     });
   }).catch(() => undefined);
   return () => release();
+}
+
+const entryScript = /\/static\/index-[\w-]+\.js/;
+
+/** Reloads a connection page when the server has a newer frontend than the
+ *  one it runs, which happens when the server is upgraded while the page stays
+ *  open, and resolves whether it did. The credentials typed for the connection
+ *  are handed to the reloaded page. The workbench is left alone, as reloading
+ *  it would close its other tabs. */
+export async function reloadIfUpdated(props: ConnectionProps): Promise<boolean> {
+  if (props.inTab) {
+    return false;
+  }
+  const current = Array.from(document.scripts).map((s) => s.getAttribute("src") ?? "").find((src) => entryScript.test(src));
+  if (!current) {
+    return false;
+  }
+  try {
+    const res = await fetch("/", {cache: "no-store"});
+    const latest = res.ok ? (await res.text()).match(entryScript)?.[0] : undefined;
+    if (!latest || current.endsWith(latest)) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  if (props.username || props.password) {
+    saveCredentials(props.assetId, props.username ?? "", props.password ?? "");
+  }
+  window.location.reload();
+  return true;
 }
 
 export function closeView(props: ConnectionProps) {
