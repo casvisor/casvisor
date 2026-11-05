@@ -39,6 +39,18 @@ import {
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
+// Whether a key event says a modifier is down, by the modifier's code.
+const modifierHeld: Record<string, (e: React.KeyboardEvent) => boolean> = {
+  ControlLeft: (e) => e.ctrlKey,
+  ControlRight: (e) => e.ctrlKey,
+  ShiftLeft: (e) => e.shiftKey,
+  ShiftRight: (e) => e.shiftKey,
+  AltLeft: (e) => e.altKey,
+  AltRight: (e) => e.altKey,
+  MetaLeft: (e) => e.metaKey,
+  MetaRight: (e) => e.metaKey,
+};
+
 // Tells apart what is on a clipboard, so the same thing is not offered twice.
 function clipboardKey(data: LocalClipboard) {
   return JSON.stringify([data.text, data.image?.size, data.files.map((f) => [f.info.name, f.info.size, f.file?.lastModified])]);
@@ -66,7 +78,8 @@ export default function RdpView(props: ConnectionProps) {
   const lastOfferRef = React.useRef("");
   // Resolved when the remote host took what is being pasted.
   const offerReadyRef = React.useRef<((ok: boolean) => void) | null>(null);
-  const ctrlHeldRef = React.useRef(false);
+  // Keys sent down to the remote host and not up yet, by their code.
+  const pressedRef = React.useRef(new Map<string, {code: number; extended: boolean}>());
   const pasteTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const downloadsRef = React.useRef(new Map<number, ClipboardDownload>());
   const downloadIdRef = React.useRef(0);
@@ -163,7 +176,7 @@ export default function RdpView(props: ConnectionProps) {
   const sendPasteKeys = () => {
     const ctrl = codeToScancode("ControlLeft")!;
     const v = codeToScancode("KeyV")!;
-    const pressCtrl = !ctrlHeldRef.current;
+    const pressCtrl = !pressedRef.current.has("ControlLeft") && !pressedRef.current.has("ControlRight");
     if (pressCtrl) {
       send({t: "k", code: ctrl.code, down: true, extended: ctrl.extended});
     }
@@ -292,6 +305,7 @@ export default function RdpView(props: ConnectionProps) {
           const msg = JSON.parse(event.data);
           if (msg.t === "init") {
             screen.init(msg.width, msg.height);
+            pressedRef.current.clear();
             connected = true;
             reconnectsRef.current = 0;
             status.success(i18next.t("asset:Connection successful"));
@@ -482,13 +496,36 @@ export default function RdpView(props: ConnectionProps) {
     const {x, y} = toRemote(e);
     send({t: "mw", x, y, delta: e.deltaY < 0 ? 120 : -120});
   };
+  const sendKey = (code: string, key: {code: number; extended: boolean}, down: boolean) => {
+    if (down) {
+      pressedRef.current.set(code, key);
+    } else {
+      pressedRef.current.delete(code);
+    }
+    send({t: "k", code: key.code, down, extended: key.extended});
+  };
+
+  // Lets go of the keys still down on the remote host. Their release went
+  // elsewhere when the focus left the screen, e.g. with Alt+Tab or Ctrl+Tab.
+  const releaseKeys = () => {
+    for (const key of pressedRef.current.values()) {
+      send({t: "k", code: key.code, down: false, extended: key.extended});
+    }
+    pressedRef.current.clear();
+  };
+
   const onKey = (e: React.KeyboardEvent, down: boolean) => {
     const mapped = codeToScancode(e.code);
     if (!mapped) {
       return;
     }
-    if (e.code === "ControlLeft" || e.code === "ControlRight") {
-      ctrlHeldRef.current = down;
+    // a modifier the remote host takes as down while this key says it is not
+    // lost its release, so it is released before the key goes
+    for (const [code, key] of pressedRef.current) {
+      const held = modifierHeld[code];
+      if (held && code !== e.code && !held(e)) {
+        sendKey(code, key, false);
+      }
     }
     // Ctrl+V lets the browser paste first, so what was copied on this machine
     // (an image or files too) is on the remote clipboard before the remote
@@ -509,7 +546,7 @@ export default function RdpView(props: ConnectionProps) {
       return;
     }
     e.preventDefault();
-    send({t: "k", code: mapped.code, down, extended: mapped.extended});
+    sendKey(e.code, mapped, down);
   };
 
   const onPaste = (e: React.ClipboardEvent) => {
@@ -569,6 +606,7 @@ export default function RdpView(props: ConnectionProps) {
           onWheel={onWheel}
           onKeyDown={(e) => onKey(e, true)}
           onKeyUp={(e) => onKey(e, false)}
+          onBlur={releaseKeys}
           onPaste={onPaste}
           onDragOver={(e) => {
             e.preventDefault();
