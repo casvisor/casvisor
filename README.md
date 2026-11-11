@@ -21,7 +21,8 @@
 <p align="center">
   <a href="https://demo.casvisor.com">Online demo</a> |
   <a href="https://casvisor.org">Documentation</a> |
-  <a href="https://github.com/casvisor/casvisor/issues">Issues</a>
+  <a href="https://github.com/casvisor/casvisor/issues">Issues</a> |
+  <a href="https://linux.do">LINUX DO</a>
 </p>
 
 Casvisor sits between the people who run your servers and the servers themselves. People open SSH, RDP, VNC and Telnet sessions from a browser tab, or use their own `ssh`, `scp` and VS Code through Casvisor's SSH gateway. They only reach the servers a permission gives them, never see the servers' passwords, and every session is recorded.
