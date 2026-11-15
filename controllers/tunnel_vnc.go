@@ -15,8 +15,12 @@
 package controllers
 
 import (
-	"io"
+	"errors"
+	"fmt"
+	"slices"
 	"time"
+
+	"github.com/beego/beego/logs"
 
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/util/vnc"
@@ -75,12 +79,35 @@ func (c *ApiController) GetAssetVnc() {
 	})
 	c.addLiveSession(sessionId, asset)
 
+	// The gateway, not only the browser, keeps the clipboard to what the
+	// user may copy and paste.
+	filter := &vnc.Filter{
+		AllowCopy:  slices.Contains(session.Operations, "copy"),
+		AllowPaste: slices.Contains(session.Operations, "paste"),
+	}
 	go func() {
-		_, _ = io.Copy(stream, conn)
+		err := filter.RelayServer(stream, conn)
+		if isProtocolError(err) {
+			logs.Warning(fmt.Sprintf("GetAssetVnc(): %s: %s", asset.GetId(), err.Error()))
+			stream.Close(InternalError, err.Error())
+			return
+		}
 		stream.Close(Normal, "Remote connection shut down")
 	}()
 
-	_, _ = io.Copy(conn, stream)
+	err = filter.RelayClient(conn, stream)
+	if isProtocolError(err) {
+		logs.Warning(fmt.Sprintf("GetAssetVnc(): %s: %s", asset.GetId(), err.Error()))
+		stream.Close(InternalError, err.Error())
+		_ = conn.Close()
+	}
 
 	closeTunnelSession(sessionId, "Normal user exit")
+}
+
+// isProtocolError tells a message the relay could not read from the
+// connection simply ending.
+func isProtocolError(err error) bool {
+	var protocolErr *vnc.ProtocolError
+	return errors.As(err, &protocolErr)
 }

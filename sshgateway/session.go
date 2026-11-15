@@ -156,6 +156,10 @@ func (s *sessionChannel) start(req *ssh.Request) {
 			s.fail(req, fmt.Sprintf("you have no permission to %s files on the asset: %s", strings.ToLower(action), s.g.getAsset().Name))
 			return
 		}
+		if action == "" && !s.canPipe() {
+			s.fail(req, fmt.Sprintf("you have no permission to run commands without the interactive shell on the asset: %s, since files can be piped in and out of them it needs both Upload and Download, log in with \"ssh -p <port> %s@<host>\" instead", s.g.getAsset().Name, s.g.getAsset().Name))
+			return
+		}
 
 		_, err = s.g.getClient()
 		if err != nil {
@@ -190,6 +194,13 @@ func (s *sessionChannel) start(req *ssh.Request) {
 // openUpstream opens the same kind of session on the asset, replays the pty and env
 // requests, sends the shell or exec request, and then pipes the two channels together.
 func (s *sessionChannel) openUpstream(reqType string, payload []byte, req *ssh.Request) {
+	// A shell without a terminal reads its commands from stdin unechoed, so
+	// nothing on a screen can check or record them: it is a pipe like exec.
+	if reqType == "shell" && s.pty == nil && !s.canPipe() {
+		s.fail(req, fmt.Sprintf("you have no permission to open a shell without a terminal on the asset: %s, since files can be piped in and out of it it needs both Upload and Download, connect with \"ssh -t\" instead", s.g.getAsset().Name))
+		return
+	}
+
 	client, err := s.g.getClient()
 	if err != nil {
 		s.fail(req, err.Error())
@@ -296,10 +307,21 @@ func (s *sessionChannel) openUpstream(reqType string, payload []byte, req *ssh.R
 	_ = s.down.Close()
 }
 
+// canPipe tells whether the user may run what is not an interactive shell:
+// its stdin and stdout carry any bytes, so files move through it unseen.
+func (s *sessionChannel) canPipe() bool {
+	return s.g.can(object.ActionUpload) && s.g.can(object.ActionDownload)
+}
+
 // getTransferAction tells the permission scp and rsync need from their server-side
 // command line: "scp -t" and "rsync --server" receive files, "scp -f" and
 // "rsync --server --sender" send them. Newer scp uses SFTP instead.
 func getTransferAction(command string) string {
+	// "scp -t /tmp; cat /etc/shadow" must not pass as an upload.
+	if !isPlainCommand(command) {
+		return ""
+	}
+
 	fields := strings.Fields(command)
 	if len(fields) == 0 {
 		return ""
@@ -307,16 +329,18 @@ func getTransferAction(command string) string {
 
 	switch path.Base(fields[0]) {
 	case "scp":
+		// scp sends when -f is given anywhere, even after -t.
+		flags := ""
 		for _, field := range fields[1:] {
-			if !strings.HasPrefix(field, "-") || strings.HasPrefix(field, "--") {
-				continue
+			if strings.HasPrefix(field, "-") && !strings.HasPrefix(field, "--") {
+				flags += field
 			}
-			if strings.Contains(field, "f") {
-				return object.ActionDownload
-			}
-			if strings.Contains(field, "t") {
-				return object.ActionUpload
-			}
+		}
+		if strings.Contains(flags, "f") {
+			return object.ActionDownload
+		}
+		if strings.Contains(flags, "t") {
+			return object.ActionUpload
 		}
 	case "rsync":
 		if !strings.Contains(command, "--server") {
@@ -420,4 +444,24 @@ type recordedWriter struct {
 func (w recordedWriter) Write(p []byte) (int, error) {
 	w.recorder.Output(p)
 	return w.w.Write(p)
+}
+
+// isPlainCommand tells whether the shell on the asset runs a command line as a
+// single command: no separators, pipes, redirections or substitutions outside
+// single quotes, which is how scp quotes file names.
+func isPlainCommand(command string) bool {
+	quoted := false
+	for _, r := range command {
+		if r == '\'' {
+			quoted = !quoted
+			continue
+		}
+		if quoted {
+			continue
+		}
+		if strings.ContainsRune(";&|<>()$`\\\"\n\r", r) {
+			return false
+		}
+	}
+	return !quoted
 }
