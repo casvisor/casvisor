@@ -15,6 +15,8 @@
 // Package sshgateway lets ssh, scp, sftp, Xshell and VS Code Remote reach SSH assets
 // through Casvisor: "ssh -p 2222 <asset>@<casvisor host>", signed in with a public key
 // the user added in the web console, and held to the same permissions as the web terminal.
+// "ssh -p 2222 -N -L 13389:<asset>:3389 <user>@<casvisor host>" forwards a local port to an asset
+// of any protocol, for mstsc, VNC viewers and other clients.
 package sshgateway
 
 import (

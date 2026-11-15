@@ -19,6 +19,7 @@ import * as AssetBackend from "@/backend/AssetBackend";
 import type {Asset} from "@/backend/types";
 import {ConnectButton} from "@/components/access/ConnectButton";
 import {SshCommandButton} from "@/components/access/SshCommandButton";
+import {TunnelCommandButton} from "@/components/access/TunnelCommandButton";
 import {CrudListPage} from "@/components/crud/CrudListPage";
 import {dateColumn, linkColumn, textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
@@ -102,6 +103,7 @@ export default function AssetListPage() {
         <>
           <ConnectButton asset={asset} disabled={asset.owner !== account?.owner} />
           {gateway && asset.protocol === "SSH" ? <SshCommandButton asset={asset} gateway={gateway} account={account} /> : null}
+          {gateway && account && asset.protocol !== "SSH" ? <TunnelCommandButton asset={asset} gateway={gateway} account={account} /> : null}
         </>
       )}
     />

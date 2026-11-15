@@ -357,6 +357,10 @@ func getTransferAction(command string) string {
 // handleForward passes a port forwarding channel ("ssh -L", VS Code Remote) through to
 // the asset, so the connection is opened from the asset, as with a direct SSH login.
 func (g *gatewayConn) handleForward(newChannel ssh.NewChannel) {
+	if g.isUserLogin {
+		g.handleTunnel(newChannel)
+		return
+	}
 	if g.getAsset() == nil {
 		_ = newChannel.Reject(ssh.Prohibited, "no asset is selected")
 		return

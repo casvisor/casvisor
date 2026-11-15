@@ -57,6 +57,19 @@ export function getSshCommand(gateway: SshGateway, asset: Asset, account: {owner
   return `ssh ${port}${target}@${getGatewayHost(gateway)}`;
 }
 
+/** The local port a forward to the asset listens on: 3389 becomes 13389, so it does not take the port of a local service. */
+export function getTunnelLocalPort(asset: Asset) {
+  const port = asset.port + 10000;
+  return port <= 65535 ? port : asset.port;
+}
+
+/** "ssh -p 2222 -N -L 13389:win1:3389 alice@casvisor.example.com", which lets mstsc, VNC viewers and other clients reach the asset at localhost. */
+export function getTunnelCommand(gateway: SshGateway, asset: Asset, account: {owner: string; name: string}) {
+  const target = asset.owner === account.owner ? asset.name : `${asset.owner}/${asset.name}`;
+  const port = gateway.port && gateway.port !== "22" ? `-p ${gateway.port} ` : "";
+  return `ssh ${port}-N -L ${getTunnelLocalPort(asset)}:${target}:${asset.port} ${account.name}@${getGatewayHost(gateway)}`;
+}
+
 export function copyText(text: string) {
   navigator.clipboard.writeText(text).then(
     () => Setting.showMessage("success", i18next.t("general:Copied to clipboard")),

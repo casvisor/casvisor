@@ -40,6 +40,10 @@ type gatewayConn struct {
 	client    *ssh.Client
 	sessionId string
 	forwards  map[string]bool
+
+	// isUserLogin is "ssh <user>@<casvisor host>": port forwards then go to assets themselves
+	isUserLogin bool
+	tunnels     map[string]string
 }
 
 func (g *gatewayConn) signIn() error {
@@ -76,7 +80,8 @@ func (g *gatewayConn) signIn() error {
 	}
 	if asset == nil {
 		if userName == "" && assetName == g.user.Name {
-			// "ssh <user>@<casvisor host>" opens the asset menu
+			// "ssh <user>@<casvisor host>" opens the asset menu, or forwards ports to assets with "-N -L"
+			g.isUserLogin = true
 			return nil
 		}
 		return fmt.Errorf("the asset: %s does not exist, connect with \"ssh -p <port> <asset>@<host>\"", assetName)
@@ -268,13 +273,19 @@ func (g *gatewayConn) connect() (*ssh.Client, bool, error) {
 func (g *gatewayConn) close() {
 	g.mu.Lock()
 	client := g.client
-	sessionId := g.sessionId
+	sessionIds := []string{}
+	if g.sessionId != "" {
+		sessionIds = append(sessionIds, g.sessionId)
+	}
+	for _, sessionId := range g.tunnels {
+		sessionIds = append(sessionIds, sessionId)
+	}
 	g.mu.Unlock()
 
 	if client != nil {
 		_ = client.Close()
 	}
-	if sessionId != "" {
+	for _, sessionId := range sessionIds {
 		object.RemoveSessionCloser(sessionId)
 		err := object.CloseSession(sessionId, 0, "Normal user exit")
 		if err != nil {
@@ -284,7 +295,10 @@ func (g *gatewayConn) close() {
 }
 
 func (g *gatewayConn) audit(action string, detail string) {
-	asset := g.getAsset()
+	g.auditAsset(g.getAsset(), action, detail)
+}
+
+func (g *gatewayConn) auditAsset(asset *object.Asset, action string, detail string) {
 	assetId := ""
 	organization := g.user.Owner
 	if asset != nil {

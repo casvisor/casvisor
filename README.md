@@ -40,6 +40,7 @@ Casvisor sits between the people who run your servers and the servers themselves
 - **VNC** with noVNC. Casvisor does the VNC authentication itself, so the password stays on the server.
 - **Telnet** for network gear and old systems, logging in with the asset's account.
 - **SSH gateway** on port 2222: `ssh -p 2222 web-01@casvisor.example.com`, `scp`, `sftp`, `rsync`, Xshell and VS Code Remote, signed in with the user's public key and under the same permissions as the browser.
+- **Port forwarding to any asset** for clients of its own protocol: `ssh -p 2222 -N -L 13389:win-01:3389 alice@casvisor.example.com`, then mstsc, a VNC viewer or a database client connects to `localhost:13389`. Needs the `Forward` action; the bytes pass through as they are, so the user logs in to the asset with its account, and the connection is listed as a session and logged but not recorded.
 - **Network gateways** for assets Casvisor cannot reach directly: through an SSH jump host, or through an agent that connects out from a private network over HTTPS.
 - **Stored credentials.** Passwords and private keys are encrypted in the database and filled in by Casvisor. SSH host keys and RDP certificates are pinned on first use.
 
@@ -72,7 +73,7 @@ Open http://localhost:19000 and sign in as `admin` with the password printed in 
 
 Then add a server under **Assets** and click **Connect**. Administrators reach every asset; to let other people in, add them under **Users** and give them a **Permission**. The repository's [docker-compose.yml](docker-compose.yml) does the same with Docker Compose.
 
-Port 2222 is the SSH gateway. Users add their public key under **SSH keys** and connect with `ssh -p 2222 <asset>@<your Casvisor host>`.
+Port 2222 is the SSH gateway. Users add their public key under **SSH keys** and connect with `ssh -p 2222 <asset>@<your Casvisor host>`. To use mstsc, a VNC viewer or another client of the asset's own protocol, forward a local port with `ssh -p 2222 -N -L <local port>:<asset>:<asset port> <user>@<your Casvisor host>`; the asset list copies this command for each RDP, VNC and Telnet asset.
 
 ## Installation from source
 

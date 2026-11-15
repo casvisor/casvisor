@@ -24,7 +24,7 @@ import (
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 )
 
-const permissionRevokedCode = 802
+const PermissionRevokedCode = 802
 
 // LiveSession is who holds a connected session, kept so that the session can be
 // checked again when permissions or assets change, or a permission expires.
@@ -66,7 +66,7 @@ func CheckLiveSessions() {
 			return true
 		}
 
-		err = CloseSession(sessionId, permissionRevokedCode, message)
+		err = CloseSession(sessionId, PermissionRevokedCode, message)
 		if err != nil {
 			logs.Error(fmt.Sprintf("CheckLiveSessions(): failed to close the session: %s: %s", sessionId, err.Error()))
 		}
