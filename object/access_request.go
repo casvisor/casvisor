@@ -250,9 +250,25 @@ func ApproveAccessRequest(request *AccessRequest, reviewer string, comment strin
 		return nil, fmt.Errorf("only pending requests can be approved, the request is %s", request.Status)
 	}
 	if len(actions) > 0 {
+		for _, action := range actions {
+			if !slices.Contains(request.Actions, action) {
+				return nil, fmt.Errorf("the action: %s was not requested, an approval can only take actions away", action)
+			}
+		}
 		request.Actions = actions
 	}
 	if endTime != "" {
+		requested, err := time.Parse(time.RFC3339, request.EndTime)
+		if err != nil {
+			return nil, err
+		}
+		approved, err := time.Parse(time.RFC3339, endTime)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end time: %s", endTime)
+		}
+		if approved.After(requested) {
+			return nil, fmt.Errorf("an approval can only end the access earlier than requested")
+		}
 		request.EndTime = endTime
 	}
 	err := request.check()

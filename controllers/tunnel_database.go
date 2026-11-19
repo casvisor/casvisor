@@ -321,7 +321,16 @@ func (c *ApiController) ExportDatabaseResult() {
 		c.ResponseError(err.Error())
 		return
 	}
-	actions, err := object.GetAssetActions(user, asset, c.getAuthzClientIp())
+	session, err := object.GetConnSession(sessionId)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	account := ""
+	if session != nil {
+		account = session.Account
+	}
+	actions, err := object.GetAssetAccountActions(user, asset, &account, c.getAuthzClientIp())
 	if err != nil {
 		c.ResponseError(err.Error())
 		return

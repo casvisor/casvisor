@@ -209,6 +209,9 @@ func (account *AssetAccount) check() error {
 	if account.AutoRotate && account.RotateIntervalDays == 0 {
 		account.RotateIntervalDays = 30
 	}
+	if account.AutoRotate && !strings.EqualFold(asset.Protocol, "SSH") {
+		return fmt.Errorf("passwords can only be rotated on SSH assets, the asset: %s uses %s", asset.Name, asset.Protocol)
+	}
 	return nil
 }
 
