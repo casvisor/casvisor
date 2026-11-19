@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export const Protocols = ["RDP", "VNC", "SSH", "Telnet"];
+export const Protocols = ["RDP", "VNC", "SSH", "Telnet", "MySQL", "PostgreSQL"];
+
+export const DatabaseProtocols = ["MySQL", "PostgreSQL"];
+
+export function isDatabaseProtocol(protocol: string) {
+  return DatabaseProtocols.includes(protocol);
+}
 
 export const OperatingSystems = ["Windows", "Linux"];
 
 export function getDefaultPort(protocol: string) {
-  const ports: Record<string, number> = {RDP: 3389, VNC: 5900, SSH: 22, Telnet: 23};
+  const ports: Record<string, number> = {RDP: 3389, VNC: 5900, SSH: 22, Telnet: 23, MySQL: 3306, PostgreSQL: 5432};
   return ports[protocol] ?? 0;
 }
 

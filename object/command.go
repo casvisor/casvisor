@@ -19,7 +19,8 @@ import (
 	"xorm.io/core"
 )
 
-// Command is a command run, or stopped by a rule, in an SSH session.
+// Command is a command run, or stopped by a rule, in an SSH session, or a SQL
+// statement run in a database session.
 type Command struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -32,6 +33,11 @@ type Command struct {
 	Text     string `xorm:"mediumtext" json:"text"`
 	Action   string `xorm:"varchar(20)" json:"action"`
 	Rule     string `xorm:"varchar(200)" json:"rule"`
+
+	Protocol string `xorm:"varchar(20)" json:"protocol"`
+	RowCount int64  `json:"rowCount"`
+	Duration int64  `json:"duration"`
+	Error    string `xorm:"varchar(1000)" json:"error"`
 }
 
 func GetCommandCount(owner, field, value string) (int64, error) {
@@ -63,7 +69,9 @@ func GetSessionCommands(sessionId string) ([]*Command, error) {
 // AddCommand saves the command and counts it on its session.
 func AddCommand(command *Command) error {
 	command.Name = util.GenerateId()
-	command.CreatedTime = util.GetCurrentTime()
+	if command.CreatedTime == "" {
+		command.CreatedTime = util.GetCurrentTime()
+	}
 
 	_, err := adapter.engine.Insert(command)
 	if err != nil {
@@ -72,5 +80,14 @@ func AddCommand(command *Command) error {
 
 	owner, name := util.GetOwnerAndNameFromIdNoCheck(command.Session)
 	_, err = adapter.engine.ID(core.PK{owner, name}).Incr("command_count").Update(&Session{})
+	return err
+}
+
+// UpdateCommandResult saves how a SQL statement recorded before it ran turned out.
+func UpdateCommandResult(command *Command) error {
+	if runes := []rune(command.Error); len(runes) > 1000 {
+		command.Error = string(runes[:1000])
+	}
+	_, err := adapter.engine.ID(core.PK{command.Owner, command.Name}).Cols("row_count", "duration", "error").Update(command)
 	return err
 }

@@ -45,6 +45,9 @@ var userApis = map[string]bool{
 	"/api/get-asset-telnet": true,
 	"/api/start-session":    true,
 
+	"/api/get-asset-database":     true,
+	"/api/export-database-result": true,
+
 	"/api/get-session-files":     true,
 	"/api/download-session-file": true,
 	"/api/upload-session-file":   true,

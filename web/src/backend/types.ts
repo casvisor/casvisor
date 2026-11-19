@@ -26,6 +26,7 @@ export interface Asset {
   port: number;
   username: string;
   password: string;
+  database: string;
   privateKey: string;
   fingerprint: string;
   networkGateway: string;
@@ -225,6 +226,36 @@ export interface Command {
   text: string;
   action: string;
   rule: string;
+  protocol: string;
+  rowCount: number;
+  duration: number;
+  error: string;
+}
+
+export interface SqlResult {
+  id: string;
+  statement: string;
+  columns: {name: string; type: string}[] | null;
+  rows: (string | null)[][] | null;
+  rowCount: number;
+  truncated: boolean;
+  duration: number;
+  error: string;
+  action: string;
+  rule: string;
+}
+
+export interface DatabaseTable {
+  schema: string;
+  name: string;
+  type: string;
+}
+
+export interface DatabaseColumn {
+  name: string;
+  type: string;
+  key: string;
+  nullable: boolean;
 }
 
 export interface PatchUpdate {

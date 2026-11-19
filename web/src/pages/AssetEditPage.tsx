@@ -28,7 +28,7 @@ import {AssetAccountsPanel} from "@/components/access/AssetAccountsPanel";
 import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
-import {getDefaultPort, OperatingSystems, Protocols} from "@/lib/asset";
+import {getDefaultPort, isDatabaseProtocol, OperatingSystems, Protocols} from "@/lib/asset";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
 import NotFoundPage from "@/pages/NotFoundPage";
@@ -131,6 +131,11 @@ export default function AssetEditPage() {
           onChange={(e) => updateField("password", e.target.value)}
         />
       </FormRow>
+      {isDatabaseProtocol(asset.protocol) ? (
+        <FormRow label={i18next.t("asset:Database")} tooltip={i18next.t("asset:Database - Tooltip")}>
+          <Input value={asset.database ?? ""} onChange={(e) => updateField("database", e.target.value)} />
+        </FormRow>
+      ) : null}
       {asset.protocol === "SSH" ? (
         <FormRow labelKey="asset:Private key">
           <Textarea

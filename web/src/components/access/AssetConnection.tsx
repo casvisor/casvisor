@@ -17,12 +17,14 @@ import i18next from "i18next";
 import * as AssetBackend from "@/backend/AssetBackend";
 import {Loading} from "@/components/common/Loading";
 import type {ConnectionProps} from "@/components/access/util";
+import {isDatabaseProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 // each client library is only downloaded for the protocol that needs it
 const SshView = React.lazy(() => import("@/components/access/SshView"));
 const VncView = React.lazy(() => import("@/components/access/VncView"));
 const RdpView = React.lazy(() => import("@/components/access/RdpView"));
+const DatabaseView = React.lazy(() => import("@/components/access/DatabaseView"));
 
 /** Looks the asset up and opens it with the client its protocol needs. */
 export function AssetConnection(props: ConnectionProps) {
@@ -46,7 +48,15 @@ export function AssetConnection(props: ConnectionProps) {
 
   return (
     <React.Suspense fallback={fallback}>
-      {protocol === "VNC" ? <VncView {...props} /> : protocol === "RDP" ? <RdpView {...props} /> : <SshView {...props} protocol={protocol} />}
+      {protocol === "VNC" ? (
+        <VncView {...props} />
+      ) : protocol === "RDP" ? (
+        <RdpView {...props} />
+      ) : isDatabaseProtocol(protocol) ? (
+        <DatabaseView {...props} />
+      ) : (
+        <SshView {...props} protocol={protocol} />
+      )}
     </React.Suspense>
   );
 }

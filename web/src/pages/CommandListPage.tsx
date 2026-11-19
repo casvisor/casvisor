@@ -21,10 +21,12 @@ import {CrudListPage} from "@/components/crud/CrudListPage";
 import {dateColumn, textColumn} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
+import {isDatabaseProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 import {CommandActionBadge} from "@/pages/CommandRuleListPage";
 
-/** The commands run in SSH sessions; /commands?session=<owner>/<name> shows one session's. */
+/** The commands run in SSH sessions and the statements run in database sessions;
+ *  /commands?session=<owner>/<name> shows one session's. */
 export default function CommandListPage() {
   const {account} = useAccount();
   const owner = Setting.getRequestOrganization(account);
@@ -59,6 +61,20 @@ export default function CommandListPage() {
       width: 100,
       render: (value) => <CommandActionBadge action={value} />,
     },
+    {
+      dataIndex: "rowCount",
+      title: i18next.t("database:Result"),
+      width: 160,
+      render: (_value, command) => {
+        if (!isDatabaseProtocol(command.protocol) || command.action === "Block") {
+          return null;
+        }
+        if (command.error) {
+          return <span className="line-clamp-2 break-all text-xs text-destructive" title={command.error}>{command.error}</span>;
+        }
+        return <span className="text-xs tabular-nums">{i18next.t("database:{{n}} row(s)", {n: command.rowCount ?? 0})}</span>;
+      },
+    },
     textColumn<Command>({dataIndex: "user", title: i18next.t("general:User"), width: 150, searchable: true}),
     {
       dataIndex: "asset",
@@ -91,7 +107,7 @@ export default function CommandListPage() {
     <CrudListPage<Command>
       key={session}
       title={i18next.t("general:Commands")}
-      description={i18next.t("general:Commands run in SSH sessions")}
+      description={i18next.t("general:Commands run in SSH sessions and SQL run in database sessions")}
       columns={columns}
       fetch={fetchCommands}
       deps={[owner]}

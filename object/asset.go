@@ -37,6 +37,7 @@ type Asset struct {
 	Port     int    `json:"port"`
 	Username string `xorm:"varchar(100)" json:"username"`
 	Password string `xorm:"varchar(1000)" json:"password"`
+	Database string `xorm:"varchar(100)" json:"database"`
 
 	PrivateKey     string `xorm:"mediumtext" json:"privateKey"`
 	Fingerprint    string `xorm:"varchar(200)" json:"fingerprint"`

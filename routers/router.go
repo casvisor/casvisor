@@ -121,6 +121,8 @@ func initAPI() {
 	beego.Router("/api/get-asset-vnc", &controllers.ApiController{}, "GET:GetAssetVnc")
 	beego.Router("/api/get-asset-rdp", &controllers.ApiController{}, "GET:GetAssetRdp")
 	beego.Router("/api/get-asset-telnet", &controllers.ApiController{}, "GET:GetAssetTelnet")
+	beego.Router("/api/get-asset-database", &controllers.ApiController{}, "GET:GetAssetDatabase")
+	beego.Router("/api/export-database-result", &controllers.ApiController{}, "GET:ExportDatabaseResult")
 
 	beego.Router("/api/get-session-files", &controllers.ApiController{}, "GET:GetSessionFiles")
 	beego.Router("/api/download-session-file", &controllers.ApiController{}, "GET:DownloadSessionFile")

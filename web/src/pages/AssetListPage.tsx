@@ -63,6 +63,7 @@ export default function AssetListPage() {
     port: 22,
     username: "root",
     password: "",
+    database: "",
     privateKey: "",
     fingerprint: "",
     networkGateway: "",

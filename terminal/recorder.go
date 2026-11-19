@@ -423,6 +423,7 @@ func (r *Recorder) record(text string, rule *object.CommandRule) {
 		User:     util.GetIdFromOwnerAndName(r.opts.User.Owner, r.opts.User.Name),
 		ClientIp: r.opts.ClientIp,
 		Text:     text,
+		Protocol: asset.Protocol,
 	}
 	if rule != nil {
 		command.Action = rule.Action

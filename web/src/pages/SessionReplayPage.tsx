@@ -19,10 +19,13 @@ import {useParams, useSearchParams} from "react-router-dom";
 import {Download, Film, Pause, Play} from "lucide-react";
 import * as CommandBackend from "@/backend/CommandBackend";
 import * as SessionBackend from "@/backend/SessionBackend";
+import type {Session} from "@/backend/types";
+import {SqlSessionLog} from "@/components/replay/SqlSessionLog";
 import {Button} from "@/components/ui/button";
 import {Switch} from "@/components/ui/switch";
 import {ReplayPlayer} from "@/components/replay/player";
 import {createScreen} from "@/components/replay/screens";
+import {isDatabaseProtocol} from "@/lib/asset";
 import {formatDuration, parseRecording, type Recording} from "@/lib/recording";
 import * as Setting from "@/lib/setting";
 
@@ -34,9 +37,29 @@ interface CommandMark {
   action: string;
 }
 
+/** Replays a recorded session, or lists the statements of a database session. */
+export default function SessionReplayPage() {
+  const {owner = "", name = ""} = useParams();
+  const [session, setSession] = React.useState<Session | null | undefined>(undefined);
+
+  React.useEffect(() => {
+    SessionBackend.getSession(owner, name).then((res) => {
+      setSession(res.status === "ok" && res.data ? res.data : null);
+    });
+  }, [owner, name]);
+
+  if (session === undefined) {
+    return <div className="h-screen w-screen bg-[#1b1b1b]" />;
+  }
+  if (session && isDatabaseProtocol(session.protocol)) {
+    return <SqlSessionLog session={session} />;
+  }
+  return <RecordingReplay />;
+}
+
 /** Replays a recorded session in the window, with the commands of a terminal
  *  session beside it to jump to. */
-export default function SessionReplayPage() {
+function RecordingReplay() {
   const {owner = "", name = ""} = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const index = Number(searchParams.get("index") ?? 0) || 0;

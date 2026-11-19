@@ -115,7 +115,13 @@ export default function CommandRuleEditPage() {
         <Input value={rule.description} onChange={(e) => updateField("description", e.target.value)} />
       </FormRow>
       <FormRow label={i18next.t("command:Pattern")} tooltip={i18next.t("command:Pattern - Tooltip")}>
-        <Input className="font-mono" value={rule.pattern} onChange={(e) => updateField("pattern", e.target.value)} />
+        <div className="flex w-full flex-col gap-1">
+          <Input className="font-mono" value={rule.pattern} onChange={(e) => updateField("pattern", e.target.value)} />
+          <span className="text-xs text-muted-foreground">
+            {i18next.t("command:In MySQL and PostgreSQL sessions the pattern is matched against each SQL statement, for example")}{" "}
+            <code className="font-mono">{String.raw`(?i)^\s*(drop|truncate|delete)\b`}</code>
+          </span>
+        </div>
       </FormRow>
       <FormRow labelKey="command:Action">
         <SelectField

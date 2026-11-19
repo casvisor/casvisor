@@ -96,7 +96,7 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         key: "/commands",
         label: i18next.t("general:Commands"),
         icon: SquareTerminal,
-        description: i18next.t("general:Commands run in SSH sessions"),
+        description: i18next.t("general:Commands run in SSH sessions and SQL run in database sessions"),
       },
       {
         key: "/command-rules",

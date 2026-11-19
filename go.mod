@@ -14,6 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02
+	github.com/jackc/pgx/v5 v5.7.4
 	github.com/pkg/sftp v1.13.9
 	github.com/qiangmzsx/string-adapter/v2 v2.2.0
 	github.com/ua-parser/uap-go v0.0.0-20240113215029-33f8e6d47f38
@@ -36,6 +37,8 @@ require (
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/indece-official/go-ebcdic v1.2.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.7.6 // indirect

@@ -22,6 +22,7 @@ import {CrudListPage} from "@/components/crud/CrudListPage";
 import {textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
+import {isDatabaseProtocol, Protocols} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 export default function SessionListPage() {
@@ -78,7 +79,7 @@ export default function SessionListPage() {
       searchable: true,
       render: (value) => <span className="font-mono text-xs">{value || i18next.t("account:Default")}</span>,
     },
-    textColumn<Session>({dataIndex: "protocol", title: i18next.t("general:Protocol"), width: 120, filters: valueFilters(["RDP", "VNC", "SSH", "Telnet"])}),
+    textColumn<Session>({dataIndex: "protocol", title: i18next.t("general:Protocol"), width: 120, filters: valueFilters(Protocols)}),
     textColumn<Session>({
       dataIndex: "creator",
       title: i18next.t("general:User"),
@@ -128,7 +129,7 @@ export default function SessionListPage() {
       title: i18next.t("general:Commands"),
       width: 110,
       render: (value, session) =>
-        session.protocol === "SSH" ? (
+        session.protocol === "SSH" || isDatabaseProtocol(session.protocol) ? (
           <Link to={`/commands?session=${encodeURIComponent(Setting.getIdFromObject(session))}`} className="tabular-nums underline-offset-4 hover:underline">
             {value ?? 0}
           </Link>
@@ -163,11 +164,13 @@ export default function SessionListPage() {
             key: "monitor",
             label: i18next.t("session:Monitor"),
             onSelect: () => {
-              window.open(`/sessions/${session.owner}/${session.name}/monitor`, "_blank");
+              // a database session has no screen to watch, its statements are listed instead
+              const page = isDatabaseProtocol(session.protocol) ? "replay" : "monitor";
+              window.open(`/sessions/${session.owner}/${session.name}/${page}`, "_blank");
             },
           }
           : null,
-        (session.recordings?.length ?? 0) > 0
+        (session.recordings?.length ?? 0) > 0 || (!isOnline && isDatabaseProtocol(session.protocol))
           ? {
             key: "replay",
             label: i18next.t("session:Replay"),
