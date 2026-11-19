@@ -15,7 +15,7 @@
 import * as React from "react";
 import i18next from "i18next";
 import {Navigate} from "react-router-dom";
-import {Lock, User} from "lucide-react";
+import {KeyRound, Lock, User} from "lucide-react";
 import * as AccountBackend from "@/backend/AccountBackend";
 import {LanguageSelect} from "@/components/common/LanguageSelect";
 import {Loading} from "@/components/common/Loading";
@@ -33,6 +33,8 @@ export default function LoginPage() {
   const {account, loading, reload} = useAccount();
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [code, setCode] = React.useState("");
+  const [needsCode, setNeedsCode] = React.useState(false);
   const [error, setError] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -52,13 +54,16 @@ export default function LoginPage() {
   const submit = () => {
     setSubmitting(true);
     setError("");
-    AccountBackend.signinLocal(username.trim(), password).then((res) => {
+    AccountBackend.signinLocal(username.trim(), password, needsCode ? code : "").then((res) => {
       setSubmitting(false);
       if (res.status === "ok") {
         Setting.showMessage("success", i18next.t("general:Successfully logged in"));
         reload();
+      } else if (res.data === "mfa-required") {
+        setNeedsCode(true);
       } else {
         setError(res.msg);
+        setCode("");
       }
     });
   };
@@ -104,8 +109,25 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+              {needsCode ? (
+                <div className="space-y-1.5">
+                  <p className="text-sm text-muted-foreground">{i18next.t("login:Enter the 6-digit code from your authenticator app")}</p>
+                  <div className="relative">
+                    <KeyRound className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      className="pl-8 font-mono tracking-widest"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      autoFocus
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    />
+                  </div>
+                </div>
+              ) : null}
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              <Button type="submit" className="w-full" disabled={!username.trim() || !password} loading={submitting}>
+              <Button type="submit" className="w-full" disabled={!username.trim() || !password || (needsCode && code.length !== 6)} loading={submitting}>
                 {i18next.t("account:Sign In")}
               </Button>
             </form>

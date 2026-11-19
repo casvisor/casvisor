@@ -23,8 +23,24 @@ export function signout() {
 }
 
 /** Signs in with an account Casvisor keeps itself, when no Casdoor is configured. */
-export function signinLocal(username: string, password: string) {
-  return post("/api/signin", {}, {username, password});
+export function signinLocal(username: string, password: string, code = "") {
+  return post("/api/signin", {}, code ? {username, password, code} : {username, password});
+}
+
+export function getMfaSetup() {
+  return post("/api/get-mfa-setup", {}, {});
+}
+
+export function enableMfa(code: string) {
+  return post("/api/enable-mfa", {}, {code});
+}
+
+export function disableMfa(password: string) {
+  return post("/api/disable-mfa", {}, {password});
+}
+
+export function resetLocalUserMfa(owner: string, name: string) {
+  return post("/api/reset-local-user-mfa", {id: `${owner}/${name}`}, {});
 }
 
 export function changePassword(oldPassword: string, newPassword: string) {

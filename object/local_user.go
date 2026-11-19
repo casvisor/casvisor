@@ -16,10 +16,12 @@ package object
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/beego/beego/logs"
@@ -53,6 +55,11 @@ type LocalUser struct {
 	Password       string `xorm:"-" json:"password"`
 	PasswordHash   string `xorm:"varchar(100)" json:"-"`
 	LastSigninTime string `xorm:"varchar(100)" json:"lastSigninTime"`
+
+	// MfaEnabled asks for a code from an authenticator app at sign-in; an administrator can only turn it off
+	MfaEnabled   bool   `json:"mfaEnabled"`
+	TotpSecret   string `xorm:"varchar(200)" json:"-"`
+	TotpLastStep int64  `json:"-"`
 }
 
 var (
@@ -280,9 +287,12 @@ func checkOtherAdmin(user *LocalUser) error {
 	return nil
 }
 
+// ErrMfaRequired tells the sign-in page to ask for the code of the authenticator app.
+var ErrMfaRequired = errors.New("enter the verification code from your authenticator app")
+
 // SigninLocalUser checks the password. Failures are counted for the user from each
 // client IP, so that nobody can lock an administrator out from elsewhere.
-func SigninLocalUser(owner string, name string, password string, clientIp string) (*LocalUser, error) {
+func SigninLocalUser(owner string, name string, password string, code string, clientIp string) (*LocalUser, error) {
 	userId := util.GetIdFromOwnerAndName(owner, name)
 	lockedUntil := getSigninLock(userId, clientIp)
 	if !lockedUntil.IsZero() {
@@ -309,6 +319,20 @@ func SigninLocalUser(owner string, name string, password string, clientIp string
 
 	if user.IsForbidden {
 		return nil, fmt.Errorf("the user: %s is forbidden to sign in", user.Name)
+	}
+
+	if user.MfaEnabled {
+		if strings.TrimSpace(code) == "" {
+			return nil, ErrMfaRequired
+		}
+		ok, err := checkLocalUserMfa(user, code)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			addSigninFailure(userId, clientIp)
+			return nil, fmt.Errorf("the verification code is wrong or has been used")
+		}
 	}
 
 	clearSigninFailures(userId)

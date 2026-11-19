@@ -15,9 +15,11 @@
 import * as React from "react";
 import i18next from "i18next";
 import {useNavigate, useParams} from "react-router-dom";
+import * as AccountBackend from "@/backend/AccountBackend";
 import * as LocalUserBackend from "@/backend/LocalUserBackend";
 import * as PermissionBackend from "@/backend/PermissionBackend";
 import type {LocalUser, Principal} from "@/backend/types";
+import {ConfirmButton} from "@/components/common/ConfirmButton";
 import {Loading} from "@/components/common/Loading";
 import {MultiSelect} from "@/components/common/MultiSelect";
 import {PasswordInput} from "@/components/common/PasswordInput";
@@ -28,6 +30,7 @@ import {Input} from "@/components/ui/input";
 import {Switch} from "@/components/ui/switch";
 import {useEditRecord} from "@/hooks/use-edit-record";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
+import * as Setting from "@/lib/setting";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 export default function UserEditPage() {
@@ -117,6 +120,31 @@ export default function UserEditPage() {
       <FormRow labelKey="user:Is forbidden">
         <Switch checked={user.isForbidden} onCheckedChange={(checked) => updateField("isForbidden", checked)} />
       </FormRow>
+      {mode !== "add" ? (
+        <FormRow labelKey="account:Two-factor sign-in">
+          <div className="flex items-center gap-3">
+            <span className="text-sm">{user.mfaEnabled ? i18next.t("account:On") : i18next.t("account:Off")}</span>
+            {user.mfaEnabled ? (
+              <ConfirmButton
+                size="sm"
+                variant="outline"
+                title={i18next.t("user:Turn off two-factor sign-in?")}
+                description={i18next.t("user:For a user who lost the authenticator app. The user signs in with the password alone and can set it up again")}
+                onConfirm={async() => {
+                  const res = await AccountBackend.resetLocalUserMfa(user.owner, user.name);
+                  if (res.status === "ok") {
+                    updateField("mfaEnabled", false);
+                  } else {
+                    Setting.showMessage("error", res.msg);
+                  }
+                }}
+              >
+                {i18next.t("account:Turn off")}
+              </ConfirmButton>
+            ) : null}
+          </div>
+        </FormRow>
+      ) : null}
     </EditPageShell>
   );
 }

@@ -200,7 +200,7 @@ func (record *Record) getId() string {
 	return fmt.Sprintf("%s/%s", record.Owner, record.Name)
 }
 
-var maskedRecordFields = []string{"password", "privateKey", "oldPassword", "newPassword"}
+var maskedRecordFields = []string{"password", "privateKey", "oldPassword", "newPassword", "code", "secret"}
 
 func maskRecordObject(body []byte) string {
 	var m map[string]interface{}

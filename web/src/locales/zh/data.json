@@ -20,6 +20,7 @@
   },
   "account": {
     "Account": "账号",
+    "Ask for a code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password after the password": "登录时在口令之后再输入身份验证器（如 Google Authenticator、Microsoft Authenticator、1Password）里的动态码",
     "At least 8 characters": "至少 8 个字符",
     "Auto rotate": "自动改密",
     "Auto rotate - Tooltip": "Casvisor 按周期把资产上这个账号的口令改成新的随机口令，经资产自己的账号操作，该账号要是 root、能免密 sudo，或者是 Windows 管理员。只改有口令、没有私钥的账号",
@@ -41,10 +42,14 @@
     "My Account": "我的账户",
     "New Account": "添加账号",
     "New password": "新口令",
+    "Off": "未开启",
     "Old password": "原口令",
+    "On": "已开启",
     "Password changed": "口令已修改",
     "Push to asset": "推送到资产",
     "Running": "进行中",
+    "Scan the QR code with the authenticator app, or enter this key": "用身份验证器扫描二维码，或手动输入这个密钥",
+    "Set up": "设置",
     "Sign In": "登录",
     "Sign Out": "登出",
     "Sign Up": "注册",
@@ -55,6 +60,12 @@
     "The account is set on the asset": "账号已设置到资产上",
     "The password has been changed": "口令已修改",
     "The two passwords do not match": "两次输入的口令不一致",
+    "Then enter the 6-digit code it shows": "再输入它显示的 6 位动态码",
+    "Turn off": "关闭",
+    "Turn on": "开启",
+    "Two-factor sign-in": "两步验证",
+    "Two-factor sign-in is off": "已关闭两步验证",
+    "Two-factor sign-in is on": "已开启两步验证",
     "Users connect as these accounts without seeing their passwords. The asset's own account above is the default account, and Casvisor uses it to change the passwords of the others": "用户以这些账号连接资产，全程看不到口令。上面资产自己的账号是默认账号，Casvisor 也用它来修改其他账号的口令",
     "days": "天改一次口令"
   },
@@ -252,6 +263,7 @@
   "login": {
     "Additional Information": "附加信息",
     "Details": "详情",
+    "Enter the 6-digit code from your authenticator app": "请输入身份验证器里的 6 位动态码",
     "Error Details": "错误详情",
     "Error Message": "错误信息",
     "Help": "帮助",
@@ -432,6 +444,7 @@
   "user": {
     "Edit User": "编辑用户",
     "Email": "邮箱",
+    "For a user who lost the authenticator app. The user signs in with the password alone and can set it up again": "用于用户丢失身份验证器的情况。关闭后用户只用口令登录，可以重新设置",
     "Is admin": "管理员",
     "Is forbidden": "已禁用",
     "Language": "语言",
@@ -439,6 +452,7 @@
     "Leave empty to keep the password": "留空则不修改口令",
     "New User": "新建用户",
     "Password - Tooltip": "至少 8 个字符；编辑已有用户时留空则不修改",
+    "Turn off two-factor sign-in?": "关闭这个用户的两步验证？",
     "View User": "查看用户"
   }
 }

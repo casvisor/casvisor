@@ -20,6 +20,7 @@
   },
   "account": {
     "Account": "Account",
+    "Ask for a code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password after the password": "Ask for a code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password after the password",
     "At least 8 characters": "At least 8 characters",
     "Auto rotate": "Auto rotate",
     "Auto rotate - Tooltip": "Casvisor changes the password on the asset to a new random one on schedule, through the asset's own account, which must be root, able to sudo without a password, or a Windows administrator. Only accounts with a password and no private key are rotated",
@@ -41,10 +42,14 @@
     "My Account": "My Account",
     "New Account": "New Account",
     "New password": "New password",
+    "Off": "Off",
     "Old password": "Old password",
+    "On": "On",
     "Password changed": "Password changed",
     "Push to asset": "Push to asset",
     "Running": "Running",
+    "Scan the QR code with the authenticator app, or enter this key": "Scan the QR code with the authenticator app, or enter this key",
+    "Set up": "Set up",
     "Sign In": "Sign In",
     "Sign Out": "Sign Out",
     "Sign Up": "Sign Up",
@@ -55,6 +60,12 @@
     "The account is set on the asset": "The account is set on the asset",
     "The password has been changed": "The password has been changed",
     "The two passwords do not match": "The two passwords do not match",
+    "Then enter the 6-digit code it shows": "Then enter the 6-digit code it shows",
+    "Turn off": "Turn off",
+    "Turn on": "Turn on",
+    "Two-factor sign-in": "Two-factor sign-in",
+    "Two-factor sign-in is off": "Two-factor sign-in is off",
+    "Two-factor sign-in is on": "Two-factor sign-in is on",
     "Users connect as these accounts without seeing their passwords. The asset's own account above is the default account, and Casvisor uses it to change the passwords of the others": "Users connect as these accounts without seeing their passwords. The asset's own account above is the default account, and Casvisor uses it to change the passwords of the others",
     "days": "days"
   },
@@ -252,6 +263,7 @@
   "login": {
     "Additional Information": "Additional Information",
     "Details": "Details",
+    "Enter the 6-digit code from your authenticator app": "Enter the 6-digit code from your authenticator app",
     "Error Details": "Error Details",
     "Error Message": "Error Message",
     "Help": "Help",
@@ -432,6 +444,7 @@
   "user": {
     "Edit User": "Edit User",
     "Email": "Email",
+    "For a user who lost the authenticator app. The user signs in with the password alone and can set it up again": "For a user who lost the authenticator app. The user signs in with the password alone and can set it up again",
     "Is admin": "Is admin",
     "Is forbidden": "Is forbidden",
     "Language": "Language",
@@ -439,6 +452,7 @@
     "Leave empty to keep the password": "Leave empty to keep the password",
     "New User": "New User",
     "Password - Tooltip": "At least 8 characters; leave it empty to keep the current password of an existing user",
+    "Turn off two-factor sign-in?": "Turn off two-factor sign-in?",
     "View User": "View User"
   }
 }

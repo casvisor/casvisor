@@ -15,6 +15,7 @@
 import * as React from "react";
 import i18next from "i18next";
 import * as AccountBackend from "@/backend/AccountBackend";
+import {MfaCard} from "@/components/common/MfaCard";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import {PageHeader} from "@/components/crud/PageHeader";
 import {Button} from "@/components/ui/button";
@@ -106,7 +107,9 @@ export default function AccountPage() {
             </form>
           </CardContent>
         </Card>
-      ) : (
+      ) : null}
+
+      {Setting.isLocalAuth() ? <MfaCard /> : (
         <Button variant="outline" onClick={() => Setting.openLink(Setting.getMyProfileUrl(account))}>
           {i18next.t("account:Manage the account in Casdoor")}
         </Button>

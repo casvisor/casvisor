@@ -156,6 +156,7 @@ func (c *ApiController) Signin() {
 type LocalSigninForm struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Code     string `json:"code"`
 }
 
 func (c *ApiController) signinLocal() {
@@ -167,7 +168,11 @@ func (c *ApiController) signinLocal() {
 	}
 
 	organization := object.GetLocalOrganization()
-	user, err := object.SigninLocalUser(organization, strings.TrimSpace(form.Username), form.Password, c.getAuthzClientIp())
+	user, err := object.SigninLocalUser(organization, strings.TrimSpace(form.Username), form.Password, form.Code, c.getAuthzClientIp())
+	if err == object.ErrMfaRequired {
+		c.ResponseError(err.Error(), "mfa-required")
+		return
+	}
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -238,6 +243,18 @@ func (c *ApiController) GetAccount() {
 	}
 
 	claims := c.GetSessionClaims()
+
+	if object.IsLocalAuth() {
+		user, err := object.GetLocalUser(fmt.Sprintf("%s/%s", claims.User.Owner, claims.User.Name))
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		if user != nil {
+			c.ResponseOk(claims, map[string]bool{"mfaEnabled": user.MfaEnabled})
+			return
+		}
+	}
 
 	c.ResponseOk(claims)
 }

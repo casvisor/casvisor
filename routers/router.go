@@ -35,6 +35,10 @@ func initAPI() {
 	beego.Router("/api/signout", &controllers.ApiController{}, "POST:Signout")
 	beego.Router("/api/get-account", &controllers.ApiController{}, "GET:GetAccount")
 	beego.Router("/api/change-password", &controllers.ApiController{}, "POST:ChangePassword")
+	beego.Router("/api/get-mfa-setup", &controllers.ApiController{}, "POST:GetMfaSetup")
+	beego.Router("/api/enable-mfa", &controllers.ApiController{}, "POST:EnableMfa")
+	beego.Router("/api/disable-mfa", &controllers.ApiController{}, "POST:DisableMfa")
+	beego.Router("/api/reset-local-user-mfa", &controllers.ApiController{}, "POST:ResetLocalUserMfa")
 
 	beego.Router("/api/get-local-users", &controllers.ApiController{}, "GET:GetLocalUsers")
 	beego.Router("/api/get-local-user", &controllers.ApiController{}, "GET:GetLocalUser")

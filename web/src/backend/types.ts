@@ -285,4 +285,5 @@ export interface LocalUser {
   isForbidden: boolean;
   password: string;
   lastSigninTime: string;
+  mfaEnabled?: boolean;
 }
