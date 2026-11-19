@@ -39,6 +39,7 @@ Casvisor sits between the people who run your servers and the servers themselves
 - **RDP** with [gordp](https://github.com/casvisor/gordp), a pure-Go RDP client: NLA, the GFX graphics pipeline (ClearCodec, RemoteFX Progressive) like the Windows client, sharp text on high-DPI screens, the remote cursor, clipboard, resizing with the window, and file transfer through a redirected drive. Works with Windows Server, Windows 10/11 and FreeRDP-based hosts such as Ubuntu.
 - **VNC** with noVNC. Casvisor does the VNC authentication itself, so the password stays on the server.
 - **Telnet** for network gear and old systems, logging in with the asset's account.
+- **MySQL and PostgreSQL** in a browser SQL console: the databases, tables and columns on the left, a statement run from the editor or from a selection, one tab per result. Every statement passes the command rules and lands in the command records, and a result can be copied or exported as CSV. Database assets work through network gateways and with system accounts too.
 - **SSH gateway** on port 2222: `ssh -p 2222 web-01@casvisor.example.com`, `scp`, `sftp`, `rsync`, Xshell and VS Code Remote, signed in with the user's public key and under the same permissions as the browser.
 - **Port forwarding to any asset** for clients of its own protocol: `ssh -p 2222 -N -L 13389:win-01:3389 alice@casvisor.example.com`, then mstsc, a VNC viewer or a database client connects to `localhost:13389`. Needs the `Forward` action; the bytes pass through as they are, so the user logs in to the asset with its account, and the connection is listed as a session and logged but not recorded.
 - **Network gateways** for assets Casvisor cannot reach directly: through an SSH jump host, or through an agent that connects out from a private network over HTTPS.
@@ -47,8 +48,11 @@ Casvisor sits between the people who run your servers and the servers themselves
 **Control**
 
 - **Permissions** on users, groups, assets and asset tags, with the actions `Connect`, `Copy`, `Paste`, `Upload`, `Download` and `Forward`, client IP ranges and a time window.
-- **Command rules** that block or flag commands matching a regular expression, in the web terminal and through the SSH gateway alike.
-- **Revocation takes effect at once.** Open sessions are disconnected as soon as their permission is edited, deleted or expires.
+- **System accounts.** An asset can carry several accounts besides its own, such as `root`, `deploy` and `readonly`; permissions decide which account a user may connect with, and the password never reaches the browser. Passwords can be changed by hand or on a schedule, and an account missing on the server can be created and set from Casvisor.
+- **Access requests.** Users ask for an asset with a reason and an end time, an administrator approves and Casvisor creates the permission; withdrawing it removes the permission and disconnects open sessions.
+- **Two-step verification** for local accounts, with any TOTP authenticator app.
+- **Command rules** that block or flag commands matching a regular expression, in the web terminal, the SQL console and through the SSH gateway alike.
+- **Revocation takes effect at once.** Open sessions are disconnected as soon as their permission or account is edited, deleted or expires.
 
 **Audit**
 
@@ -56,9 +60,11 @@ Casvisor sits between the people who run your servers and the servers themselves
 - **Live monitoring** of online sessions, and stopping any of them.
 - **Command records** of SSH and Telnet sessions, read off a virtual screen, so tab completion, history and line edits are captured as they ran.
 - **Operation log** of file transfers and every change made through the API.
+- **Export and syslog.** Session, command and operation logs export to CSV, and can be forwarded to a syslog server as RFC 5424 JSON or CEF.
 
 **Operate**
 
+- **Jobs** on many SSH assets at once: a command, a Bash or PowerShell script, or a file to copy, with concurrency, timeouts and per-asset output and exit codes. Command rules apply, and each asset's run is a session.
 - **Patch management** for SSH assets: scan for pending system updates, install them and restart, on Windows (Windows Update) and on Linux (apt, dnf, yum).
 - **Web console** in 9 languages, built with React, Vite and shadcn/ui, with a RESTful API and [Swagger docs](swagger).
 
