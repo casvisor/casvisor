@@ -5,6 +5,34 @@
     },
     "basePath": "/api",
     "paths": {
+        "/add-access-request": {
+            "post": {
+                "tags": [
+                    "Access Request API"
+                ],
+                "description": "request access to assets for the signed-in user",
+                "operationId": "ApiController.AddAccessRequest",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the request",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AccessRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-asset": {
             "post": {
                 "tags": [
@@ -33,6 +61,34 @@
                 }
             }
         },
+        "/add-asset-account": {
+            "post": {
+                "tags": [
+                    "Asset Account API"
+                ],
+                "description": "add a system account to an asset",
+                "operationId": "ApiController.AddAssetAccount",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the account",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AssetAccount"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-asset-tunnel": {
             "get": {
                 "tags": [
@@ -46,6 +102,12 @@
                         "name": "assetId",
                         "description": "The id of asset",
                         "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "account",
+                        "description": "The username of the account to connect as, the asset's own account when empty",
                         "type": "string"
                     }
                 ],
@@ -255,6 +317,66 @@
                 }
             }
         },
+        "/approve-access-request": {
+            "post": {
+                "tags": [
+                    "Access Request API"
+                ],
+                "description": "approve a pending access request, which adds a permission for it",
+                "operationId": "ApiController.ApproveAccessRequest",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the access request",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The comment, and the actions and end time when they are narrowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.AccessReviewForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.Permission"
+                        }
+                    }
+                }
+            }
+        },
+        "/cancel-access-request": {
+            "post": {
+                "tags": [
+                    "Access Request API"
+                ],
+                "description": "cancel a pending access request of the signed-in user",
+                "operationId": "ApiController.CancelAccessRequest",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the access request",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/cancel-job": {
             "post": {
                 "tags": [
@@ -356,6 +478,34 @@
                 }
             }
         },
+        "/delete-access-request": {
+            "post": {
+                "tags": [
+                    "Access Request API"
+                ],
+                "description": "delete an access request, leaving the permission of an approved one in place",
+                "operationId": "ApiController.DeleteAccessRequest",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The access request",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AccessRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/delete-asset": {
             "post": {
                 "tags": [
@@ -371,6 +521,34 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.Asset"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/delete-asset-account": {
+            "post": {
+                "tags": [
+                    "Asset Account API"
+                ],
+                "description": "delete a system account of an asset",
+                "operationId": "ApiController.DeleteAssetAccount",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the account",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AssetAccount"
                         }
                     }
                 ],
@@ -639,6 +817,34 @@
                 }
             }
         },
+        "/disable-mfa": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "turn off two-factor sign-in of the signed-in user, who confirms it with the password",
+                "operationId": "ApiController.DisableMfa",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The password",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.MfaForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/download-session-file": {
             "get": {
                 "tags": [
@@ -665,6 +871,34 @@
                 "responses": {
                     "200": {
                         "description": "{file} file The file"
+                    }
+                }
+            }
+        },
+        "/enable-mfa": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "turn on two-factor sign-in with a code from the secret of get-mfa-setup",
+                "operationId": "ApiController.EnableMfa",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The code from the authenticator app",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.MfaForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
                     }
                 }
             }
@@ -700,6 +934,36 @@
                 "responses": {
                     "200": {
                         "description": "{string} string The CSV file"
+                    }
+                }
+            }
+        },
+        "/export-database-result": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "download a result of a connected database session as CSV, with the Download permission",
+                "operationId": "ApiController.ExportDatabaseResult",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "result",
+                        "description": "The id of the result",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{file} file The CSV file"
                     }
                 }
             }
@@ -806,6 +1070,44 @@
                 }
             }
         },
+        "/get-access-requests": {
+            "get": {
+                "tags": [
+                    "Access Request API"
+                ],
+                "description": "get the access requests of the organization, or only the signed-in user's own requests for a user who is not an administrator",
+                "operationId": "ApiController.GetAccessRequests",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of access requests",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "description": "The size of each page",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "p",
+                        "description": "The number of the page",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AccessRequest"
+                        }
+                    }
+                }
+            }
+        },
         "/get-asset": {
             "get": {
                 "tags": [
@@ -830,6 +1132,88 @@
                         }
                     }
                 }
+            }
+        },
+        "/get-asset-account": {
+            "get": {
+                "tags": [
+                    "Asset Account API"
+                ],
+                "description": "get a system account of an asset",
+                "operationId": "ApiController.GetAssetAccount",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AssetAccount"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-asset-accounts": {
+            "get": {
+                "tags": [
+                    "Asset Account API"
+                ],
+                "description": "get the system accounts of an asset, besides the asset's own account",
+                "operationId": "ApiController.GetAssetAccounts",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "asset",
+                        "description": "The id ( owner/name ) of the asset",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AssetAccount"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-asset-database": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "connect to the MySQL or PostgreSQL database of an asset over a websocket, to browse it and run SQL; every statement is checked against the command rules and recorded as a command of the session",
+                "operationId": "ApiController.GetAssetDatabase",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "sessionId",
+                        "description": "The id of the session, from add-asset-tunnel",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "username",
+                        "description": "The username, when the asset keeps none",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "password",
+                        "description": "The password, when the asset keeps none",
+                        "type": "string"
+                    }
+                ]
             }
         },
         "/get-assets": {
@@ -1087,6 +1471,23 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.LocalUser"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-mfa-setup": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "generate a new TOTP secret for the signed-in user to add to an authenticator app, kept until enable-mfa confirms it",
+                "operationId": "ApiController.GetMfaSetup",
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.MfaSetup"
                         }
                     }
                 }
@@ -1373,6 +1774,23 @@
                 }
             }
         },
+        "/get-requestable-assets": {
+            "get": {
+                "tags": [
+                    "Access Request API"
+                ],
+                "description": "get the assets of the signed-in user's organization that access can be requested for, without their addresses or credentials",
+                "operationId": "ApiController.GetRequestableAssets",
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.RequestableAsset"
+                        }
+                    }
+                }
+            }
+        },
         "/get-session": {
             "get": {
                 "tags": [
@@ -1564,6 +1982,66 @@
                 }
             }
         },
+        "/push-asset-account": {
+            "post": {
+                "tags": [
+                    "Asset Account API"
+                ],
+                "description": "create the account on the asset if it does not exist and set its saved password there",
+                "operationId": "ApiController.PushAssetAccount",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AssetAccount"
+                        }
+                    }
+                }
+            }
+        },
+        "/reject-access-request": {
+            "post": {
+                "tags": [
+                    "Access Request API"
+                ],
+                "description": "reject a pending access request",
+                "operationId": "ApiController.RejectAccessRequest",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the access request",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The comment",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.AccessReviewForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/rename-session-file": {
             "post": {
                 "tags": [
@@ -1630,6 +2108,66 @@
                 }
             }
         },
+        "/reset-local-user-mfa": {
+            "post": {
+                "tags": [
+                    "User API"
+                ],
+                "description": "turn off two-factor sign-in of a user who lost the authenticator app",
+                "operationId": "ApiController.ResetLocalUserMfa",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the user",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/revoke-access-request": {
+            "post": {
+                "tags": [
+                    "Access Request API"
+                ],
+                "description": "revoke an approved access request by deleting its permission, which disconnects its sessions",
+                "operationId": "ApiController.RevokeAccessRequest",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the access request",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The comment",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.AccessReviewForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/revoke-network-gateway-token": {
             "post": {
                 "tags": [
@@ -1651,6 +2189,32 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/rotate-asset-account": {
+            "post": {
+                "tags": [
+                    "Asset Account API"
+                ],
+                "description": "set a new random password for the account on the asset through the asset's own account",
+                "operationId": "ApiController.RotateAssetAccount",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AssetAccount"
                         }
                     }
                 }
@@ -1760,6 +2324,41 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.Asset"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/update-asset-account": {
+            "post": {
+                "tags": [
+                    "Asset Account API"
+                ],
+                "description": "update a system account of an asset",
+                "operationId": "ApiController.UpdateAssetAccount",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the account",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AssetAccount"
                         }
                     }
                 ],
@@ -2048,6 +2647,36 @@
             "title": "Response",
             "type": "object"
         },
+        "controllers.AccessReviewForm": {
+            "title": "AccessReviewForm",
+            "type": "object",
+            "properties": {
+                "actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "endTime": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.MfaForm": {
+            "title": "MfaForm",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.PasswordForm": {
             "title": "PasswordForm",
             "type": "object",
@@ -2198,11 +2827,98 @@
             "title": "object",
             "type": "object"
         },
+        "object.AccessRequest": {
+            "title": "AccessRequest",
+            "type": "object",
+            "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "permission": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "reviewComment": {
+                    "type": "string"
+                },
+                "reviewedTime": {
+                    "type": "string"
+                },
+                "reviewer": {
+                    "type": "string"
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.AccountInfo": {
+            "title": "AccountInfo",
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string"
+                },
+                "isDefault": {
+                    "type": "boolean"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "object.Asset": {
             "title": "Asset",
             "type": "object",
             "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.AccountInfo"
+                    }
+                },
                 "createdTime": {
+                    "type": "string"
+                },
+                "database": {
                     "type": "string"
                 },
                 "description": {
@@ -2253,6 +2969,61 @@
                 }
             }
         },
+        "object.AssetAccount": {
+            "title": "AssetAccount",
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "string"
+                },
+                "autoRotate": {
+                    "type": "boolean"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "isEnabled": {
+                    "type": "boolean"
+                },
+                "lastRotatedTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "privateKey": {
+                    "type": "string"
+                },
+                "rotateIntervalDays": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "rotateMessage": {
+                    "type": "string"
+                },
+                "rotateStatus": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "object.Command": {
             "title": "Command",
             "type": "object",
@@ -2269,11 +3040,25 @@
                 "createdTime": {
                     "type": "string"
                 },
+                "duration": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "error": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
                 "owner": {
                     "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "rowCount": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "rule": {
                     "type": "string"
@@ -2516,6 +3301,9 @@
                 "lastSigninTime": {
                     "type": "string"
                 },
+                "mfaEnabled": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2526,6 +3314,21 @@
                     "type": "string"
                 },
                 "updatedTime": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.MfaSetup": {
+            "title": "MfaSetup",
+            "type": "object",
+            "properties": {
+                "qrCode": {
+                    "type": "string"
+                },
+                "secret": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }
@@ -2745,6 +3548,12 @@
             "title": "Permission",
             "type": "object",
             "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "actions": {
                     "type": "array",
                     "items": {
@@ -2859,10 +3668,37 @@
                 }
             }
         },
+        "object.RequestableAsset": {
+            "title": "RequestableAsset",
+            "type": "object",
+            "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
+        },
         "object.Session": {
             "title": "Session",
             "type": "object",
             "properties": {
+                "account": {
+                    "type": "string"
+                },
                 "asset": {
                     "type": "string"
                 },
