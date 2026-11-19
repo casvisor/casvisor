@@ -243,12 +243,20 @@ func (c *ApiController) getTunnelSessionAndAsset(sessionId string, username stri
 		return nil, nil, AssetNotFound, fmt.Errorf("the asset: %s does not exist", session.Asset)
 	}
 
-	actions, err := object.GetAssetActions(user, asset, c.getAuthzClientIp())
+	actions, err := object.GetAssetAccountActions(user, asset, &session.Account, c.getAuthzClientIp())
 	if err != nil {
 		return nil, nil, PermissionDenied, err
 	}
 	if !slices.Contains(actions, object.ActionConnect) {
 		return nil, nil, PermissionDenied, fmt.Errorf("you have no permission to connect to the asset: %s", session.Asset)
+	}
+
+	if session.Account != "" {
+		asset, err = asset.WithAccount(session.Account)
+		if err != nil {
+			return nil, nil, PermissionDenied, err
+		}
+		return session, asset, Normal, nil
 	}
 
 	if asset.Username == "" {
@@ -284,9 +292,15 @@ func setSessionConnected(sessionId string, session *object.Session, width int, h
 
 // addLiveSession lets the session be disconnected once the user loses the permission to the asset.
 func (c *ApiController) addLiveSession(sessionId string, asset *object.Asset) {
+	account := ""
+	session, err := object.GetConnSession(sessionId)
+	if err == nil && session != nil {
+		account = session.Account
+	}
 	object.AddLiveSession(sessionId, &object.LiveSession{
 		User:     c.GetSessionUser(),
 		AssetId:  asset.GetId(),
+		Account:  account,
 		ClientIp: c.getAuthzClientIp(),
 	})
 }

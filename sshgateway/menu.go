@@ -40,18 +40,30 @@ func (s *sessionChannel) runMenu() bool {
 		_, _ = s.down.Write([]byte(strings.ReplaceAll(text, "\n", "\r\n")))
 	}
 
+	entries := []*menuEntry{}
+	for _, asset := range assets {
+		accounts, err := object.GetAllowedAccounts(s.g.user, asset, s.g.clientIp)
+		if err != nil {
+			writeError(s.down, err.Error())
+			return false
+		}
+		for _, account := range accounts {
+			entries = append(entries, &menuEntry{asset: asset, account: account.Username})
+		}
+	}
+
 	write(fmt.Sprintf("\nCasvisor SSH gateway, signed in as %s/%s\n\n", s.g.user.Owner, s.g.user.Name))
-	if len(assets) == 0 {
+	if len(entries) == 0 {
 		write("You have no SSH assets to connect to.\n")
 		return false
 	}
 
-	for i, asset := range assets {
-		name := asset.Name
-		if asset.Owner != s.g.user.Owner {
-			name = asset.GetId()
+	for i, entry := range entries {
+		name := entry.asset.Name
+		if entry.asset.Owner != s.g.user.Owner {
+			name = entry.asset.GetId()
 		}
-		write(fmt.Sprintf("  %3d  %-24s %-24s %s\n", i+1, name, fmt.Sprintf("%s:%d", asset.Host, asset.Port), asset.DisplayName))
+		write(fmt.Sprintf("  %3d  %-24s %-16s %-24s %s\n", i+1, name, entry.account, fmt.Sprintf("%s:%d", entry.asset.Host, entry.asset.Port), entry.asset.DisplayName))
 	}
 
 	for {
@@ -69,30 +81,43 @@ func (s *sessionChannel) runMenu() bool {
 			return false
 		}
 
-		asset := pickAsset(assets, line)
-		if asset == nil {
+		entry := pickEntry(entries, line)
+		if entry == nil {
 			write(fmt.Sprintf("No asset matches: %s\n", line))
 			continue
 		}
 
-		err = s.g.selectAsset(asset)
+		err = s.g.selectAsset(entry.asset, entry.account, true)
 		if err != nil {
 			write(fmt.Sprintf("%s\n", err.Error()))
 			continue
 		}
 
-		write(fmt.Sprintf("Connecting to %s...\n", asset.Name))
+		write(fmt.Sprintf("Connecting to %s as %s...\n", entry.asset.Name, s.g.getAsset().Username))
 		return true
 	}
 }
 
-func pickAsset(assets []*object.Asset, choice string) *object.Asset {
-	if i, err := strconv.Atoi(choice); err == nil && i >= 1 && i <= len(assets) {
-		return assets[i-1]
+type menuEntry struct {
+	asset   *object.Asset
+	account string
+}
+
+// pickEntry takes a number, "<asset>" or "<account>@<asset>".
+func pickEntry(entries []*menuEntry, choice string) *menuEntry {
+	if i, err := strconv.Atoi(choice); err == nil && i >= 1 && i <= len(entries) {
+		return entries[i-1]
 	}
-	for _, asset := range assets {
-		if asset.Name == choice || asset.GetId() == choice {
-			return asset
+	account, assetName, hasAccount := strings.Cut(choice, "@")
+	if !hasAccount {
+		assetName = choice
+	}
+	for _, entry := range entries {
+		if entry.asset.Name != assetName && entry.asset.GetId() != assetName {
+			continue
+		}
+		if !hasAccount || entry.account == account {
+			return entry
 		}
 	}
 	return nil

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {FileCode, History, House, KeyRound, KeySquare, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, Users, type LucideIcon} from "lucide-react";
+import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, Users, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -48,6 +48,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
       label: i18next.t("general:SSH keys"),
       icon: KeySquare,
       description: i18next.t("general:Connect to SSH assets with ssh, scp, sftp, Xshell or VS Code"),
+    },
+    {
+      key: "/access-requests",
+      label: i18next.t("general:Access requests"),
+      icon: ClipboardCheck,
+      description: isAdmin ? i18next.t("general:Approve or reject the access users ask for") : i18next.t("general:Ask for access to assets for a while"),
     },
   ];
 

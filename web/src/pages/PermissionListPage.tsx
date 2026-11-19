@@ -51,6 +51,7 @@ export default function PermissionListPage() {
     groups: [],
     assets: [],
     assetTags: [],
+    accounts: ["@default"],
     actions: ["Connect", "Copy", "Paste"],
     clientIps: [],
     startTime: "",
@@ -65,6 +66,7 @@ export default function PermissionListPage() {
     tagsColumn<Permission>({dataIndex: "groups", title: i18next.t("permission:Groups")}),
     tagsColumn<Permission>({dataIndex: "assets", title: i18next.t("general:Assets")}),
     tagsColumn<Permission>({dataIndex: "assetTags", title: i18next.t("permission:Asset tags")}),
+    tagsColumn<Permission>({dataIndex: "accounts", title: i18next.t("permission:Accounts")}),
     tagsColumn<Permission>({dataIndex: "actions", title: i18next.t("permission:Actions")}),
     tagsColumn<Permission>({dataIndex: "clientIps", title: i18next.t("permission:Client IPs")}),
     {

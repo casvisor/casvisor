@@ -29,7 +29,7 @@ export default function AccessPage() {
 
   return (
     <div className="h-screen w-screen overflow-hidden">
-      <AssetConnection assetId={assetId} username={username} password={password} />
+      <AssetConnection assetId={assetId} account={searchParams.get("account") ?? ""} username={username} password={password} />
     </div>
   );
 }

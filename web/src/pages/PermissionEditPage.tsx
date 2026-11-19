@@ -16,9 +16,10 @@ import * as React from "react";
 import i18next from "i18next";
 import dayjs from "dayjs";
 import {useNavigate, useParams} from "react-router-dom";
+import * as AssetAccountBackend from "@/backend/AssetAccountBackend";
 import * as AssetBackend from "@/backend/AssetBackend";
 import * as PermissionBackend from "@/backend/PermissionBackend";
-import type {Asset, Permission, Principal} from "@/backend/types";
+import type {Asset, AssetAccount, Permission, Principal} from "@/backend/types";
 import {Input} from "@/components/ui/input";
 import {Switch} from "@/components/ui/switch";
 import {Loading} from "@/components/common/Loading";
@@ -67,6 +68,7 @@ export default function PermissionEditPage() {
   const [users, setUsers] = React.useState<Principal[]>([]);
   const [groups, setGroups] = React.useState<Principal[]>([]);
   const [assets, setAssets] = React.useState<Asset[]>([]);
+  const [accountNames, setAccountNames] = React.useState<string[]>([]);
 
   const {record: permission, updateField, loading, notFound, denied, mode} = useEditRecord<Permission>({
     fetch: () => PermissionBackend.getPermission(owner, name),
@@ -77,7 +79,19 @@ export default function PermissionEditPage() {
     PermissionBackend.getUsers().then((res) => res.status === "ok" && setUsers(res.data ?? []));
     PermissionBackend.getGroups().then((res) => res.status === "ok" && setGroups(res.data ?? []));
     AssetBackend.getAssets(owner).then((res) => res.status === "ok" && setAssets(res.data ?? []));
+    AssetAccountBackend.getAssetAccounts(owner, "").then((res) => {
+      if (res.status === "ok") {
+        setAccountNames([...new Set<string>((res.data ?? []).map((account: AssetAccount) => account.username))].sort());
+      }
+    });
   }, [owner]);
+
+  const accountOptions = React.useMemo(() => [
+    {value: "@default", label: i18next.t("permission:The asset's own account")},
+    {value: "@same", label: i18next.t("permission:The account named like the user")},
+    {value: "*", label: i18next.t("permission:All accounts")},
+    ...[...new Set([...assets.map((asset) => asset.username).filter(Boolean), ...accountNames])].sort().map((username) => ({value: username, label: username})),
+  ], [assets, accountNames]);
 
   const tagOptions = React.useMemo(
     () => [...new Set(assets.map((asset) => asset.tag).filter(Boolean))].map((tag) => ({value: tag, label: tag})),
@@ -163,6 +177,14 @@ export default function PermissionEditPage() {
           value={permission.assetTags ?? []}
           options={tagOptions}
           onChange={(value) => updateField("assetTags", value)}
+        />
+      </FormRow>
+      <FormRow labelKey="permission:Accounts">
+        <MultiSelect
+          creatable
+          value={permission.accounts?.length ? permission.accounts : ["@default"]}
+          options={accountOptions}
+          onChange={(value) => updateField("accounts", value)}
         />
       </FormRow>
       <FormRow labelKey="permission:Actions">

@@ -42,6 +42,8 @@ export interface ConnectionProps {
   inTab?: boolean;
   username?: string;
   password?: string;
+  /** the account of the asset to connect as, the asset's own account when empty */
+  account?: string;
   /** lets the workbench close the connection when its tab is closed */
   addClient?: (client: {disconnect: () => void}) => void;
   /** closes the workbench tab, or the window when the view has it to itself */

@@ -85,6 +85,7 @@ export default function App() {
           <Route path="/assets" element={page("AssetListPage")} />
           <Route path="/assets/:owner/:name" element={page("AssetEditPage")} />
           <Route path="/permissions" element={page("PermissionListPage")} />
+          <Route path="/access-requests" element={page("AccessRequestListPage")} />
           <Route path="/permissions/:owner/:name" element={page("PermissionEditPage")} />
           <Route path="/sessions" element={page("SessionListPage")} />
           <Route path="/commands" element={page("CommandListPage")} />

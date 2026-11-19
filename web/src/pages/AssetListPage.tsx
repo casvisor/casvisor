@@ -15,9 +15,11 @@
 import * as React from "react";
 import i18next from "i18next";
 import dayjs from "dayjs";
+import {Link} from "react-router-dom";
 import * as AssetBackend from "@/backend/AssetBackend";
 import type {Asset} from "@/backend/types";
 import {ConnectButton} from "@/components/access/ConnectButton";
+import {Button} from "@/components/ui/button";
 import {SshCommandButton} from "@/components/access/SshCommandButton";
 import {TunnelCommandButton} from "@/components/access/TunnelCommandButton";
 import {CrudListPage} from "@/components/crud/CrudListPage";
@@ -83,7 +85,15 @@ export default function AssetListPage() {
     textColumn<Asset>({dataIndex: "protocol", title: i18next.t("general:Protocol"), width: 110, filters: valueFilters(Protocols)}),
     textColumn<Asset>({dataIndex: "host", title: i18next.t("asset:Host"), width: 140, searchable: true}),
     textColumn<Asset>({dataIndex: "port", title: i18next.t("general:Port"), width: 90}),
-    textColumn<Asset>({dataIndex: "username", title: i18next.t("general:Username"), width: 130}),
+    {
+      dataIndex: "username",
+      title: i18next.t("general:Username"),
+      width: 150,
+      render: (value, asset) => {
+        const usernames = (asset.accounts ?? []).map((info) => info.username).filter(Boolean);
+        return <span className="font-mono text-xs">{usernames.length > 0 ? usernames.join(", ") : value}</span>;
+      },
+    },
   ];
 
   return (
@@ -98,6 +108,11 @@ export default function AssetListPage() {
       remove={isAdmin ? AssetBackend.deleteAsset : undefined}
       editUrl={isAdmin ? (asset) => `/assets/${asset.owner}/${asset.name}` : undefined}
       deleteDisabled={(asset) => asset.owner !== account?.owner}
+      toolbar={isAdmin ? undefined : (
+        <Button size="sm" variant="outline" asChild>
+          <Link to="/access-requests?new=1">{i18next.t("accessRequest:Request access")}</Link>
+        </Button>
+      )}
       actionColumnWidth={(isAdmin ? 240 : 110) + (gateway ? 40 : 0)}
       rowLeading={(asset) => (
         <>

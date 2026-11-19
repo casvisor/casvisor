@@ -29,6 +29,60 @@ export interface Asset {
   privateKey: string;
   fingerprint: string;
   networkGateway: string;
+  /** the accounts the signed-in user may connect as, the asset's own account first */
+  accounts?: AccountInfo[];
+}
+
+export interface AccountInfo {
+  username: string;
+  displayName: string;
+  isDefault: boolean;
+}
+
+export interface AccessRequest {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  user: string;
+  assets: string[] | null;
+  accounts: string[] | null;
+  actions: string[] | null;
+  startTime: string;
+  endTime: string;
+  reason: string;
+  status: string;
+  reviewer: string;
+  reviewedTime: string;
+  reviewComment: string;
+  permission: string;
+}
+
+export interface RequestableAsset {
+  name: string;
+  displayName: string;
+  protocol: string;
+  tag: string;
+  accounts: string[];
+}
+
+export interface AssetAccount {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  asset: string;
+  username: string;
+  displayName: string;
+  description: string;
+  password: string;
+  privateKey: string;
+  isEnabled: boolean;
+  autoRotate: boolean;
+  rotateIntervalDays: number;
+  lastRotatedTime: string;
+  rotateStatus: string;
+  rotateMessage: string;
 }
 
 export interface NetworkGateway {
@@ -65,6 +119,7 @@ export interface Permission {
   groups: string[] | null;
   assets: string[] | null;
   assetTags: string[] | null;
+  accounts: string[] | null;
   actions: string[] | null;
   clientIps: string[] | null;
   startTime: string;
@@ -80,6 +135,7 @@ export interface Session {
   endTime: string;
   protocol: string;
   asset: string;
+  account?: string;
   creator: string;
   clientIp: string;
   userAgent: string;

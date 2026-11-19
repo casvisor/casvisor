@@ -95,6 +95,7 @@ func main() {
 	demo.StartDemoTargets()
 	sshgateway.Start()
 	object.StartLiveSessionChecker()
+	object.StartAccountRotator()
 
 	// The profiles of a running server, on an address of its own that is
 	// only set where it is needed, such as 127.0.0.1:6060.

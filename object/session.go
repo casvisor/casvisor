@@ -40,6 +40,7 @@ type Session struct {
 
 	Protocol      string `xorm:"varchar(20)" json:"protocol"`
 	Asset         string `xorm:"varchar(200) index" json:"asset"`
+	Account       string `xorm:"varchar(100)" json:"account"`
 	Creator       string `xorm:"varchar(36) index" json:"creator"`
 	ClientIp      string `xorm:"varchar(200)" json:"clientIp"`
 	UserAgent     string `xorm:"varchar(200)" json:"userAgent"`

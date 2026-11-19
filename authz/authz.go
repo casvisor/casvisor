@@ -53,6 +53,11 @@ var userApis = map[string]bool{
 	"/api/add-ssh-key":     true,
 	"/api/delete-ssh-key":  true,
 	"/api/get-ssh-gateway": true,
+
+	"/api/get-access-requests":    true,
+	"/api/get-requestable-assets": true,
+	"/api/add-access-request":     true,
+	"/api/cancel-access-request":  true,
 }
 
 func InitAuthz() {

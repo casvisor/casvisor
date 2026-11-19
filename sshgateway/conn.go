@@ -36,6 +36,7 @@ type gatewayConn struct {
 
 	mu        sync.Mutex
 	asset     *object.Asset
+	account   string
 	actions   []string
 	client    *ssh.Client
 	sessionId string
@@ -69,7 +70,7 @@ func (g *gatewayConn) signIn() error {
 		logs.Error(fmt.Sprintf("SSH gateway: failed to update the last used time of the key: %s: %s", sshKey.GetId(), err.Error()))
 	}
 
-	userName, assetName := parseUsername(g.conn.User())
+	userName, accountName, assetName := parseUsername(g.conn.User())
 	if userName != "" && userName != g.user.Name && userName != sshKey.GetUserId() {
 		return fmt.Errorf("the public key belongs to the user: %s, not %s", sshKey.GetUserId(), userName)
 	}
@@ -87,17 +88,22 @@ func (g *gatewayConn) signIn() error {
 		return fmt.Errorf("the asset: %s does not exist, connect with \"ssh -p <port> <asset>@<host>\"", assetName)
 	}
 
-	return g.selectAsset(asset)
+	return g.selectAsset(asset, accountName, accountName != "")
 }
 
-// parseUsername splits "<user>@<asset>" (or just "<asset>"); ssh itself splits the
-// destination at its last "@", so "ssh alice@web1@casvisor" arrives as "alice@web1".
-func parseUsername(username string) (string, string) {
-	i := strings.LastIndex(username, "@")
-	if i < 0 {
-		return "", username
+// parseUsername splits "<user>@<account>@<asset>", "<user>@<asset>" or just "<asset>"; ssh itself
+// splits the destination at its last "@", so "ssh alice@web1@casvisor" arrives as "alice@web1".
+func parseUsername(username string) (string, string, string) {
+	tokens := strings.Split(username, "@")
+	switch len(tokens) {
+	case 1:
+		return "", "", tokens[0]
+	case 2:
+		return tokens[0], "", tokens[1]
+	default:
+		n := len(tokens)
+		return strings.Join(tokens[:n-2], "@"), tokens[n-2], tokens[n-1]
 	}
-	return username[:i], username[i+1:]
 }
 
 func (g *gatewayConn) findAsset(name string) (*object.Asset, error) {
@@ -144,7 +150,9 @@ func isSshAsset(asset *object.Asset) bool {
 	return strings.EqualFold(asset.Protocol, "SSH")
 }
 
-func (g *gatewayConn) selectAsset(asset *object.Asset) error {
+// selectAsset picks the asset and the account to connect as. When no account is named, the asset's
+// own account is used if the user may, or else the only account the user may connect as.
+func (g *gatewayConn) selectAsset(asset *object.Asset, account string, isNamed bool) error {
 	// the asset list comes with the credentials still encrypted
 	asset, err := object.GetAsset(asset.GetId())
 	if err != nil {
@@ -158,14 +166,41 @@ func (g *gatewayConn) selectAsset(asset *object.Asset) error {
 		return fmt.Errorf("the asset: %s uses %s, only SSH assets can be reached through the SSH gateway", asset.Name, asset.Protocol)
 	}
 
-	actions, err := object.GetAssetActions(g.user, asset, g.clientIp)
+	if !isNamed {
+		accounts, err := object.GetAllowedAccounts(g.user, asset, g.clientIp)
+		if err != nil {
+			return err
+		}
+		if len(accounts) > 1 && !accounts[0].IsDefault {
+			names := []string{}
+			for _, info := range accounts {
+				names = append(names, info.Username)
+			}
+			return fmt.Errorf("choose the account to connect to the asset: %s as with \"ssh -p <port> %s@<account>@%s@<host>\": %s", asset.Name, g.user.Name, asset.Name, strings.Join(names, ", "))
+		}
+		if len(accounts) > 0 && !accounts[0].IsDefault {
+			account = accounts[0].Username
+		}
+	}
+	if account == asset.Username {
+		account = ""
+	}
+
+	actions, err := object.GetAssetAccountActions(g.user, asset, &account, g.clientIp)
 	if err != nil {
 		return err
 	}
 	if !slices.Contains(actions, object.ActionConnect) {
+		if account != "" {
+			return fmt.Errorf("you have no permission to connect to the asset: %s as the account: %s", asset.Name, account)
+		}
 		return fmt.Errorf("you have no permission to connect to the asset: %s", asset.Name)
 	}
 
+	asset, err = asset.WithAccount(account)
+	if err != nil {
+		return err
+	}
 	if asset.Username == "" {
 		return fmt.Errorf("the asset: %s has no username, ask the administrator to set its account", asset.Name)
 	}
@@ -173,6 +208,7 @@ func (g *gatewayConn) selectAsset(asset *object.Asset) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.asset = asset
+	g.account = account
 	g.actions = actions
 	return nil
 }
@@ -226,6 +262,7 @@ func (g *gatewayConn) connect() (*ssh.Client, bool, error) {
 
 	userAgent := string(g.conn.ClientVersion())
 	session := &object.Session{
+		Account:       g.account,
 		Creator:       util.GetIdFromOwnerAndName(g.user.Owner, g.user.Name),
 		ClientIp:      g.clientIp,
 		UserAgent:     userAgent,
@@ -255,6 +292,7 @@ func (g *gatewayConn) connect() (*ssh.Client, bool, error) {
 	object.AddLiveSession(g.sessionId, &object.LiveSession{
 		User:     g.user,
 		AssetId:  g.asset.GetId(),
+		Account:  g.account,
 		ClientIp: g.clientIp,
 		OnActions: func(actions []string) {
 			g.mu.Lock()

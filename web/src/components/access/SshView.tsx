@@ -55,7 +55,7 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
     status.loading(i18next.t("asset:Connecting..."));
     setSession(null);
 
-    SessionBackend.addAssetTunnel(assetId).then((res) => {
+    SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
       if (terminalRef.current !== terminal) {
         return;
       }

@@ -35,8 +35,8 @@ export function deleteSession(session: any) {
 }
 
 /** Creates the session a connection runs in. */
-export function addAssetTunnel(assetId: string) {
-  return post("/api/add-asset-tunnel", {assetId});
+export function addAssetTunnel(assetId: string, account = "") {
+  return post("/api/add-asset-tunnel", account ? {assetId, account} : {assetId});
 }
 
 export function connect(sessionId: string) {

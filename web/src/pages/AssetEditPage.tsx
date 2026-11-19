@@ -24,6 +24,7 @@ import {Loading} from "@/components/common/Loading";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import {SelectField} from "@/components/common/SelectField";
 import {UnauthorizedPage} from "@/components/common/UnauthorizedPage";
+import {AssetAccountsPanel} from "@/components/access/AssetAccountsPanel";
 import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
@@ -175,6 +176,11 @@ export default function AssetEditPage() {
       <FormRow labelKey="general:Tag">
         <Input value={asset.tag} onChange={(e) => updateField("tag", e.target.value)} />
       </FormRow>
+      {mode !== "add" ? (
+        <FormRow labelKey="account:System accounts" block>
+          <AssetAccountsPanel owner={owner} asset={name} protocol={asset.protocol} ownUsername={asset.username} />
+        </FormRow>
+      ) : null}
     </EditPageShell>
   );
 }

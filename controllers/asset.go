@@ -52,6 +52,9 @@ func (c *ApiController) GetAssets() {
 			return
 		}
 
+		if !c.fillAssetAccounts(assets) {
+			return
+		}
 		c.ResponseOk(assets)
 	} else {
 		limit := util.ParseInt(limit)
@@ -65,6 +68,10 @@ func (c *ApiController) GetAssets() {
 		assets, err := object.GetMaskedAssets(object.GetPaginationAssets(owner, paginator.Offset(), limit, field, value, sortField, sortOrder))
 		if err != nil {
 			c.ResponseError(err.Error())
+			return
+		}
+
+		if !c.fillAssetAccounts(assets) {
 			return
 		}
 
@@ -87,6 +94,9 @@ func (c *ApiController) getAllowedAssets(limit string, page string) {
 	}
 
 	if limit == "" || page == "" {
+		if !c.fillAssetAccounts(assets) {
+			return
+		}
 		c.ResponseOk(assets)
 		return
 	}
@@ -94,7 +104,24 @@ func (c *ApiController) getAllowedAssets(limit string, page string) {
 	paginator := pagination.SetPaginator(c.Ctx, util.ParseInt(limit), int64(len(assets)))
 	start := min(paginator.Offset(), len(assets))
 	end := min(start+util.ParseInt(limit), len(assets))
+	if !c.fillAssetAccounts(assets[start:end]) {
+		return
+	}
 	c.ResponseOk(assets[start:end], paginator.Nums())
+}
+
+// fillAssetAccounts lists the accounts the user may connect to each asset as.
+func (c *ApiController) fillAssetAccounts(assets []*object.Asset) bool {
+	user := c.GetSessionUser()
+	for _, asset := range assets {
+		accounts, err := object.GetAllowedAccounts(user, asset, c.getAuthzClientIp())
+		if err != nil {
+			c.ResponseError(err.Error())
+			return false
+		}
+		asset.Accounts = accounts
+	}
+	return true
 }
 
 // GetAsset
@@ -125,6 +152,9 @@ func (c *ApiController) GetAsset() {
 		}
 	}
 
+	if asset != nil && !c.fillAssetAccounts([]*object.Asset{asset}) {
+		return
+	}
 	c.ResponseOk(asset)
 }
 

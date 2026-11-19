@@ -263,7 +263,7 @@ export default function RdpView(props: ConnectionProps) {
   const connect = (reconnecting = false) => {
     status.loading(i18next.t(reconnecting ? "asset:Reconnecting..." : "asset:Connecting..."));
 
-    SessionBackend.addAssetTunnel(assetId).then((res) => {
+    SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
       if (!activeRef.current) {
         return;
       }

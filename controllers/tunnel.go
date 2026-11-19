@@ -40,10 +40,12 @@ const (
 // @Tag Session API
 // @Description add session
 // @Param   assetId    query   string  true        "The id of asset"
+// @Param   account    query   string  false       "The username of the account to connect as, the asset's own account when empty"
 // @Success 200 {object} Response
 // @router /add-asset-tunnel [get]
 func (c *ApiController) AddAssetTunnel() {
 	assetId := c.Input().Get("assetId")
+	account := c.Input().Get("account")
 
 	user := c.GetSessionUser()
 	if user == nil {
@@ -56,14 +58,18 @@ func (c *ApiController) AddAssetTunnel() {
 		c.ResponseError(err.Error())
 		return
 	}
+	if asset == nil {
+		c.ResponseError(fmt.Sprintf("the asset: %s does not exist", assetId))
+		return
+	}
 
-	actions, err := object.GetAssetActions(user, asset, c.getAuthzClientIp())
+	actions, err := object.GetAssetAccountActions(user, asset, &account, c.getAuthzClientIp())
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
 	if !slices.Contains(actions, object.ActionConnect) {
-		c.ResponseError(fmt.Sprintf("you have no permission to connect to the asset: %s", assetId))
+		c.ResponseError(fmt.Sprintf("you have no permission to connect to the asset: %s as the account: %s", assetId, account))
 		return
 	}
 
@@ -79,7 +85,11 @@ func (c *ApiController) AddAssetTunnel() {
 		}
 	}
 
+	if account == asset.Username {
+		account = ""
+	}
 	session := &object.Session{
+		Account:       account,
 		Creator:       getUserId(user),
 		ClientIp:      c.getClientIp(),
 		UserAgent:     c.getUserAgent(),

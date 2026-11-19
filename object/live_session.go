@@ -31,6 +31,7 @@ const PermissionRevokedCode = 802
 type LiveSession struct {
 	User     *casdoorsdk.User
 	AssetId  string
+	Account  string
 	ClientIp string
 	// OnActions passes the actions held now to a session that enforces them itself, like the SSH gateway
 	OnActions func(actions []string)
@@ -96,11 +97,14 @@ func (liveSession *LiveSession) check() (string, error) {
 		return fmt.Sprintf("The asset: %s has been deleted", liveSession.AssetId), nil
 	}
 
-	actions, err := GetAssetActions(liveSession.User, asset, liveSession.ClientIp)
+	actions, err := GetAssetAccountActions(liveSession.User, asset, &liveSession.Account, liveSession.ClientIp)
 	if err != nil {
 		return "", err
 	}
 	if !slices.Contains(actions, ActionConnect) {
+		if liveSession.Account != "" {
+			return fmt.Sprintf("The permission to connect to the asset: %s as the account: %s has been revoked, or the account has been removed", asset.Name, liveSession.Account), nil
+		}
 		return fmt.Sprintf("The permission to connect to the asset: %s has been revoked", asset.Name), nil
 	}
 

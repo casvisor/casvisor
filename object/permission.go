@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/casvisor/casvisor/util"
@@ -35,6 +36,11 @@ const (
 
 var AllActions = []string{ActionConnect, ActionCopy, ActionPaste, ActionUpload, ActionDownload, ActionForward}
 
+const (
+	AccountDefault = "@default"
+	AccountSame    = "@same"
+)
+
 type Permission struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -47,6 +53,7 @@ type Permission struct {
 	Groups    []string `xorm:"mediumtext" json:"groups"`
 	Assets    []string `xorm:"mediumtext" json:"assets"`
 	AssetTags []string `xorm:"mediumtext" json:"assetTags"`
+	Accounts  []string `xorm:"mediumtext" json:"accounts"`
 	Actions   []string `xorm:"varchar(500)" json:"actions"`
 	ClientIps []string `xorm:"mediumtext" json:"clientIps"`
 
@@ -158,6 +165,12 @@ func (permission *Permission) check() error {
 	for _, action := range permission.Actions {
 		if !slices.Contains(AllActions, action) {
 			return fmt.Errorf("invalid action: %s", action)
+		}
+	}
+
+	for _, account := range permission.Accounts {
+		if account == "" || strings.ContainsAny(account, ":/ ") {
+			return fmt.Errorf("invalid account: %s", account)
 		}
 	}
 

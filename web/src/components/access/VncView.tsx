@@ -52,7 +52,7 @@ export default function VncView(props: ConnectionProps) {
   const connect = () => {
     status.loading(i18next.t("asset:Connecting..."));
 
-    SessionBackend.addAssetTunnel(assetId).then((res) => {
+    SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
       if (!activeRef.current) {
         return;
       }

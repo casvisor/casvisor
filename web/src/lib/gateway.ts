@@ -50,9 +50,16 @@ export function getGatewayHost(gateway: SshGateway) {
   return gateway.host || window.location.hostname;
 }
 
-/** "ssh -p 2222 web1@casvisor.example.com", with the organization when the asset is in another one. */
-export function getSshCommand(gateway: SshGateway, asset: Asset, account: {owner: string} | null | undefined) {
-  const target = account && asset.owner === account.owner ? asset.name : `${asset.owner}/${asset.name}`;
+/**
+ * "ssh -p 2222 web1@casvisor.example.com", with the organization when the asset is in another one,
+ * and "alice@deploy@web1@..." when the user may not connect as the asset's own account.
+ */
+export function getSshCommand(gateway: SshGateway, asset: Asset, account: {owner: string; name?: string} | null | undefined) {
+  let target = account && asset.owner === account.owner ? asset.name : `${asset.owner}/${asset.name}`;
+  const accounts = asset.accounts ?? [];
+  if (account?.name && accounts.length > 0 && !accounts[0].isDefault) {
+    target = `${account.name}@${accounts[0].username}@${target}`;
+  }
   const port = gateway.port && gateway.port !== "22" ? `-p ${gateway.port} ` : "";
   return `ssh ${port}${target}@${getGatewayHost(gateway)}`;
 }

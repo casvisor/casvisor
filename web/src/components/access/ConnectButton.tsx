@@ -14,8 +14,9 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {Lock, User} from "lucide-react";
+import {ChevronDown, Lock, User} from "lucide-react";
 import {Button} from "@/components/ui/button";
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
 import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Input} from "@/components/ui/input";
 import {PasswordInput} from "@/components/common/PasswordInput";
@@ -62,24 +63,31 @@ export function takeCredentials(assetId: string): {username: string; password: s
   return result;
 }
 
-function openAccessPage(asset: Asset, username: string, password: string) {
+function openAccessPage(asset: Asset, username: string, password: string, account = "") {
   if (username !== "" && password !== "") {
     saveCredentials(`${asset.owner}/${asset.name}`, username, password);
   }
-  window.open(`/access/${asset.owner}/${asset.name}`, "_blank");
+  const query = account ? `?account=${encodeURIComponent(account)}` : "";
+  window.open(`/access/${asset.owner}/${asset.name}${query}`, "_blank");
 }
 
 /**
  * The "Connect" button of an asset. An asset that keeps both a username and a
- * password connects straight away; otherwise it asks for what is missing.
+ * password connects straight away; otherwise it asks for what is missing. When
+ * the user may connect as several accounts of the asset, it lists them first.
  */
 export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boolean}) {
   const [open, setOpen] = React.useState(false);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const hasCredentials = Boolean(asset.username && asset.password);
+  const accounts = asset.accounts ?? [];
 
   const start = () => {
+    if (accounts.length === 1 && !accounts[0].isDefault) {
+      openAccessPage(asset, "", "", accounts[0].username);
+      return;
+    }
     if (hasCredentials) {
       openAccessPage(asset, "", "");
       return;
@@ -97,11 +105,37 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
     openAccessPage(asset, username, password);
   };
 
+  const trigger = accounts.length > 1 ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" disabled={disabled}>
+          {i18next.t("general:Connect")}
+          <ChevronDown />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{i18next.t("account:Connect as")}</DropdownMenuLabel>
+        {accounts.map((account) => (
+          <DropdownMenuItem
+            key={`${account.isDefault}:${account.username}`}
+            onSelect={() => (account.isDefault ? start() : openAccessPage(asset, "", "", account.username))}
+          >
+            <User />
+            <span className="font-mono">{account.username || i18next.t("account:Enter an account")}</span>
+            {account.displayName ? <span className="text-xs text-muted-foreground">{account.displayName}</span> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    <Button size="sm" variant={hasCredentials || accounts.length === 1 && !accounts[0].isDefault ? "default" : "outline"} disabled={disabled} onClick={start}>
+      {i18next.t("general:Connect")}
+    </Button>
+  );
+
   return (
     <>
-      <Button size="sm" variant={hasCredentials ? "default" : "outline"} disabled={disabled} onClick={start}>
-        {i18next.t("general:Connect")}
-      </Button>
+      {trigger}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>

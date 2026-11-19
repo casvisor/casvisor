@@ -71,6 +71,13 @@ export default function SessionListPage() {
           </Link>
         ) : null,
     },
+    {
+      dataIndex: "account",
+      title: i18next.t("account:Account"),
+      width: 120,
+      searchable: true,
+      render: (value) => <span className="font-mono text-xs">{value || i18next.t("account:Default")}</span>,
+    },
     textColumn<Session>({dataIndex: "protocol", title: i18next.t("general:Protocol"), width: 120, filters: valueFilters(["RDP", "VNC", "SSH", "Telnet"])}),
     textColumn<Session>({
       dataIndex: "creator",

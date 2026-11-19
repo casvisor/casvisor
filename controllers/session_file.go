@@ -314,7 +314,7 @@ func (c *ApiController) getSessionFs(actions ...string) (*sessionFileContext, er
 		return nil, fmt.Errorf("the asset: %s does not exist", session.Asset)
 	}
 
-	allowed, err := object.GetAssetActions(user, asset, c.getAuthzClientIp())
+	allowed, err := object.GetAssetAccountActions(user, asset, &session.Account, c.getAuthzClientIp())
 	if err != nil {
 		return nil, err
 	}

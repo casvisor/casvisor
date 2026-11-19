@@ -29,6 +29,16 @@ import {cn} from "@/lib/utils";
 interface Pane {
   key: string;
   asset: Asset;
+  account: string;
+}
+
+/** The accounts to list under an asset, one entry with no name when there is only the default one. */
+function getAccountChoices(asset: Asset): string[] {
+  const accounts = asset.accounts ?? [];
+  if (accounts.length <= 1) {
+    return [accounts.length === 1 && !accounts[0].isDefault ? accounts[0].username : ""];
+  }
+  return accounts.map((account) => (account.isDefault ? "" : account.username));
 }
 
 /** Assets grouped by their tag, else their OS, so a "windows" tag and the "Windows" OS share a group. */
@@ -43,7 +53,7 @@ function groupAssets(assets: Asset[]): [string, Asset[]][] {
   return [...groups.values()].map((group) => [group.label, group.items]);
 }
 
-function AssetTree({assets, activeId, onSelect}: {assets: Asset[]; activeId: string; onSelect: (asset: Asset) => void}) {
+function AssetTree({assets, activeId, onSelect}: {assets: Asset[]; activeId: string; onSelect: (asset: Asset, account: string) => void}) {
   const [search, setSearch] = React.useState("");
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
 
@@ -93,23 +103,28 @@ function AssetTree({assets, activeId, onSelect}: {assets: Asset[]; activeId: str
                 <span className="ml-auto tabular-nums">{items.length}</span>
               </button>
               {open
-                ? items.map((asset) => {
-                  const id = `${asset.owner}/${asset.name}`;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      title={`${asset.protocol} ${asset.host}:${asset.port}`}
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded py-1 pl-6 pr-2 text-left text-sm hover:bg-accent",
-                        activeId === id && "bg-accent font-medium",
-                      )}
-                      onClick={() => onSelect(asset)}
-                    >
-                      <span className="truncate">{asset.displayName || asset.name}</span>
-                      <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{asset.protocol}</span>
-                    </button>
-                  );
+                ? items.flatMap((asset) => {
+                  const choices = getAccountChoices(asset);
+                  return choices.map((accountName) => {
+                    const id = `${asset.owner}/${asset.name}@${accountName}`;
+                    const username = accountName || asset.username;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        title={`${asset.protocol} ${username ? `${username}@` : ""}${asset.host}:${asset.port}`}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded py-1 pl-6 pr-2 text-left text-sm hover:bg-accent",
+                          activeId === id && "bg-accent font-medium",
+                        )}
+                        onClick={() => onSelect(asset, accountName)}
+                      >
+                        <span className="truncate">{asset.displayName || asset.name}</span>
+                        {choices.length > 1 ? <span className="truncate font-mono text-xs text-muted-foreground">{username}</span> : null}
+                        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{asset.protocol}</span>
+                      </button>
+                    );
+                  });
                 })
                 : null}
             </div>
@@ -140,14 +155,14 @@ export default function WorkbenchPage() {
     });
   }, [account]);
 
-  const openAsset = (asset: Asset) => {
-    const existing = panes.find((pane) => pane.asset.owner === asset.owner && pane.asset.name === asset.name);
+  const openAsset = (asset: Asset, account: string) => {
+    const existing = panes.find((pane) => pane.asset.owner === asset.owner && pane.asset.name === asset.name && pane.account === account);
     if (existing) {
       setActiveKey(existing.key);
       return;
     }
     const key = `asset-${Date.now()}`;
-    setPanes((previous) => [...previous, {key, asset}]);
+    setPanes((previous) => [...previous, {key, asset, account}]);
     setActiveKey(key);
   };
 
@@ -164,7 +179,7 @@ export default function WorkbenchPage() {
     });
   };
 
-  const activeAssetId = panes.find((pane) => pane.key === activeKey)?.asset;
+  const activePane = panes.find((pane) => pane.key === activeKey);
 
   return (
     <div className="flex h-screen bg-muted/40">
@@ -178,7 +193,7 @@ export default function WorkbenchPage() {
           ) : (
             <AssetTree
               assets={assets}
-              activeId={activeAssetId ? `${activeAssetId.owner}/${activeAssetId.name}` : ""}
+              activeId={activePane ? `${activePane.asset.owner}/${activePane.asset.name}@${activePane.account}` : ""}
               onSelect={openAsset}
             />
           )}
@@ -204,6 +219,7 @@ export default function WorkbenchPage() {
                 >
                   <button type="button" className="max-w-[160px] truncate" onClick={() => setActiveKey(pane.key)}>
                     {pane.asset.displayName || pane.asset.name}
+                    {pane.account ? <span className="ml-1 font-mono text-xs opacity-70">{pane.account}</span> : null}
                   </button>
                   <button
                     type="button"
@@ -222,6 +238,7 @@ export default function WorkbenchPage() {
                 <div key={pane.key} className={cn("absolute inset-0", pane.key !== activeKey && "invisible")}>
                   <AssetConnection
                     assetId={`${pane.asset.owner}/${pane.asset.name}`}
+                    account={pane.account}
                     inTab
                     addClient={(client) => clients.current.set(pane.key, client)}
                     onClose={() => closePane(pane.key)}

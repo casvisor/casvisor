@@ -41,6 +41,8 @@ type Asset struct {
 	PrivateKey     string `xorm:"mediumtext" json:"privateKey"`
 	Fingerprint    string `xorm:"varchar(200)" json:"fingerprint"`
 	NetworkGateway string `xorm:"varchar(100)" json:"networkGateway"`
+
+	Accounts []*AccountInfo `xorm:"-" json:"accounts,omitempty"`
 }
 
 func GetAssetCount(owner, field, value string) (int64, error) {
@@ -161,6 +163,13 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		return false, err
 	}
 
+	if affected != 0 && asset.Name != name {
+		err = renameAssetAccounts(owner, name, asset.Name)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	return affected != 0, nil
 }
 
@@ -190,6 +199,11 @@ func DeleteAsset(asset *Asset) (bool, error) {
 	}
 
 	err = deletePatchStatus(asset.Owner, asset.Name)
+	if err != nil {
+		return false, err
+	}
+
+	err = deleteAssetAccounts(asset.Owner, asset.Name)
 	if err != nil {
 		return false, err
 	}

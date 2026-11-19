@@ -16,6 +16,7 @@ package object
 
 import (
 	"net"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,10 +27,10 @@ import (
 
 const permissionModelText = `
 [request_definition]
-r = sub, obj, act, ip
+r = sub, obj, act, ip, acct
 
 [policy_definition]
-p = sub, obj, act, ip
+p = sub, obj, act, ip, acct
 
 [role_definition]
 g = _, _
@@ -39,7 +40,7 @@ g2 = _, _
 e = some(where (p.eft == allow))
 
 [matchers]
-m = g(r.sub, p.sub) && g2(r.obj, p.obj) && r.act == p.act && ipAllowed(r.ip, p.ip)
+m = g(r.sub, p.sub) && g2(r.obj, p.obj) && r.act == p.act && ipAllowed(r.ip, p.ip) && accountAllowed(r.acct, p.acct, r.sub)
 `
 
 func IsAdminUser(user *casdoorsdk.User) bool {
@@ -69,6 +70,27 @@ func ipAllowedFunc(args ...interface{}) (interface{}, error) {
 	return patternIp != nil && patternIp.Equal(ip), nil
 }
 
+// accountAllowed matches an account key ("default:<username>" or "account:<username>") with an
+// account of a permission: "*", "@default", "@same" (the account named like the user) or a username.
+func accountAllowedFunc(args ...interface{}) (interface{}, error) {
+	key, _ := args[0].(string)
+	pattern, _ := args[1].(string)
+	sub, _ := args[2].(string)
+	if pattern == "*" {
+		return true, nil
+	}
+
+	kind, username, _ := strings.Cut(key, ":")
+	switch pattern {
+	case AccountDefault:
+		return kind == "default", nil
+	case AccountSame:
+		return username != "" && username == strings.TrimPrefix(sub, "user:"), nil
+	default:
+		return username == pattern, nil
+	}
+}
+
 func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enforcer, error) {
 	m, err := model.NewModelFromString(permissionModelText)
 	if err != nil {
@@ -80,6 +102,7 @@ func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enfo
 		return nil, err
 	}
 	enforcer.AddFunction("ipAllowed", ipAllowedFunc)
+	enforcer.AddFunction("accountAllowed", accountAllowedFunc)
 
 	permissions, err := GetPermissions(user.Owner)
 	if err != nil {
@@ -87,7 +110,7 @@ func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enfo
 	}
 
 	now := time.Now()
-	policies := map[[4]string]bool{}
+	policies := map[[5]string]bool{}
 	for _, permission := range permissions {
 		if !permission.isActive(now) {
 			continue
@@ -114,11 +137,18 @@ func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enfo
 			clientIps = []string{"*"}
 		}
 
+		accounts := permission.Accounts
+		if len(accounts) == 0 {
+			accounts = []string{AccountDefault}
+		}
+
 		for _, sub := range subjects {
 			for _, obj := range objects {
 				for _, act := range permission.Actions {
 					for _, clientIp := range clientIps {
-						policies[[4]string{sub, obj, act, clientIp}] = true
+						for _, account := range accounts {
+							policies[[5]string{sub, obj, act, clientIp, account}] = true
+						}
 					}
 				}
 			}
@@ -172,10 +202,10 @@ func getGroupName(group string) string {
 	return tokens[len(tokens)-1]
 }
 
-func getActionsFromEnforcer(enforcer *casbin.Enforcer, user *casdoorsdk.User, asset *Asset, clientIp string) ([]string, error) {
+func getActionsFromEnforcer(enforcer *casbin.Enforcer, user *casdoorsdk.User, asset *Asset, accountKey string, clientIp string) ([]string, error) {
 	res := []string{}
 	for _, action := range AllActions {
-		allowed, err := enforcer.Enforce("user:"+user.Name, "asset:"+asset.Name, action, clientIp)
+		allowed, err := enforcer.Enforce("user:"+user.Name, "asset:"+asset.Name, action, clientIp, accountKey)
 		if err != nil {
 			return nil, err
 		}
@@ -190,21 +220,40 @@ func getActionsFromEnforcer(enforcer *casbin.Enforcer, user *casdoorsdk.User, as
 	return res, nil
 }
 
+func hasAllAssets(user *casdoorsdk.User, asset *Asset) bool {
+	return user.Owner == "built-in" || (user.Owner == asset.Owner && user.IsAdmin)
+}
+
+// GetAssetActions returns what the user may do on the asset as any of its accounts.
 func GetAssetActions(user *casdoorsdk.User, asset *Asset, clientIp string) ([]string, error) {
+	return GetAssetAccountActions(user, asset, nil, clientIp)
+}
+
+// GetAssetAccountActions returns what the user may do on the asset as the account, or as any
+// account when username is nil.
+func GetAssetAccountActions(user *casdoorsdk.User, asset *Asset, username *string, clientIp string) ([]string, error) {
 	if user == nil || asset == nil {
 		return []string{}, nil
 	}
 
-	if user.Owner == "built-in" {
-		return AllActions, nil
+	accounts, err := GetAssetAccounts(asset.Owner, asset.Name)
+	if err != nil {
+		return nil, err
+	}
+	keys := getAccountKeys(asset, accounts)
+	if username != nil {
+		key := getAccountKey(asset, *username)
+		if !slices.Contains(keys, key) {
+			return []string{}, nil
+		}
+		keys = []string{key}
 	}
 
+	if hasAllAssets(user, asset) {
+		return AllActions, nil
+	}
 	if user.Owner != asset.Owner {
 		return []string{}, nil
-	}
-
-	if user.IsAdmin {
-		return AllActions, nil
 	}
 
 	enforcer, err := newPermissionEnforcer(user, []*Asset{asset})
@@ -212,7 +261,78 @@ func GetAssetActions(user *casdoorsdk.User, asset *Asset, clientIp string) ([]st
 		return nil, err
 	}
 
-	return getActionsFromEnforcer(enforcer, user, asset, clientIp)
+	res := []string{}
+	for _, key := range keys {
+		actions, err := getActionsFromEnforcer(enforcer, user, asset, key, clientIp)
+		if err != nil {
+			return nil, err
+		}
+		for _, action := range actions {
+			if !slices.Contains(res, action) {
+				res = append(res, action)
+			}
+		}
+	}
+
+	sorted := []string{}
+	for _, action := range AllActions {
+		if slices.Contains(res, action) {
+			sorted = append(sorted, action)
+		}
+	}
+	return sorted, nil
+}
+
+// GetAllowedAccounts returns the accounts of the asset the user may connect as.
+func GetAllowedAccounts(user *casdoorsdk.User, asset *Asset, clientIp string) ([]*AccountInfo, error) {
+	res := []*AccountInfo{}
+	if user == nil || asset == nil {
+		return res, nil
+	}
+
+	accounts, err := GetAssetAccounts(asset.Owner, asset.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	var enforcer *casbin.Enforcer
+	if !hasAllAssets(user, asset) {
+		if user.Owner != asset.Owner {
+			return res, nil
+		}
+		enforcer, err = newPermissionEnforcer(user, []*Asset{asset})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	allowed := func(key string) (bool, error) {
+		if enforcer == nil {
+			return true, nil
+		}
+		return enforcer.Enforce("user:"+user.Name, "asset:"+asset.Name, ActionConnect, clientIp, key)
+	}
+
+	ok, err := allowed(getAccountKey(asset, ""))
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		res = append(res, &AccountInfo{Username: asset.Username, IsDefault: true})
+	}
+	for _, account := range accounts {
+		if !account.IsEnabled {
+			continue
+		}
+		ok, err = allowed(getAccountKey(asset, account.Username))
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			res = append(res, &AccountInfo{Username: account.Username, DisplayName: account.DisplayName})
+		}
+	}
+	return res, nil
 }
 
 func FilterAllowedAssets(user *casdoorsdk.User, assets []*Asset, clientIp string) ([]*Asset, error) {
@@ -226,17 +346,25 @@ func FilterAllowedAssets(user *casdoorsdk.User, assets []*Asset, clientIp string
 		return nil, err
 	}
 
+	accounts, err := getAllAssetAccounts(user.Owner)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, asset := range assets {
 		if asset.Owner != user.Owner {
 			continue
 		}
 
-		allowed, err := enforcer.Enforce("user:"+user.Name, "asset:"+asset.Name, ActionConnect, clientIp)
-		if err != nil {
-			return nil, err
-		}
-		if allowed {
-			res = append(res, asset)
+		for _, key := range getAccountKeys(asset, accounts) {
+			allowed, err := enforcer.Enforce("user:"+user.Name, "asset:"+asset.Name, ActionConnect, clientIp, key)
+			if err != nil {
+				return nil, err
+			}
+			if allowed {
+				res = append(res, asset)
+				break
+			}
 		}
 	}
 
