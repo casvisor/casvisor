@@ -116,6 +116,14 @@ func initAPI() {
 	beego.Router("/api/get-patch-job", &controllers.ApiController{}, "GET:GetPatchJob")
 	beego.Router("/api/start-patch-job", &controllers.ApiController{}, "POST:StartPatchJob")
 
+	beego.Router("/api/get-jobs", &controllers.ApiController{}, "GET:GetJobs")
+	beego.Router("/api/get-job", &controllers.ApiController{}, "GET:GetJob")
+	beego.Router("/api/start-job", &controllers.ApiController{}, "POST:StartJob")
+	beego.Router("/api/rerun-job", &controllers.ApiController{}, "POST:RerunJob")
+	beego.Router("/api/cancel-job", &controllers.ApiController{}, "POST:CancelJob")
+	beego.Router("/api/delete-job", &controllers.ApiController{}, "POST:DeleteJob")
+	beego.Router("/api/upload-job-file", &controllers.ApiController{}, "POST:UploadJobFile")
+
 	beego.Router("/api/add-asset-tunnel", &controllers.ApiController{}, "POST:AddAssetTunnel")
 	beego.Router("/api/get-asset-ssh", &controllers.ApiController{}, "GET:GetAssetSsh")
 	beego.Router("/api/get-asset-vnc", &controllers.ApiController{}, "GET:GetAssetVnc")

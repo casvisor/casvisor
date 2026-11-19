@@ -318,3 +318,47 @@ export interface LocalUser {
   lastSigninTime: string;
   mfaEnabled?: boolean;
 }
+
+export interface JobResult {
+  owner: string;
+  job: string;
+  asset: string;
+  displayName: string;
+  host: string;
+  session: string;
+  status: string;
+  exitCode: number;
+  output: string;
+  error: string;
+  rule: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface Job {
+  owner: string;
+  name: string;
+  createdTime: string;
+  displayName: string;
+  type: string;
+  assets: string[] | null;
+  assetTags: string[] | null;
+  content: string;
+  scriptType: string;
+  fileKey: string;
+  fileName: string;
+  fileSize: number;
+  filePath: string;
+  timeout: number;
+  concurrency: number;
+  user: string;
+  clientIp: string;
+  status: string;
+  startTime: string;
+  endTime: string;
+  message: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+  results?: JobResult[] | null;
+}

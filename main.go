@@ -52,6 +52,7 @@ func main() {
 		panic(err)
 	}
 	object.InitPatchJobs()
+	object.InitJobs()
 	recording.StartRetention()
 	err = controllers.ClearSessionDrives()
 	if err != nil {

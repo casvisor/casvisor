@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, Users, type LucideIcon} from "lucide-react";
+import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, ListChecks, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, Users, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -85,6 +85,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         label: i18next.t("general:Patches"),
         icon: PackageCheck,
         description: i18next.t("general:Scan and install system updates on SSH assets"),
+      },
+      {
+        key: "/jobs",
+        label: i18next.t("general:Jobs"),
+        icon: ListChecks,
+        description: i18next.t("general:Run commands, scripts and file transfers on many SSH assets at once"),
       },
       {
         key: "/sessions",

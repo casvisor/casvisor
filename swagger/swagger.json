@@ -255,6 +255,32 @@
                 }
             }
         },
+        "/cancel-job": {
+            "post": {
+                "tags": [
+                    "Job API"
+                ],
+                "description": "stop a running job",
+                "operationId": "ApiController.CancelJob",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the job",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/change-password": {
             "post": {
                 "tags": [
@@ -373,6 +399,34 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.CommandRule"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/delete-job": {
+            "post": {
+                "tags": [
+                    "Job API"
+                ],
+                "description": "delete a job that is not running, with its results and its uploaded file",
+                "operationId": "ApiController.DeleteJob",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The owner and name of the job",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.Job"
                         }
                     }
                 ],
@@ -804,6 +858,72 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/controllers.Principal"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-job": {
+            "get": {
+                "tags": [
+                    "Job API"
+                ],
+                "description": "get a job with its result on each asset, the output live while it runs",
+                "operationId": "ApiController.GetJob",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the job",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.Job"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-jobs": {
+            "get": {
+                "tags": [
+                    "Job API"
+                ],
+                "description": "get the jobs, by page",
+                "operationId": "ApiController.GetJobs",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the jobs",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "description": "The size of each page",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "p",
+                        "description": "The number of the page",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.Job"
                         }
                     }
                 }
@@ -1373,6 +1493,32 @@
                 }
             }
         },
+        "/rerun-job": {
+            "post": {
+                "tags": [
+                    "Job API"
+                ],
+                "description": "run a finished job again on the assets where it did not succeed",
+                "operationId": "ApiController.RerunJob",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the job",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.Job"
+                        }
+                    }
+                }
+            }
+        },
         "/revoke-network-gateway-token": {
             "post": {
                 "tags": [
@@ -1394,6 +1540,34 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/start-job": {
+            "post": {
+                "tags": [
+                    "Job API"
+                ],
+                "description": "run a command, a script or a file transfer on SSH assets, picked by name or by tag",
+                "operationId": "ApiController.StartJob",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The owner, displayName, type (Command, Script or File), assets, assetTags, content, scriptType (Bash or PowerShell), fileKey, fileName and filePath, timeout in seconds and concurrency",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.Job"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.Job"
                         }
                     }
                 }
@@ -1698,6 +1872,32 @@
                 }
             }
         },
+        "/upload-job-file": {
+            "post": {
+                "tags": [
+                    "Job API"
+                ],
+                "description": "upload the file a job sends to its assets, as the form field \"file\"; the key it returns goes in the fileKey of the job",
+                "operationId": "ApiController.UploadJobFile",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the job",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.jobFile"
+                        }
+                    }
+                }
+            }
+        },
         "/upload-session-file": {
             "post": {
                 "tags": [
@@ -1840,6 +2040,22 @@
                 },
                 "port": {
                     "type": "string"
+                }
+            }
+        },
+        "controllers.jobFile": {
+            "title": "jobFile",
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         },
@@ -2016,6 +2232,148 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "object.Job": {
+            "title": "Job",
+            "type": "object",
+            "properties": {
+                "assetTags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "clientIp": {
+                    "type": "string"
+                },
+                "concurrency": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "failed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "fileKey": {
+                    "type": "string"
+                },
+                "fileName": {
+                    "type": "string"
+                },
+                "filePath": {
+                    "type": "string"
+                },
+                "fileSize": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.JobResult"
+                    }
+                },
+                "scriptType": {
+                    "type": "string"
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "succeeded": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "timeout": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "total": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.JobResult": {
+            "title": "JobResult",
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "exitCode": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "job": {
+                    "type": "string"
+                },
+                "output": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "rule": {
+                    "type": "string"
+                },
+                "session": {
+                    "type": "string"
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
