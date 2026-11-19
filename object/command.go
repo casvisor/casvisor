@@ -77,6 +77,7 @@ func AddCommand(command *Command) error {
 	if err != nil {
 		return err
 	}
+	forwardCommand(command)
 
 	owner, name := util.GetOwnerAndNameFromIdNoCheck(command.Session)
 	_, err = adapter.engine.ID(core.PK{owner, name}).Incr("command_count").Update(&Session{})

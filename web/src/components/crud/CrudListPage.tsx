@@ -32,8 +32,8 @@ export interface CrudListPageProps<T extends Record<string, any>> {
   /** where the "Add" flow and the name links point at */
   editUrl?: (record: T) => string;
   addButtonLabel?: React.ReactNode;
-  /** extra buttons next to Refresh/Add; a function form gets `refresh` to re-fetch the list */
-  toolbar?: React.ReactNode | ((ctx: {refresh: () => void}) => React.ReactNode);
+  /** extra buttons next to Refresh/Add; a function form gets `refresh` to re-fetch the list and the current `query` */
+  toolbar?: React.ReactNode | ((ctx: {refresh: () => void; query: TableQuery}) => React.ReactNode);
   rowKey?: (row: T, index: number) => string;
   /** extra classes for one row, such as the antd lists' highlighted deleted rows */
   rowClassName?: (row: T, index: number) => string | undefined;
@@ -240,7 +240,7 @@ export function CrudListPage<T extends Record<string, any>>({
         description={description}
         actions={
           <>
-            {typeof toolbar === "function" ? toolbar({refresh}) : toolbar}
+            {typeof toolbar === "function" ? toolbar({refresh, query}) : toolbar}
             <ColumnMenu columns={allColumns} visibility={visibility} />
             <Button variant="outline" size="iconSm" onClick={refresh} aria-label="Refresh" disabled={loading}>
               <RefreshCw className={loading ? "animate-spin" : undefined} />

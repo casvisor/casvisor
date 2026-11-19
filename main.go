@@ -32,6 +32,7 @@ import (
 	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/routers"
 	"github.com/casvisor/casvisor/sshgateway"
+	"github.com/casvisor/casvisor/syslog"
 	"github.com/casvisor/casvisor/task"
 	"github.com/casvisor/casvisor/util"
 )
@@ -53,6 +54,10 @@ func main() {
 	}
 	object.InitPatchJobs()
 	object.InitJobs()
+	err = syslog.Start(conf.GetConfigString("syslogAddress"), conf.GetConfigString("syslogFormat"))
+	if err != nil {
+		logs.Error(err.Error())
+	}
 	recording.StartRetention()
 	err = controllers.ClearSessionDrives()
 	if err != nil {

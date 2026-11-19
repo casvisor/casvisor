@@ -432,6 +432,79 @@ paths:
       responses:
         "200":
           description: '{file} file The file'
+  /export-commands:
+    get:
+      tags:
+      - Command API
+      description: download the commands that match the filter of the command list as CSV, 100,000 at most
+      operationId: ApiController.ExportCommands
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the commands
+        required: true
+        type: string
+      - in: query
+        name: field
+        description: The field to filter on
+        type: string
+      - in: query
+        name: value
+        description: The value of the filter
+        type: string
+      responses:
+        "200":
+          description: '{string} string The CSV file'
+  /export-records:
+    get:
+      tags:
+      - Record API
+      description: download the records that match the filter of the record list as CSV, 100,000 at most
+      operationId: ApiController.ExportRecords
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the records
+        required: true
+        type: string
+      - in: query
+        name: field
+        description: The field to filter on
+        type: string
+      - in: query
+        name: value
+        description: The value of the filter
+        type: string
+      responses:
+        "200":
+          description: '{string} string The CSV file'
+  /export-sessions:
+    get:
+      tags:
+      - Session API
+      description: download the sessions that match the filter of the session list as CSV, 100,000 at most
+      operationId: ApiController.ExportSessions
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the sessions
+        required: true
+        type: string
+      - in: query
+        name: status
+        description: connected or disconnected
+        type: string
+      - in: query
+        name: field
+        description: The field to filter on
+        type: string
+      - in: query
+        name: value
+        description: The value of the filter
+        type: string
+      responses:
+        "200":
+          description: '{string} string The CSV file'
   /generate-network-gateway-token:
     post:
       tags:

@@ -19,6 +19,7 @@ import * as SessionBackend from "@/backend/SessionBackend";
 import type {Session} from "@/backend/types";
 import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {CrudListPage} from "@/components/crud/CrudListPage";
+import {ExportCsvButton} from "@/components/crud/ExportCsvButton";
 import {textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
@@ -189,14 +190,17 @@ export default function SessionListPage() {
           }
           : null,
       ]}
-      toolbar={
-        <Tabs value={status} onValueChange={setStatus}>
-          <TabsList>
-            <TabsTrigger value={SessionBackend.Connected}>{i18next.t("session:Online")}</TabsTrigger>
-            <TabsTrigger value={SessionBackend.Disconnected}>{i18next.t("session:History")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      }
+      toolbar={({query}) => (
+        <>
+          <Tabs value={status} onValueChange={setStatus}>
+            <TabsList>
+              <TabsTrigger value={SessionBackend.Connected}>{i18next.t("session:Online")}</TabsTrigger>
+              <TabsTrigger value={SessionBackend.Disconnected}>{i18next.t("session:History")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <ExportCsvButton path="/api/export-sessions" owner={owner} query={query} params={{status}} />
+        </>
+      )}
     />
   );
 }

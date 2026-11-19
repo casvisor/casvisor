@@ -17,6 +17,7 @@ import i18next from "i18next";
 import * as RecordBackend from "@/backend/RecordBackend";
 import type {Record} from "@/backend/types";
 import {CrudListPage} from "@/components/crud/CrudListPage";
+import {ExportCsvButton} from "@/components/crud/ExportCsvButton";
 import {clientIpColumn, dateColumn, linkColumn, textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
@@ -108,6 +109,7 @@ export default function RecordListPage() {
       editUrl={viewUrl}
       readOnly
       actionColumnWidth={100}
+      toolbar={({query}) => <ExportCsvButton path="/api/export-records" owner={owner} query={query} />}
     />
   );
 }

@@ -51,6 +51,7 @@ func initAPI() {
 	beego.Router("/api/update-record", &controllers.ApiController{}, "POST:UpdateRecord")
 	beego.Router("/api/add-record", &controllers.ApiController{}, "POST:AddRecord")
 	beego.Router("/api/delete-record", &controllers.ApiController{}, "POST:DeleteRecord")
+	beego.Router("/api/export-records", &controllers.ApiController{}, "GET:ExportRecords")
 
 	beego.Router("/api/get-assets", &controllers.ApiController{}, "GET:GetAssets")
 	beego.Router("/api/get-asset", &controllers.ApiController{}, "GET:GetAsset")
@@ -92,6 +93,7 @@ func initAPI() {
 	beego.Router("/api/stop-session", &controllers.ApiController{}, "POST:StopSession")
 	beego.Router("/api/get-session-monitor", &controllers.ApiController{}, "GET:GetSessionMonitor")
 	beego.Router("/api/get-session-recording", &controllers.ApiController{}, "GET:GetSessionRecording")
+	beego.Router("/api/export-sessions", &controllers.ApiController{}, "GET:ExportSessions")
 
 	beego.Router("/api/get-network-gateways", &controllers.ApiController{}, "GET:GetNetworkGateways")
 	beego.Router("/api/get-network-gateway", &controllers.ApiController{}, "GET:GetNetworkGateway")
@@ -109,6 +111,7 @@ func initAPI() {
 	beego.Router("/api/add-command-rule", &controllers.ApiController{}, "POST:AddCommandRule")
 	beego.Router("/api/delete-command-rule", &controllers.ApiController{}, "POST:DeleteCommandRule")
 	beego.Router("/api/get-commands", &controllers.ApiController{}, "GET:GetCommands")
+	beego.Router("/api/export-commands", &controllers.ApiController{}, "GET:ExportCommands")
 
 	beego.Router("/api/get-patch-statuses", &controllers.ApiController{}, "GET:GetPatchStatuses")
 	beego.Router("/api/get-patch-status", &controllers.ApiController{}, "GET:GetPatchStatus")

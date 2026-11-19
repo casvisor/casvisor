@@ -124,7 +124,8 @@ func GetConnSession(id string) (*Session, error) {
 
 func UpdateSession(id string, session *Session, columns ...string) (bool, error) {
 	owner, name := util.GetOwnerAndNameFromId(id)
-	if oldSession, err := getSession(owner, name); err != nil {
+	oldSession, err := getSession(owner, name)
+	if err != nil {
 		return false, err
 	} else if oldSession == nil {
 		return false, nil
@@ -143,6 +144,12 @@ func UpdateSession(id string, session *Session, columns ...string) (bool, error)
 		}
 	}
 
+	if oldSession.Status != Connected && session.Status == Connected {
+		newSession, err := getSession(owner, name)
+		if err == nil && newSession != nil {
+			forwardSession(newSession, true)
+		}
+	}
 	return true, nil
 }
 
@@ -256,6 +263,7 @@ func CloseDBSession(id string, code int, msg string) error {
 	if err != nil {
 		return err
 	}
+	forwardSession(s, false)
 	return nil
 }
 

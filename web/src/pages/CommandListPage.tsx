@@ -18,6 +18,7 @@ import {Link, useSearchParams} from "react-router-dom";
 import * as CommandBackend from "@/backend/CommandBackend";
 import type {Command} from "@/backend/types";
 import {CrudListPage} from "@/components/crud/CrudListPage";
+import {ExportCsvButton} from "@/components/crud/ExportCsvButton";
 import {dateColumn, textColumn} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
@@ -114,6 +115,7 @@ export default function CommandListPage() {
       tableId="/commands"
       initialQuery={session ? {searchedColumn: "session", searchText: session} : undefined}
       showActionColumn={false}
+      toolbar={({query}) => <ExportCsvButton path="/api/export-commands" owner={owner} query={query} />}
     />
   );
 }

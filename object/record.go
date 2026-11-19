@@ -184,6 +184,7 @@ func AddRecord(record *Record) bool {
 		panic(err)
 	}
 
+	forwardRecord(record)
 	return affected != 0
 }
 
