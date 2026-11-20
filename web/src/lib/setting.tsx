@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import i18next from "i18next";
 import dayjs from "dayjs";
 import {toast} from "sonner";
 import Sdk from "casdoor-js-sdk";
 import * as Conf from "@/Conf";
+import i18next, {resolveLanguage} from "@/i18n";
 
 // The frontend is served by the backend in production, so relative URLs are enough.
 // In development the Vite dev-server proxies /api (and its websockets) to the Go backend.
@@ -126,8 +126,9 @@ export function getLanguage() {
 }
 
 export function setLanguage(language: string) {
-  localStorage.setItem("language", language);
-  i18next.changeLanguage(language);
+  const resolved = resolveLanguage(language);
+  localStorage.setItem("language", resolved);
+  i18next.changeLanguage(resolved);
 }
 
 // ---- small helpers -----------------------------------------------------------

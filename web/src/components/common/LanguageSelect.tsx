@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {useLanguage} from "@/hooks/use-language";
+import {SupportedLanguages} from "@/i18n";
 import * as Setting from "@/lib/setting";
 import {cn} from "@/lib/utils";
 
@@ -21,8 +22,8 @@ interface LanguageSelectProps {
 export function LanguageSelect({languages, className, onLanguageChange}: LanguageSelectProps) {
   const current = useLanguage();
 
-  const items = (Setting.Countries as any[]).filter(
-    (country) => !languages || languages.length === 0 || languages.includes(country.key),
+  const items = Setting.Countries.filter(
+    (country) => SupportedLanguages.includes(country.key) && (!languages || languages.length === 0 || languages.includes(country.key)),
   );
 
   if (items.length === 0) {

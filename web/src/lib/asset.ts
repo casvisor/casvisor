@@ -12,7 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import type {Asset} from "@/backend/types";
+
 export const Protocols = ["RDP", "VNC", "SSH", "Telnet", "MySQL", "PostgreSQL"];
+
+/** Which credentials the asset's own account still needs from the user. */
+export function getAssetCredentialRequirements(asset: Pick<Asset, "protocol" | "username" | "password" | "privateKey">) {
+  return {
+    needsUsername: asset.protocol !== "VNC" && !asset.username,
+    needsPassword: !asset.password && (asset.protocol !== "SSH" || !asset.privateKey),
+  };
+}
 
 export const DatabaseProtocols = ["MySQL", "PostgreSQL"];
 

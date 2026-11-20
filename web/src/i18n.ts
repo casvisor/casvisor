@@ -17,21 +17,21 @@ import {initReactI18next} from "react-i18next";
 import * as Conf from "./Conf";
 import en from "./locales/en/data.json";
 
-export const SupportedLanguages = ["en", "zh", "es", "fr", "de", "id", "ja", "ko", "ru"];
+// The other locale files remain in src/locales/ until translated.
+export const SupportedLanguages = ["en", "zh"];
 
 const localeLoaders = import.meta.glob("./locales/*/data.json");
 
-function initLanguage(): string {
-  let language = localStorage.getItem("language");
-  if (language === undefined || language === null || language === "") {
-    if (Conf.ForceLanguage !== "") {
-      language = Conf.ForceLanguage;
-    } else {
-      const baseLanguage = navigator.language.split("-")[0];
-      language = SupportedLanguages.includes(baseLanguage) ? baseLanguage : Conf.DefaultLanguage;
-    }
+export function resolveLanguage(language: string): string {
+  if (SupportedLanguages.includes(language)) {
+    return language;
   }
-  return language;
+  const baseLanguage = language.split("-")[0];
+  return SupportedLanguages.includes(baseLanguage) ? baseLanguage : Conf.DefaultLanguage;
+}
+
+function initLanguage(): string {
+  return resolveLanguage(localStorage.getItem("language") || Conf.ForceLanguage || navigator.language);
 }
 
 const resourcesToBackend = () => ({
