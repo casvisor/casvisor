@@ -56,6 +56,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /add-asset-node:
+    post:
+      tags:
+      - Asset Node API
+      description: add an asset node
+      operationId: ApiController.AddAssetNode
+      parameters:
+      - in: body
+        name: body
+        description: The details of the node
+        required: true
+        schema:
+          $ref: '#/definitions/object.AssetNode'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /add-asset-tunnel:
     post:
       tags:
@@ -367,6 +385,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /delete-asset-node:
+    post:
+      tags:
+      - Asset Node API
+      description: delete an asset node that has no child nodes, no assets and no permissions
+      operationId: ApiController.DeleteAssetNode
+      parameters:
+      - in: body
+        name: body
+        description: The node
+        required: true
+        schema:
+          $ref: '#/definitions/object.AssetNode'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /delete-command-rule:
     post:
       tags:
@@ -570,6 +606,33 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /export-assets:
+    get:
+      tags:
+      - Asset API
+      description: download the assets that match the filter of the asset list as CSV, without passwords and private keys, in the format of the import
+      operationId: ApiController.ExportAssets
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the assets
+        required: true
+        type: string
+      - in: query
+        name: node
+        description: Only the assets in this node or below it, @none for the assets in no node
+        type: string
+      - in: query
+        name: field
+        description: The field to filter on
+        type: string
+      - in: query
+        name: value
+        description: The value of the filter
+        type: string
+      responses:
+        "200":
+          description: '{string} string The CSV file'
   /export-commands:
     get:
       tags:
@@ -768,6 +831,42 @@ paths:
         description: The id of the session, from add-asset-tunnel
         required: true
         type: string
+  /get-asset-node:
+    get:
+      tags:
+      - Asset Node API
+      description: get an asset node
+      operationId: ApiController.GetAssetNode
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the node
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.AssetNode'
+  /get-asset-nodes:
+    get:
+      tags:
+      - Asset Node API
+      description: get the asset tree with how many assets each node has; a user who is not an admin only gets the nodes of the assets they may connect to
+      operationId: ApiController.GetAssetNodes
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the nodes
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/object.AssetNode'
   /get-assets:
     get:
       tags:
@@ -1273,6 +1372,42 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Principal'
+  /import-assets:
+    post:
+      tags:
+      - Asset API
+      description: add assets from a CSV file, and update the existing ones when update is true; with dryRun it only tells what it would do
+      operationId: ApiController.ImportAssets
+      parameters:
+      - in: body
+        name: body
+        description: The CSV file and the options
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.importAssetsForm'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /move-assets:
+    post:
+      tags:
+      - Asset Node API
+      description: add assets to nodes (mode "add"), take them out of nodes ("remove") or put them in exactly the nodes ("set")
+      operationId: ApiController.MoveAssets
+      parameters:
+      - in: body
+        name: body
+        description: The assets, the nodes and the mode
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.moveAssetsForm'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /push-asset-account:
     post:
       tags:
@@ -1528,6 +1663,29 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /update-asset-node:
+    post:
+      tags:
+      - Asset Node API
+      description: rename or move an asset node; the assets and permissions of a renamed node follow it
+      operationId: ApiController.UpdateAssetNode
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the node
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The details of the node
+        required: true
+        schema:
+          $ref: '#/definitions/object.AssetNode'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /update-command-rule:
     post:
       tags:
@@ -1777,6 +1935,18 @@ definitions:
         type: string
       port:
         type: string
+  controllers.importAssetsForm:
+    title: importAssetsForm
+    type: object
+    properties:
+      csv:
+        type: string
+      dryRun:
+        type: boolean
+      owner:
+        type: string
+      update:
+        type: boolean
   controllers.jobFile:
     title: jobFile
     type: object
@@ -1788,6 +1958,22 @@ definitions:
       size:
         type: integer
         format: int64
+  controllers.moveAssetsForm:
+    title: moveAssetsForm
+    type: object
+    properties:
+      assets:
+        type: array
+        items:
+          type: string
+      mode:
+        type: string
+      nodes:
+        type: array
+        items:
+          type: string
+      owner:
+        type: string
   controllers.patchJobRequest:
     title: patchJobRequest
     type: object
@@ -1883,6 +2069,10 @@ definitions:
         type: string
       networkGateway:
         type: string
+      nodes:
+        type: array
+        items:
+          type: string
       os:
         type: string
       owner:
@@ -1938,6 +2128,27 @@ definitions:
       updatedTime:
         type: string
       username:
+        type: string
+  object.AssetNode:
+    title: AssetNode
+    type: object
+    properties:
+      assetCount:
+        type: integer
+        format: int64
+      createdTime:
+        type: string
+      description:
+        type: string
+      displayName:
+        type: string
+      name:
+        type: string
+      owner:
+        type: string
+      parent:
+        type: string
+      updatedTime:
         type: string
   object.Command:
     title: Command
@@ -2330,6 +2541,10 @@ definitions:
         type: boolean
       name:
         type: string
+      nodes:
+        type: array
+        items:
+          type: string
       owner:
         type: string
       startTime:
