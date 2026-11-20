@@ -15,8 +15,11 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
+	"sync"
+	"time"
 
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
@@ -35,17 +38,67 @@ const (
 	InternalError      int = 808
 )
 
+const tunnelCredentialTtl = time.Minute
+
+// tunnelCredential is what the user typed for an asset that keeps no credentials. It is held for
+// the tunnel of the new session, so that it never goes into a WebSocket URL.
+type tunnelCredential struct {
+	username string
+	password string
+	expires  time.Time
+}
+
+var (
+	tunnelCredentials   = map[string]tunnelCredential{}
+	tunnelCredentialsMu sync.Mutex
+)
+
+func putTunnelCredential(sessionId string, username string, password string) {
+	tunnelCredentialsMu.Lock()
+	defer tunnelCredentialsMu.Unlock()
+
+	now := time.Now()
+	for id, credential := range tunnelCredentials {
+		if now.After(credential.expires) {
+			delete(tunnelCredentials, id)
+		}
+	}
+	tunnelCredentials[sessionId] = tunnelCredential{username: username, password: password, expires: now.Add(tunnelCredentialTtl)}
+}
+
+// takeTunnelCredential returns the credentials typed for a session, only once.
+func takeTunnelCredential(sessionId string) (string, string) {
+	tunnelCredentialsMu.Lock()
+	defer tunnelCredentialsMu.Unlock()
+
+	credential, ok := tunnelCredentials[sessionId]
+	delete(tunnelCredentials, sessionId)
+	if !ok || time.Now().After(credential.expires) {
+		return "", ""
+	}
+	return credential.username, credential.password
+}
+
 // AddAssetTunnel
 // @Title AddAssetTunnel
 // @Tag Session API
-// @Description add session
+// @Description add a session to connect to an asset; the username and password typed for an asset that keeps none go in the body, and are used once by the session's tunnel within a minute
 // @Param   assetId    query   string  true        "The id of asset"
 // @Param   account    query   string  false       "The username of the account to connect as, the asset's own account when empty"
+// @Param   body       body    object.TunnelCredential  false  "The username and password, when the asset keeps none"
 // @Success 200 {object} Response
-// @router /add-asset-tunnel [get]
+// @router /add-asset-tunnel [post]
 func (c *ApiController) AddAssetTunnel() {
 	assetId := c.Input().Get("assetId")
 	account := c.Input().Get("account")
+	var credential object.TunnelCredential
+	if len(c.Ctx.Input.RequestBody) > 0 {
+		err := json.Unmarshal(c.Ctx.Input.RequestBody, &credential)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+	}
 
 	user := c.GetSessionUser()
 	if user == nil {
@@ -103,5 +156,8 @@ func (c *ApiController) AddAssetTunnel() {
 		return
 	}
 
+	if credential.Username != "" || credential.Password != "" {
+		putTunnelCredential(session.GetId(), credential.Username, credential.Password)
+	}
 	c.ResponseOk(session)
 }

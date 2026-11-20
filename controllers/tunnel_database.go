@@ -210,8 +210,6 @@ func (s *databaseSession) handle(stream *wsStream, request *databaseRequest) {
 // @Tag Session API
 // @Description connect to the MySQL or PostgreSQL database of an asset over a websocket, to browse it and run SQL; every statement is checked against the command rules and recorded as a command of the session
 // @Param   sessionId    query    string  true     "The id of the session, from add-asset-tunnel"
-// @Param   username     query    string  false    "The username, when the asset keeps none"
-// @Param   password     query    string  false    "The password, when the asset keeps none"
 // @router /get-asset-database [get]
 func (c *ApiController) GetAssetDatabase() {
 	c.EnableRender = false
@@ -228,7 +226,7 @@ func (c *ApiController) GetAssetDatabase() {
 	}
 
 	sessionId := c.Input().Get("sessionId")
-	session, asset, code, err := c.getTunnelSessionAndAsset(sessionId, c.Input().Get("username"), c.Input().Get("password"))
+	session, asset, code, err := c.getTunnelSessionAndAsset(sessionId)
 	if err != nil {
 		fail(code, err)
 		return

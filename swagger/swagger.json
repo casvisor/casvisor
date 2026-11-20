@@ -90,11 +90,11 @@
             }
         },
         "/add-asset-tunnel": {
-            "get": {
+            "post": {
                 "tags": [
                     "Session API"
                 ],
-                "description": "add session",
+                "description": "add a session to connect to an asset; the username and password typed for an asset that keeps none go in the body, and are used once by the session's tunnel within a minute",
                 "operationId": "ApiController.AddAssetTunnel",
                 "parameters": [
                     {
@@ -109,6 +109,14 @@
                         "name": "account",
                         "description": "The username of the account to connect as, the asset's own account when empty",
                         "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The username and password, when the asset keeps none",
+                        "schema": {
+                            "$ref": "#/definitions/object.TunnelCredential"
+                        }
                     }
                 ],
                 "responses": {
@@ -1171,18 +1179,6 @@
                         "name": "sessionId",
                         "description": "The id of the session, from add-asset-tunnel",
                         "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "username",
-                        "description": "The username, when the asset keeps none",
-                        "type": "string"
-                    },
-                    {
-                        "in": "query",
-                        "name": "password",
-                        "description": "The password, when the asset keeps none",
                         "type": "string"
                     }
                 ]
@@ -3740,6 +3736,18 @@
                     "type": "string"
                 },
                 "user": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.TunnelCredential": {
+            "title": "TunnelCredential",
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

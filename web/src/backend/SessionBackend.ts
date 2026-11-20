@@ -34,9 +34,13 @@ export function deleteSession(session: any) {
   return post("/api/delete-session", {}, session);
 }
 
-/** Creates the session a connection runs in. */
-export function addAssetTunnel(assetId: string, account = "") {
-  return post("/api/add-asset-tunnel", account ? {assetId, account} : {assetId});
+/**
+ * Creates the session a connection runs in. What the user typed for an asset that
+ * keeps no credentials goes in the body, for the session's tunnel to use once.
+ */
+export function addAssetTunnel(assetId: string, account = "", username = "", password = "") {
+  const query = account ? {assetId, account} : {assetId};
+  return post("/api/add-asset-tunnel", query, username || password ? {username, password} : undefined);
 }
 
 export function connect(sessionId: string) {

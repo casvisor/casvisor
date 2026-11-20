@@ -263,7 +263,7 @@ export default function RdpView(props: ConnectionProps) {
   const connect = (reconnecting = false) => {
     status.loading(i18next.t(reconnecting ? "asset:Reconnecting..." : "asset:Connecting..."));
 
-    SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
+    SessionBackend.addAssetTunnel(assetId, props.account, username, password).then((res) => {
       if (!activeRef.current) {
         return;
       }
@@ -288,10 +288,6 @@ export default function RdpView(props: ConnectionProps) {
         scale: Math.round(ratio * 100),
         gfx: 1,
       };
-      if (username || password) {
-        params.username = username;
-        params.password = password;
-      }
 
       const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-asset-rdp?${qs.stringify(params)}`), ["binary"]);
       ws.binaryType = "arraybuffer";

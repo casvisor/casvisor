@@ -23,39 +23,66 @@ import {PasswordInput} from "@/components/common/PasswordInput";
 import type {Asset} from "@/backend/types";
 import {getAssetCredentialRequirements} from "@/lib/asset";
 
-const credentialsKeyPrefix = "casvisorConnect:";
+type Credentials = {username: string; password: string};
+
+declare global {
+  interface Window {
+    casvisorTakeCredentials?: (assetId: string) => Credentials | undefined;
+  }
+}
+
+const reloadKeyPrefix = "casvisorConnect:";
 const credentialsTtlMs = 60 * 1000;
-const takenCredentials = new Map<string, {username: string; password: string}>();
+const handedCredentials = new Map<string, Credentials>();
+const takenCredentials = new Map<string, Credentials>();
 
 /**
- * Hands the credentials typed here to the access page in the new tab. They go
- * through localStorage for a minute rather than the URL, so a password never
- * lands in the browser history or a server log.
+ * Hands the credentials typed here to the access page this window opens next.
+ * They stay in this window's memory for a minute, and the new tab takes them
+ * through window.opener, so a password is never stored or put in a URL.
  */
-export function saveCredentials(assetId: string, username: string, password: string) {
+function handCredentials(assetId: string, username: string, password: string) {
+  const credentials = {username, password};
+  handedCredentials.set(assetId, credentials);
+  window.setTimeout(() => {
+    if (handedCredentials.get(assetId) === credentials) {
+      handedCredentials.delete(assetId);
+    }
+  }, credentialsTtlMs);
+  window.casvisorTakeCredentials = (id) => {
+    const res = handedCredentials.get(id);
+    handedCredentials.delete(id);
+    return res;
+  };
+}
+
+/** Keeps the credentials for the access page opened next in this tab, or for a reload of it, for a minute. */
+export function keepCredentialsInTab(assetId: string, username: string, password: string) {
   try {
-    localStorage.setItem(credentialsKeyPrefix + assetId, JSON.stringify({username, password, time: Date.now()}));
+    sessionStorage.setItem(reloadKeyPrefix + assetId, JSON.stringify({username, password, time: Date.now()}));
   } catch {
-    // a blocked store leaves the asset's own credentials to the backend
+    // a blocked store asks for the credentials again
   }
 }
 
 /** Reads the credentials once; StrictMode renders twice, so the first read is cached. */
-export function takeCredentials(assetId: string): {username: string; password: string} {
+export function takeCredentials(assetId: string): Credentials {
   const cached = takenCredentials.get(assetId);
   if (cached) {
     return cached;
   }
 
-  let result = {username: "", password: ""};
+  let result: Credentials = {username: "", password: ""};
   try {
-    const raw = localStorage.getItem(credentialsKeyPrefix + assetId);
-    localStorage.removeItem(credentialsKeyPrefix + assetId);
+    const raw = sessionStorage.getItem(reloadKeyPrefix + assetId);
+    sessionStorage.removeItem(reloadKeyPrefix + assetId);
     if (raw) {
       const saved = JSON.parse(raw);
       if (Date.now() - saved.time < credentialsTtlMs) {
         result = {username: saved.username ?? "", password: saved.password ?? ""};
       }
+    } else {
+      result = window.opener?.casvisorTakeCredentials?.(assetId) ?? result;
     }
   } catch {
     // fall back to the asset's own credentials
@@ -65,11 +92,17 @@ export function takeCredentials(assetId: string): {username: string; password: s
 }
 
 function openAccessPage(asset: Asset, username: string, password: string, account = "") {
-  if (username !== "" || password !== "") {
-    saveCredentials(`${asset.owner}/${asset.name}`, username, password);
+  const assetId = `${asset.owner}/${asset.name}`;
+  const typed = username !== "" || password !== "";
+  if (typed) {
+    handCredentials(assetId, username, password);
   }
   const query = account ? `?account=${encodeURIComponent(account)}` : "";
-  window.open(`/access/${asset.owner}/${asset.name}${query}`, "_blank");
+  const opened = window.open(`/access/${assetId}${query}`, "_blank");
+  if (typed && !opened) {
+    // no new window, e.g. a browser that opens it in this tab instead
+    keepCredentialsInTab(assetId, username, password);
+  }
 }
 
 /**

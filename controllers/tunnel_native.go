@@ -234,7 +234,7 @@ func truncateCloseReason(msg string) string {
 	return msg[:123]
 }
 
-func (c *ApiController) getTunnelSessionAndAsset(sessionId string, username string, password string) (*object.Session, *object.Asset, int, error) {
+func (c *ApiController) getTunnelSessionAndAsset(sessionId string) (*object.Session, *object.Asset, int, error) {
 	session, err := object.GetConnSession(sessionId)
 	if err != nil {
 		return nil, nil, SessionNotFound, err
@@ -264,6 +264,7 @@ func (c *ApiController) getTunnelSessionAndAsset(sessionId string, username stri
 		return nil, nil, PermissionDenied, fmt.Errorf("you have no permission to connect to the asset: %s", session.Asset)
 	}
 
+	username, password := takeTunnelCredential(session.GetId())
 	if session.Account != "" {
 		asset, err = asset.WithAccount(session.Account)
 		if err != nil {
