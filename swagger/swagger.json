@@ -213,6 +213,34 @@
                 }
             }
         },
+        "/add-login-rule": {
+            "post": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "add a login rule",
+                "operationId": "ApiController.AddLoginRule",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the login rule",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.LoginRule"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-network-gateway": {
             "post": {
                 "tags": [
@@ -429,6 +457,23 @@
                         "type": "string"
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/cancel-login-review": {
+            "post": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "stop waiting for the review of this browser's sign-in",
+                "operationId": "ApiController.CancelLoginReview",
                 "responses": {
                     "200": {
                         "description": "The Response object",
@@ -697,6 +742,34 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.LocalUser"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/delete-login-rule": {
+            "post": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "delete a login rule",
+                "operationId": "ApiController.DeleteLoginRule",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The login rule",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.LoginRule"
                         }
                     }
                 ],
@@ -1281,6 +1354,61 @@
                 ]
             }
         },
+        "/get-asset-kubernetes": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "open a shell in a container of a Kubernetes asset over a websocket, with the same messages as get-asset-ssh; commands are checked against the command rules and recorded, and the terminal is recorded",
+                "operationId": "ApiController.GetAssetKubernetes",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "sessionId",
+                        "description": "The id of the session, from add-asset-tunnel",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "cols",
+                        "description": "The columns of the terminal",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "in": "query",
+                        "name": "rows",
+                        "description": "The rows of the terminal",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "in": "query",
+                        "name": "namespace",
+                        "description": "The namespace of the pod",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "pod",
+                        "description": "The pod",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "container",
+                        "description": "The container of the pod",
+                        "required": true,
+                        "type": "string"
+                    }
+                ]
+            }
+        },
         "/get-asset-node": {
             "get": {
                 "tags": [
@@ -1544,6 +1672,52 @@
                 }
             }
         },
+        "/get-kubernetes-pods": {
+            "post": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "list the namespaces and the pods of a namespace of a Kubernetes asset, with the Connect permission; the token typed for an asset that keeps none goes in the body",
+                "operationId": "ApiController.GetKubernetesPods",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "assetId",
+                        "description": "The id of the asset",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "account",
+                        "description": "The username of the account to connect as, the asset's own account when empty",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "namespace",
+                        "description": "The namespace, the namespace of the asset when empty",
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The token in password, when the asset keeps none",
+                        "schema": {
+                            "$ref": "#/definitions/object.TunnelCredential"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/object.KubernetesPods"
+                        }
+                    }
+                }
+            }
+        },
         "/get-local-user": {
             "get": {
                 "tags": [
@@ -1591,6 +1765,113 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.LocalUser"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-login-review-status": {
+            "get": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "tell the browser whose sign-in is held for review how the review stands, and sign it in once approved",
+                "operationId": "ApiController.GetLoginReviewStatus",
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-login-reviews": {
+            "get": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "get the sign-ins held for review",
+                "operationId": "ApiController.GetLoginReviews",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the reviews",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "description": "Pending, Approved, Rejected, Canceled, Expired or Used",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.LoginReview"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/get-login-rule": {
+            "get": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "get a login rule",
+                "operationId": "ApiController.GetLoginRule",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the login rule",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.LoginRule"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-login-rules": {
+            "get": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "get the login rules, by priority",
+                "operationId": "ApiController.GetLoginRules",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the login rules",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.LoginRule"
+                            }
                         }
                     }
                 }
@@ -1992,7 +2273,7 @@
                 "tags": [
                     "Session API"
                 ],
-                "description": "download a recording of a session, as a Casvisor recording or, for SSH and Telnet, as an asciicast",
+                "description": "download a recording of a session, as a Casvisor recording or, for SSH, Telnet and Kubernetes, as an asciicast",
                 "operationId": "ApiController.GetSessionRecording",
                 "parameters": [
                     {
@@ -2305,6 +2586,34 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/review-login": {
+            "post": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "approve or reject a sign-in held for review",
+                "operationId": "ApiController.ReviewLogin",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The review id, approve or not, and a comment",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.reviewLoginForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.LoginReview"
                         }
                     }
                 }
@@ -2640,6 +2949,41 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.LocalUser"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/update-login-rule": {
+            "post": {
+                "tags": [
+                    "Login Rule API"
+                ],
+                "description": "update a login rule",
+                "operationId": "ApiController.UpdateLoginRule",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the login rule",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the login rule",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.LoginRule"
                         }
                     }
                 ],
@@ -3038,6 +3382,21 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "controllers.reviewLoginForm": {
+            "title": "reviewLoginForm",
+            "type": "object",
+            "properties": {
+                "approve": {
+                    "type": "boolean"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
                 }
             }
         },
@@ -3528,6 +3887,51 @@
                 }
             }
         },
+        "object.KubernetesPod": {
+            "title": "KubernetesPod",
+            "type": "object",
+            "properties": {
+                "containers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node": {
+                    "type": "string"
+                },
+                "phase": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.KubernetesPods": {
+            "title": "KubernetesPods",
+            "type": "object",
+            "properties": {
+                "namespace": {
+                    "type": "string"
+                },
+                "namespaces": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "pods": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.KubernetesPod"
+                    }
+                }
+            }
+        },
         "object.LocalUser": {
             "title": "LocalUser",
             "type": "object",
@@ -3570,6 +3974,137 @@
                 },
                 "updatedTime": {
                     "type": "string"
+                }
+            }
+        },
+        "object.LoginReview": {
+            "title": "LoginReview",
+            "type": "object",
+            "properties": {
+                "clientIp": {
+                    "type": "string"
+                },
+                "clientIpDesc": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "expireTime": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "reviewedTime": {
+                    "type": "string"
+                },
+                "reviewer": {
+                    "type": "string"
+                },
+                "rule": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                },
+                "userAgent": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.LoginRule": {
+            "title": "LoginRule",
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "clientIps": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "isEnabled": {
+                    "type": "boolean"
+                },
+                "methods": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "reviewers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "timeZone": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "weekdays": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
                 }
             }
         },
@@ -4024,6 +4559,9 @@
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                },
+                "target": {
                     "type": "string"
                 },
                 "userAgent": {
