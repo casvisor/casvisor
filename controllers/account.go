@@ -147,6 +147,10 @@ func (c *ApiController) Signin() {
 	}
 
 	claims.AccessToken = token.AccessToken
+	if ok, _ := c.checkLoginRules(claims, false); !ok {
+		return
+	}
+
 	c.SetSessionClaims(claims)
 	c.Ctx.Input.SetParam("recordUserId", userId)
 
@@ -184,12 +188,20 @@ func (c *ApiController) signinLocal() {
 		return
 	}
 
-	c.SessionRegenerateID()
 	claims := &casdoorsdk.Claims{User: *user.ToCasdoorUser()}
+	ok, mfaSetup := c.checkLoginRules(claims, user.MfaEnabled)
+	if !ok {
+		return
+	}
+
+	c.SessionRegenerateID()
 	c.SetSessionClaims(claims)
+	if mfaSetup {
+		c.SetSession(MfaSetupRequiredSessionKey, true)
+	}
 	c.Ctx.Input.SetParam("recordUserId", userId)
 
-	c.ResponseOk(claims)
+	c.ResponseOk(claims, map[string]bool{"mfaSetupRequired": mfaSetup})
 }
 
 // ChangePassword
@@ -233,6 +245,8 @@ type PasswordForm struct {
 
 func (c *ApiController) Signout() {
 	c.SetSessionClaims(nil)
+	c.DelSession(MfaSetupRequiredSessionKey)
+	c.clearPendingLogin()
 
 	c.ResponseOk()
 }
@@ -251,7 +265,8 @@ func (c *ApiController) GetAccount() {
 			return
 		}
 		if user != nil {
-			c.ResponseOk(claims, map[string]bool{"mfaEnabled": user.MfaEnabled})
+			mfaSetupRequired, _ := c.GetSession(MfaSetupRequiredSessionKey).(bool)
+			c.ResponseOk(claims, map[string]bool{"mfaEnabled": user.MfaEnabled, "mfaSetupRequired": mfaSetupRequired && !user.MfaEnabled})
 			return
 		}
 	}

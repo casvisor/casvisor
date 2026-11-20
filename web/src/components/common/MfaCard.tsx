@@ -21,6 +21,7 @@ import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Input} from "@/components/ui/input";
+import {useAccount} from "@/hooks/use-account";
 import * as Setting from "@/lib/setting";
 
 interface MfaSetup {
@@ -31,6 +32,7 @@ interface MfaSetup {
 
 /** Turns two-factor sign-in with an authenticator app on and off for a local account. */
 export function MfaCard() {
+  const {account, reload} = useAccount();
   const [enabled, setEnabled] = React.useState<boolean | null>(null);
   const [setup, setSetup] = React.useState<MfaSetup | null>(null);
   const [code, setCode] = React.useState("");
@@ -70,6 +72,9 @@ export function MfaCard() {
         Setting.showMessage("success", i18next.t("account:Two-factor sign-in is on"));
         setSetup(null);
         load();
+        if (account?.mfaSetupRequired) {
+          reload();
+        }
       } else {
         Setting.showMessage("error", res.msg);
       }
@@ -108,6 +113,11 @@ export function MfaCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {account?.mfaSetupRequired && !enabled ? (
+          <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+            {i18next.t("account:A login rule requires two-step verification for your account. Turn it on to go on using Casvisor")}
+          </p>
+        ) : null}
         <p className="text-sm text-muted-foreground">
           {i18next.t("account:Ask for a code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password after the password")}
         </p>

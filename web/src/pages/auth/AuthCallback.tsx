@@ -17,13 +17,23 @@ import i18next from "i18next";
 import {CircleAlert, Loader2} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog";
+import {Card, CardContent} from "@/components/ui/card";
+import {LoginReviewWaiting} from "@/components/common/LoginReviewWaiting";
 import * as Setting from "@/lib/setting";
 
 /** Casdoor redirects back here with ?code=&state=; trade them for a Casvisor session. */
 export default function AuthCallback() {
   const [error, setError] = React.useState<any>(null);
   const [showDetails, setShowDetails] = React.useState(false);
+  const [review, setReview] = React.useState<{rule?: string; expireTime?: string} | null>(null);
   const started = React.useRef(false);
+
+  const signedIn = React.useCallback(() => {
+    Setting.showMessage("success", i18next.t("general:Successfully logged in"));
+    const from = sessionStorage.getItem("from") || "/";
+    sessionStorage.removeItem("from");
+    Setting.goToLink(from);
+  }, []);
 
   React.useEffect(() => {
     // StrictMode runs effects twice in development, but a code can be redeemed only once
@@ -34,15 +44,26 @@ export default function AuthCallback() {
 
     Setting.signin().then((res: any) => {
       if (res.status === "ok") {
-        Setting.showMessage("success", i18next.t("general:Successfully logged in"));
-        const from = sessionStorage.getItem("from") || "/";
-        sessionStorage.removeItem("from");
-        Setting.goToLink(from);
+        signedIn();
+      } else if (res.data === "login-review") {
+        setReview(res.data2 ?? {});
       } else {
         setError(res);
       }
     }).catch((e: any) => setError({msg: e?.message ?? String(e)}));
-  }, []);
+  }, [signedIn]);
+
+  if (review) {
+    return (
+      <div className="flex min-h-screen items-start justify-center bg-muted/40 px-4 pt-[12vh]">
+        <Card className="w-full max-w-sm">
+          <CardContent className="p-6">
+            <LoginReviewWaiting info={review} onSignedIn={signedIn} onBack={() => Setting.goToLink("/")} />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (error === null) {
     return (

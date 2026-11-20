@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/casvisor/casvisor/util"
 	"github.com/skip2/go-qrcode"
 	"golang.org/x/crypto/bcrypt"
 	"xorm.io/core"
@@ -164,6 +165,31 @@ func checkLocalUserMfa(user *LocalUser, code string) (bool, error) {
 	}
 	user.TotpLastStep = step
 	return true, nil
+}
+
+// CheckLocalUserMfaCode checks a verification code of a user who signed in another way, such as with a
+// public key. An empty code only tells whether the user has two-step verification on.
+func CheckLocalUserMfaCode(owner string, name string, code string, clientIp string) (enabled bool, ok bool, err error) {
+	user, err := getLocalUser(owner, name)
+	if err != nil || user == nil || !user.MfaEnabled {
+		return false, false, err
+	}
+	if code == "" {
+		return true, false, nil
+	}
+
+	userId := util.GetIdFromOwnerAndName(owner, name)
+	if lockedUntil := getSigninLock(userId, clientIp); !lockedUntil.IsZero() {
+		return true, false, fmt.Errorf("too many failed attempts, try again after %s", lockedUntil.Format("15:04:05"))
+	}
+	ok, err = checkLocalUserMfa(user, code)
+	if err != nil {
+		return true, false, err
+	}
+	if !ok {
+		addSigninFailure(userId, clientIp)
+	}
+	return true, ok, nil
 }
 
 func ResetLocalUserMfa(owner string, name string) error {

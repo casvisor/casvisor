@@ -221,6 +221,16 @@ func (a *Adapter) createTable() {
 		panic(err)
 	}
 
+	err = a.engine.Sync2(new(LoginRule))
+	if err != nil {
+		panic(err)
+	}
+
+	err = a.engine.Sync2(new(LoginReview))
+	if err != nil {
+		panic(err)
+	}
+
 	err = a.engine.Sync2(new(AssetNode))
 	if err != nil {
 		panic(err)

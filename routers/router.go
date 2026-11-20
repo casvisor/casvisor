@@ -60,6 +60,16 @@ func initAPI() {
 	beego.Router("/api/export-assets", &controllers.ApiController{}, "GET:ExportAssets")
 	beego.Router("/api/move-assets", &controllers.ApiController{}, "POST:MoveAssets")
 
+	beego.Router("/api/get-login-rules", &controllers.ApiController{}, "GET:GetLoginRules")
+	beego.Router("/api/get-login-rule", &controllers.ApiController{}, "GET:GetLoginRule")
+	beego.Router("/api/update-login-rule", &controllers.ApiController{}, "POST:UpdateLoginRule")
+	beego.Router("/api/add-login-rule", &controllers.ApiController{}, "POST:AddLoginRule")
+	beego.Router("/api/delete-login-rule", &controllers.ApiController{}, "POST:DeleteLoginRule")
+	beego.Router("/api/get-login-reviews", &controllers.ApiController{}, "GET:GetLoginReviews")
+	beego.Router("/api/review-login", &controllers.ApiController{}, "POST:ReviewLogin")
+	beego.Router("/api/get-login-review-status", &controllers.ApiController{}, "GET:GetLoginReviewStatus")
+	beego.Router("/api/cancel-login-review", &controllers.ApiController{}, "POST:CancelLoginReview")
+
 	beego.Router("/api/get-asset-nodes", &controllers.ApiController{}, "GET:GetAssetNodes")
 	beego.Router("/api/get-asset-node", &controllers.ApiController{}, "GET:GetAssetNode")
 	beego.Router("/api/add-asset-node", &controllers.ApiController{}, "POST:AddAssetNode")

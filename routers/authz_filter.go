@@ -22,6 +22,7 @@ import (
 	"github.com/beego/beego/context"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/casvisor/casvisor/authz"
+	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/util"
 )
 
@@ -121,7 +122,24 @@ func ApiFilter(ctx *context.Context) {
 		return
 	}
 
+	if user != nil && !mfaSetupApis[urlPath] {
+		if required, _ := ctx.Input.Session(controllers.MfaSetupRequiredSessionKey).(bool); required {
+			ctx.ResponseWriter.WriteHeader(http.StatusForbidden)
+			_ = ctx.Output.JSON(&Response{Status: "error", Msg: "turn on two-step verification in your account first", Data: "mfa-setup-required"}, false, false)
+			return
+		}
+	}
+
 	scopeOwnerToUserOrganization(ctx, user)
+}
+
+// mfaSetupApis are what a user whom a login rule asks to turn on two-step verification can do before that.
+var mfaSetupApis = map[string]bool{
+	"/api/get-account":   true,
+	"/api/get-mfa-setup": true,
+	"/api/enable-mfa":    true,
+	"/api/signout":       true,
+	"/api/signin":        true,
 }
 
 // isInUserOrganization keeps users outside built-in to their own organization,

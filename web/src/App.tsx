@@ -98,6 +98,9 @@ export default function App() {
           <Route path="/network-gateways/:owner/:name" element={page("NetworkGatewayEditPage")} />
           <Route path="/command-rules" element={page("CommandRuleListPage")} />
           <Route path="/command-rules/:owner/:name" element={page("CommandRuleEditPage")} />
+          <Route path="/login-rules" element={page("LoginRuleListPage")} />
+          <Route path="/login-rules/:owner/:name" element={page("LoginRuleEditPage")} />
+          <Route path="/login-reviews" element={page("LoginReviewListPage")} />
           <Route path="/records" element={page("RecordListPage")} />
           <Route path="/records/:owner/:name" element={page("RecordEditPage")} />
           <Route path="/ssh-keys" element={page("SshKeyListPage")} />

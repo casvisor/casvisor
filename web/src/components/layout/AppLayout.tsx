@@ -13,12 +13,13 @@
 // limitations under the License.
 
 import * as React from "react";
-import {Outlet} from "react-router-dom";
+import {Navigate, Outlet, useLocation} from "react-router-dom";
 import {SidebarInset, SidebarProvider} from "@/components/ui/sidebar";
 import {Loading} from "@/components/common/Loading";
 import {Header} from "@/components/layout/Header";
 import {AppSidebar} from "@/components/layout/Sidebar";
 import {Logo} from "@/components/common/Logo";
+import {useAccount} from "@/hooks/use-account";
 
 /**
  * `SidebarProvider` persists the rail through its own `sidebar_state` cookie, so
@@ -42,6 +43,14 @@ function PoweredBy() {
 }
 
 export function AppLayout() {
+  const {account} = useAccount();
+  const location = useLocation();
+
+  // a login rule asks this user to turn on two-step verification before anything else
+  if (account?.mfaSetupRequired && location.pathname !== "/account") {
+    return <Navigate to="/account" replace />;
+  }
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <SidebarProvider defaultOpen={readSidebarCookie()} className="min-h-0 flex-1">

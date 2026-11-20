@@ -50,7 +50,7 @@ export function AccountProvider({children}: {children: React.ReactNode}) {
     try {
       const res = await AccountBackend.getAccount();
       if (res?.status === "ok" && res.data) {
-        setAccountState(res.data);
+        setAccountState(res.data2?.mfaSetupRequired ? {...res.data, mfaSetupRequired: true} : res.data);
         if (!localStorage.getItem("language") && res.data.language) {
           Setting.setLanguage(res.data.language);
         }

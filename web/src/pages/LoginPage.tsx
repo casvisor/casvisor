@@ -20,6 +20,7 @@ import * as AccountBackend from "@/backend/AccountBackend";
 import {LanguageSelect} from "@/components/common/LanguageSelect";
 import {Loading} from "@/components/common/Loading";
 import {Logo} from "@/components/common/Logo";
+import {LoginReviewWaiting} from "@/components/common/LoginReviewWaiting";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import {ThemeToggle} from "@/components/common/ThemeToggle";
 import {Button} from "@/components/ui/button";
@@ -37,6 +38,11 @@ export default function LoginPage() {
   const [needsCode, setNeedsCode] = React.useState(false);
   const [error, setError] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+  const [review, setReview] = React.useState<{rule?: string; expireTime?: string} | null>(null);
+  const signedIn = React.useCallback(() => {
+    Setting.showMessage("success", i18next.t("general:Successfully logged in"));
+    reload();
+  }, [reload]);
 
   if (!Setting.isLocalAuth()) {
     window.location.replace(Setting.getSigninUrl());
@@ -57,8 +63,11 @@ export default function LoginPage() {
     AccountBackend.signinLocal(username.trim(), password, needsCode ? code : "").then((res) => {
       setSubmitting(false);
       if (res.status === "ok") {
-        Setting.showMessage("success", i18next.t("general:Successfully logged in"));
-        reload();
+        signedIn();
+      } else if (res.data === "login-review") {
+        setReview(res.data2 ?? {});
+        setPassword("");
+        setCode("");
       } else if (res.data === "mfa-required") {
         setNeedsCode(true);
       } else {
@@ -81,7 +90,18 @@ export default function LoginPage() {
               <Logo className="h-9" />
               <p className="text-sm text-muted-foreground">{i18next.t("login:Sign in to continue")}</p>
             </div>
+            {review ? (
+              <LoginReviewWaiting
+                info={review}
+                onSignedIn={signedIn}
+                onBack={() => {
+                  setReview(null);
+                  setNeedsCode(false);
+                }}
+              />
+            ) : null}
             <form
+              hidden={review !== null}
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();

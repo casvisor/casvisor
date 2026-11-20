@@ -36,6 +36,48 @@ export interface Asset {
   accounts?: AccountInfo[];
 }
 
+/** Decides what happens when the users it covers sign in; the first rule by priority that matches wins. */
+export interface LoginRule {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  priority: number;
+  users: string[] | null;
+  groups: string[] | null;
+  clientIps: string[] | null;
+  /** 0 is Sunday */
+  weekdays: number[] | null;
+  /** "HH:mm", both empty for the whole day */
+  startTime: string;
+  endTime: string;
+  timeZone: string;
+  methods: string[] | null;
+  action: string;
+  reviewers: string[] | null;
+  isEnabled: boolean;
+}
+
+export interface LoginReview {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  user: string;
+  clientIp: string;
+  clientIpDesc: string;
+  userAgent: string;
+  method: string;
+  rule: string;
+  status: string;
+  expireTime: string;
+  reviewer: string;
+  reviewedTime: string;
+  comment: string;
+}
+
 /** A folder of the asset tree. */
 export interface AssetNode {
   owner: string;
