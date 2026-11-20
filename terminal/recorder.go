@@ -320,7 +320,12 @@ func (r *Recorder) enter() {
 
 	rule, err := object.MatchCommandRule(r.opts.User, r.opts.Asset, command)
 	if err != nil {
+		// a command whose rules can't be read is blocked rather than run unchecked
 		logs.Error(fmt.Sprintf("Recorder.enter(): failed to match the command rules: %s", err.Error()))
+		r.notify("\r\n\x1b[1;31m[Casvisor] The command is blocked because the command rules can't be read\x1b[0m\r\n")
+		r.send([]byte{3})
+		r.record(command, nil, "the command is blocked because the command rules can't be read")
+		return
 	}
 
 	if rule != nil && rule.Action == object.CommandActionBlock {
@@ -331,7 +336,7 @@ func (r *Recorder) enter() {
 		r.send([]byte{'\r'})
 	}
 
-	r.record(command, rule)
+	r.record(command, rule, "")
 }
 
 // waitForEcho waits for the asset to echo what was typed last, so that the screen
@@ -414,7 +419,8 @@ func (r *Recorder) notify(message string) {
 	r.Output(p)
 }
 
-func (r *Recorder) record(text string, rule *object.CommandRule) {
+// record saves a command with the rule it broke, or as blocked with blockedError.
+func (r *Recorder) record(text string, rule *object.CommandRule, blockedError string) {
 	asset := r.opts.Asset
 	command := &object.Command{
 		Owner:    asset.Owner,
@@ -425,7 +431,10 @@ func (r *Recorder) record(text string, rule *object.CommandRule) {
 		Text:     text,
 		Protocol: asset.Protocol,
 	}
-	if rule != nil {
+	if blockedError != "" {
+		command.Action = object.CommandActionBlock
+		command.Error = blockedError
+	} else if rule != nil {
 		command.Action = rule.Action
 		command.Rule = rule.GetId()
 	}
@@ -452,7 +461,7 @@ func CheckCommand(sessionId string, user *casdoorsdk.User, asset *object.Asset, 
 	}
 
 	r := &Recorder{opts: Options{SessionId: sessionId, User: user, Asset: asset, ClientIp: clientIp}}
-	r.record(text, rule)
+	r.record(text, rule, "")
 
 	if rule != nil && rule.Action == object.CommandActionBlock {
 		return rule, nil

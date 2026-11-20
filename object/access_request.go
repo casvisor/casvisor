@@ -22,6 +22,7 @@ import (
 
 	"github.com/casvisor/casvisor/util"
 	"xorm.io/core"
+	"xorm.io/xorm"
 )
 
 const (
@@ -217,10 +218,25 @@ func AddAccessRequest(request *AccessRequest) (bool, error) {
 	return affected != 0, nil
 }
 
-func updateAccessRequestStatus(request *AccessRequest, cols ...string) error {
+// updateAccessRequestStatus saves a request only while it still has the status it was read with,
+// so that of two reviewers acting on it at once only one gets through, and runs then in the same
+// transaction.
+func updateAccessRequestStatus(request *AccessRequest, from string, then func(session *xorm.Session) error, cols ...string) error {
 	request.UpdatedTime = util.GetCurrentTime()
 	cols = append(cols, "status", "updated_time")
-	_, err := adapter.engine.ID(core.PK{request.Owner, request.Name}).Cols(cols...).Update(request)
+	_, err := adapter.engine.Transaction(func(session *xorm.Session) (interface{}, error) {
+		affected, err := session.ID(core.PK{request.Owner, request.Name}).And("status = ?", from).Cols(cols...).Update(request)
+		if err != nil {
+			return nil, err
+		}
+		if affected == 0 {
+			return nil, fmt.Errorf("the request is no longer %s, refresh and try again", strings.ToLower(from))
+		}
+		if then != nil {
+			return nil, then(session)
+		}
+		return nil, nil
+	})
 	return err
 }
 
@@ -229,7 +245,7 @@ func CancelAccessRequest(request *AccessRequest) error {
 		return fmt.Errorf("only pending requests can be cancelled, the request is %s", request.Status)
 	}
 	request.Status = AccessRequestCancelled
-	return updateAccessRequestStatus(request)
+	return updateAccessRequestStatus(request, AccessRequestPending, nil)
 }
 
 func RejectAccessRequest(request *AccessRequest, reviewer string, comment string) error {
@@ -240,7 +256,7 @@ func RejectAccessRequest(request *AccessRequest, reviewer string, comment string
 	request.Reviewer = reviewer
 	request.ReviewedTime = util.GetCurrentTime()
 	request.ReviewComment = comment
-	return updateAccessRequestStatus(request, "reviewer", "reviewed_time", "review_comment")
+	return updateAccessRequestStatus(request, AccessRequestPending, nil, "reviewer", "reviewed_time", "review_comment")
 }
 
 // ApproveAccessRequest grants the request as a permission of its own, after the reviewer may have
@@ -298,7 +314,7 @@ func ApproveAccessRequest(request *AccessRequest, reviewer string, comment strin
 		EndTime:     request.EndTime,
 		IsEnabled:   true,
 	}
-	_, err = AddPermission(permission)
+	err = permission.check()
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +324,10 @@ func ApproveAccessRequest(request *AccessRequest, reviewer string, comment strin
 	request.ReviewedTime = util.GetCurrentTime()
 	request.ReviewComment = comment
 	request.Permission = permission.Name
-	err = updateAccessRequestStatus(request, "reviewer", "reviewed_time", "review_comment", "permission", "actions", "end_time")
+	err = updateAccessRequestStatus(request, AccessRequestPending, func(session *xorm.Session) error {
+		_, err := session.Insert(permission)
+		return err
+	}, "reviewer", "reviewed_time", "review_comment", "permission", "actions", "end_time")
 	if err != nil {
 		return nil, err
 	}
@@ -321,20 +340,19 @@ func RevokeAccessRequest(request *AccessRequest, reviewer string, comment string
 		return fmt.Errorf("only approved requests can be revoked, the request is %s", request.Status)
 	}
 
-	if request.Permission != "" {
-		_, err := DeletePermission(&Permission{Owner: request.Owner, Name: request.Permission})
-		if err != nil {
-			return err
-		}
-	}
-
 	request.Status = AccessRequestRevoked
 	request.Reviewer = reviewer
 	request.ReviewedTime = util.GetCurrentTime()
 	if comment != "" {
 		request.ReviewComment = comment
 	}
-	return updateAccessRequestStatus(request, "reviewer", "reviewed_time", "review_comment")
+	return updateAccessRequestStatus(request, AccessRequestApproved, func(session *xorm.Session) error {
+		if request.Permission == "" {
+			return nil
+		}
+		_, err := session.ID(core.PK{request.Owner, request.Permission}).Delete(&Permission{})
+		return err
+	}, "reviewer", "reviewed_time", "review_comment")
 }
 
 func DeleteAccessRequest(request *AccessRequest) (bool, error) {

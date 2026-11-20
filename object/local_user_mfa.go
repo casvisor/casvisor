@@ -156,9 +156,14 @@ func checkLocalUserMfa(user *LocalUser, code string) (bool, error) {
 		return false, nil
 	}
 
+	// the step only moves forward, so of two sign-ins with the same code at once only one gets through
+	affected, err := adapter.engine.ID(core.PK{user.Owner, user.Name}).And("totp_last_step is null or totp_last_step < ?", step).
+		Cols("totp_last_step").Update(&LocalUser{TotpLastStep: step})
+	if err != nil || affected == 0 {
+		return false, err
+	}
 	user.TotpLastStep = step
-	_, err = adapter.engine.ID(core.PK{user.Owner, user.Name}).Cols("totp_last_step").Update(&LocalUser{TotpLastStep: step})
-	return true, err
+	return true, nil
 }
 
 func ResetLocalUserMfa(owner string, name string) error {
