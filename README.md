@@ -1,5 +1,5 @@
 <h1 align="center" style="border-bottom: none;">📦⚡️ Casvisor</h1>
-<h3 align="center">An open-source bastion host (jump server) for SSH, RDP, VNC and Telnet, written in Go and React.</h3>
+<h3 align="center">An open-source bastion host (jump server) for SSH, RDP, VNC and Telnet, with a browser SQL console for MySQL and PostgreSQL. Written in Go and React.</h3>
 <p align="center">
   <a href="https://github.com/casvisor/casvisor/releases/latest">
     <img alt="GitHub Release" src="https://img.shields.io/github/v/release/casvisor/casvisor.svg">
@@ -25,9 +25,9 @@
   <a href="https://linux.do">LINUX DO</a>
 </p>
 
-Casvisor sits between the people who run your servers and the servers themselves. People open SSH, RDP, VNC and Telnet sessions from a browser tab, or use their own `ssh`, `scp` and VS Code through Casvisor's SSH gateway. They only reach the servers a permission gives them, never see the servers' passwords, and every session is recorded.
+Casvisor sits between the people who run your servers and the servers themselves. From a browser tab, people open SSH, RDP, VNC and Telnet sessions or run statements in the SQL console for MySQL and PostgreSQL. They can also use their own `ssh`, `scp` and VS Code through Casvisor's SSH gateway. They only reach the servers and databases a permission gives them and never see the stored passwords. SSH, RDP, VNC and Telnet sessions are recorded. SQL statements go through the command rules and are logged in the command records.
 
-- **One Go binary.** All four protocols are handled inside Casvisor, with nothing to install on the servers. It runs on SQLite with its own accounts out of the box.
+- **One Go binary.** Casvisor handles these connections itself, with nothing to install on the servers. It runs on SQLite with its own accounts out of the box.
 - **Apache-2.0, no enterprise edition.** Recording, the SSH gateway, network gateways and everything else in this README are in the open-source project.
 - **Policy you can read.** Permissions are enforced with [Casbin](https://casbin.apache.org), and sign-in can be handed to [Casdoor](https://casdoor.ai) for SSO, MFA, LDAP and social logins.
 
@@ -71,7 +71,8 @@ Casvisor sits between the people who run your servers and the servers themselves
 ## Quick start
 
 ```shell
-docker run -d --name casvisor -p 19000:19000 -p 2222:2222 \n  -v casvisor-db:/db -v casvisor-recordings:/recordings casbin/casvisor
+docker run -d --name casvisor -p 19000:19000 -p 2222:2222 \
+  -v casvisor-db:/db -v casvisor-recordings:/recordings casbin/casvisor
 docker logs casvisor
 ```
 

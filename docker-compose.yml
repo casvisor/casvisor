@@ -13,5 +13,7 @@ services:
       adminPassword: ""
     volumes:
       - casvisor-db:/db
+      - casvisor-recordings:/recordings
 volumes:
   casvisor-db:
+  casvisor-recordings:
