@@ -22,14 +22,6 @@ export function getRecord(owner: string, name: string) {
   return get("/api/get-record", {id: `${owner}/${name}`});
 }
 
-export function updateRecord(owner: string, name: string, record: any) {
-  return post("/api/update-record", {id: `${owner}/${name}`}, record);
-}
-
 export function addRecord(record: any) {
   return post("/api/add-record", {}, record);
-}
-
-export function deleteRecord(record: any) {
-  return post("/api/delete-record", {}, record);
 }

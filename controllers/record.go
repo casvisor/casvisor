@@ -86,28 +86,6 @@ func (c *ApiController) GetRecord() {
 	c.ResponseOk(record)
 }
 
-// UpdateRecord
-// @Title UpdateRecord
-// @Tag Record API
-// @Description update record
-// @Param   id     query    string  true        "The id ( owner/name ) of the record"
-// @Param   body    body   object.Record  true        "The details of the record"
-// @Success 200 {object} controllers.Response The Response object
-// @router /update-record [post]
-func (c *ApiController) UpdateRecord() {
-	id := c.Input().Get("id")
-
-	var record object.Record
-	err := json.Unmarshal(c.Ctx.Input.RequestBody, &record)
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
-
-	c.Data["json"] = wrapActionResponse(object.UpdateRecord(id, &record))
-	c.ServeJSON()
-}
-
 // AddRecord
 // @Title AddRecord
 // @Tag Record API
@@ -123,6 +101,17 @@ func (c *ApiController) AddRecord() {
 		return
 	}
 
+	if user := c.GetSessionUser(); user != nil && user.Owner != "built-in" {
+		record.Owner = user.Owner
+		record.Organization = user.Owner
+	}
+	record.Id = 0
+	if record.Name == "" {
+		record.Name = util.GenerateId()
+	}
+	if record.CreatedTime == "" {
+		record.CreatedTime = util.GetCurrentTime()
+	}
 	if record.ClientIp == "" {
 		record.ClientIp = c.getClientIp()
 	}
@@ -131,24 +120,5 @@ func (c *ApiController) AddRecord() {
 	}
 
 	c.Data["json"] = wrapActionResponse(object.AddRecord(&record))
-	c.ServeJSON()
-}
-
-// DeleteRecord
-// @Title DeleteRecord
-// @Tag Record API
-// @Description delete a record
-// @Param   body    body   object.Record  true        "The details of the record"
-// @Success 200 {object} controllers.Response The Response object
-// @router /delete-record [post]
-func (c *ApiController) DeleteRecord() {
-	var record object.Record
-	err := json.Unmarshal(c.Ctx.Input.RequestBody, &record)
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
-
-	c.Data["json"] = wrapActionResponse(object.DeleteRecord(&record))
 	c.ServeJSON()
 }

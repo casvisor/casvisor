@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/beego/beego/context"
+	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/util"
 )
@@ -87,7 +88,7 @@ func getRecord(owner string, name string) (*Record, error) {
 		return nil, nil
 	}
 
-	record := Record{Name: name}
+	record := Record{Owner: owner, Name: name}
 	existed, err := adapter.engine.Get(&record)
 	if err != nil {
 		return &record, err
@@ -103,22 +104,6 @@ func getRecord(owner string, name string) (*Record, error) {
 func GetRecord(id string) (*Record, error) {
 	owner, name := util.GetOwnerAndNameFromIdNoCheck(id)
 	return getRecord(owner, name)
-}
-
-func UpdateRecord(id string, record *Record) (bool, error) {
-	owner, name := util.GetOwnerAndNameFromId(id)
-	if p, err := getRecord(owner, name); err != nil {
-		return false, err
-	} else if p == nil {
-		return false, nil
-	}
-
-	affected, err := adapter.engine.Where("name = ?", name).AllCols().Update(record)
-	if err != nil {
-		return false, err
-	}
-
-	return affected != 0, nil
 }
 
 func NewRecord(ctx *context.Context) (*Record, error) {
@@ -166,34 +151,29 @@ func NewRecord(ctx *context.Context) (*Record, error) {
 	return &record, nil
 }
 
-func AddRecord(record *Record) bool {
+func AddRecord(record *Record) (bool, error) {
 	if logPostOnly {
 		if record.Method == "GET" {
-			return false
+			return false, nil
 		}
 	}
 
 	if strings.HasSuffix(record.Action, "-record") {
-		return false
+		return false, nil
 	}
 
+	if record.Organization == "" {
+		record.Organization = record.Owner
+	}
 	record.Owner = record.Organization
 
 	affected, err := adapter.engine.Insert(record)
 	if err != nil {
-		panic(err)
-	}
-
-	forwardRecord(record)
-	return affected != 0
-}
-
-func DeleteRecord(record *Record) (bool, error) {
-	affected, err := adapter.engine.Where("name = ?", record.Name).Delete(&Record{})
-	if err != nil {
+		logs.Error(fmt.Sprintf("AddRecord(): %s", err.Error()))
 		return false, err
 	}
 
+	forwardRecord(record)
 	return affected != 0, nil
 }
 

@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/beego/beego/context"
+	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/casvisor/casvisor/authz"
 	"github.com/casvisor/casvisor/util"
 )
@@ -101,7 +102,7 @@ func ApiFilter(ctx *context.Context) {
 	objOwner, objName := getObject(ctx)
 
 	user := GetSessionUser(ctx)
-	isAllowed := authz.IsAllowed(user, subOwner, subName, method, urlPath, objOwner, objName)
+	isAllowed := authz.IsAllowed(user, subOwner, subName, method, urlPath, objOwner, objName) && isInUserOrganization(ctx, user)
 
 	result := "deny"
 	if isAllowed {
@@ -117,5 +118,44 @@ func ApiFilter(ctx *context.Context) {
 
 	if !isAllowed {
 		requestDeny(ctx)
+		return
+	}
+
+	scopeOwnerToUserOrganization(ctx, user)
+}
+
+// isInUserOrganization keeps users outside built-in to their own organization,
+// including ids without an owner and bodies naming another organization than the id.
+func isInUserOrganization(ctx *context.Context, user *casdoorsdk.User) bool {
+	if user == nil || user.Owner == "built-in" {
+		return true
+	}
+
+	if id := ctx.Input.Query("id"); id != "" {
+		owner, _ := util.GetOwnerAndNameFromIdNoCheck(id)
+		if owner != user.Owner {
+			return false
+		}
+	}
+
+	if ctx.Request.Method != http.MethodGet && len(ctx.Input.RequestBody) != 0 {
+		var obj Object
+		if err := json.Unmarshal(ctx.Input.RequestBody, &obj); err == nil && obj.Owner != "" && obj.Owner != user.Owner {
+			return false
+		}
+	}
+
+	return true
+}
+
+// scopeOwnerToUserOrganization makes a list query without an owner return only
+// the user's organization, so that only built-in users see every organization.
+func scopeOwnerToUserOrganization(ctx *context.Context, user *casdoorsdk.User) {
+	if user == nil || user.Owner == "built-in" || ctx.Request.Method != http.MethodGet {
+		return
+	}
+
+	if ctx.Input.Query("id") == "" && ctx.Input.Query("owner") == "" {
+		ctx.Request.Form.Set("owner", user.Owner)
 	}
 }

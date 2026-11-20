@@ -81,14 +81,17 @@ func (c *ApiController) exportCsv(name string, header []string, iterate func(wri
 		logs.Error("failed to export the %s: %s", name, err.Error())
 	}
 
-	user := c.GetSessionUser()
+	organization, userName := c.Input().Get("owner"), ""
+	if user := c.GetSessionUser(); user != nil {
+		organization, userName = user.Owner, user.Name
+	}
 	detail := fmt.Sprintf("Exported %d rows to %s", count, fileName)
 	if query := c.Ctx.Request.URL.RawQuery; query != "" {
 		detail += ", filter: " + query
 	}
 	object.AddAuditRecord(&object.AuditEvent{
-		Organization: user.Owner,
-		User:         user.Name,
+		Organization: organization,
+		User:         userName,
 		ClientIp:     c.getClientIp(),
 		UserAgent:    c.getUserAgent(),
 		Method:       "Export",
