@@ -89,11 +89,12 @@ func (s *databaseSession) getResult(id string) *object.SqlResult {
 }
 
 // record applies the command rules to a statement and saves it as a command of
-// the session; a blocked statement comes back with the rule in its result.
+// the session; a blocked statement comes back with the rule in its result. A statement
+// whose rules can't be read is blocked too.
 func (s *databaseSession) record(statement string) (*object.Command, *object.SqlResult) {
-	rule, err := object.MatchSqlRule(s.user, s.asset, statement)
-	if err != nil {
-		logs.Error(fmt.Sprintf("databaseSession.record(): failed to match the command rules: %s", err.Error()))
+	rule, ruleErr := object.MatchSqlRule(s.user, s.asset, statement)
+	if ruleErr != nil {
+		logs.Error(fmt.Sprintf("databaseSession.record(): failed to match the command rules: %s", ruleErr.Error()))
 	}
 
 	command := &object.Command{
@@ -108,7 +109,11 @@ func (s *databaseSession) record(statement string) (*object.Command, *object.Sql
 		Protocol:    s.asset.Protocol,
 	}
 	var blocked *object.SqlResult
-	if rule != nil {
+	if ruleErr != nil {
+		command.Action = object.CommandActionBlock
+		command.Error = "the statement is blocked because the command rules can't be read"
+		blocked = &object.SqlResult{Statement: statement, Error: command.Error, Action: command.Action}
+	} else if rule != nil {
 		command.Action = rule.Action
 		command.Rule = rule.GetId()
 		if rule.Action == object.CommandActionBlock {
@@ -121,7 +126,7 @@ func (s *databaseSession) record(statement string) (*object.Command, *object.Sql
 		}
 	}
 
-	err = object.AddCommand(command)
+	err := object.AddCommand(command)
 	if err != nil {
 		logs.Error(fmt.Sprintf("databaseSession.record(): %s", err.Error()))
 	}
@@ -369,14 +374,14 @@ func (c *ApiController) ExportDatabaseResult() {
 	writer := csv.NewWriter(c.Ctx.ResponseWriter)
 	names := []string{}
 	for _, column := range result.Columns {
-		names = append(names, column.Name)
+		names = append(names, csvCell(column.Name))
 	}
 	_ = writer.Write(names)
 	for _, row := range result.Rows {
 		record := make([]string, len(row))
 		for i, value := range row {
 			if value != nil {
-				record[i] = *value
+				record[i] = csvCell(*value)
 			}
 		}
 		_ = writer.Write(record)
