@@ -36,6 +36,7 @@ import (
 	"github.com/casvisor/casvisor/syslog"
 	"github.com/casvisor/casvisor/task"
 	"github.com/casvisor/casvisor/util"
+	"github.com/casvisor/casvisor/webhook"
 )
 
 func newCorsFilter(allowedOrigins []string) beego.FilterFunc {
@@ -89,6 +90,10 @@ func main() {
 	object.InitPatchJobs()
 	object.InitJobs()
 	err = syslog.Start(conf.GetConfigString("syslogAddress"), conf.GetConfigString("syslogFormat"))
+	if err != nil {
+		logs.Error(err.Error())
+	}
+	err = webhook.Start(conf.GetConfigString("webhookUrl"), conf.GetConfigString("webhookSecret"))
 	if err != nil {
 		logs.Error(err.Error())
 	}

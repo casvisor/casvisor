@@ -215,6 +215,9 @@ func AddAccessRequest(request *AccessRequest) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if affected != 0 {
+		notifyAccessRequest("created", request)
+	}
 	return affected != 0, nil
 }
 
@@ -256,7 +259,11 @@ func RejectAccessRequest(request *AccessRequest, reviewer string, comment string
 	request.Reviewer = reviewer
 	request.ReviewedTime = util.GetCurrentTime()
 	request.ReviewComment = comment
-	return updateAccessRequestStatus(request, AccessRequestPending, nil, "reviewer", "reviewed_time", "review_comment")
+	err := updateAccessRequestStatus(request, AccessRequestPending, nil, "reviewer", "reviewed_time", "review_comment")
+	if err == nil {
+		notifyAccessRequest("rejected", request)
+	}
+	return err
 }
 
 // ApproveAccessRequest grants the request as a permission of its own, after the reviewer may have
@@ -331,6 +338,7 @@ func ApproveAccessRequest(request *AccessRequest, reviewer string, comment strin
 	if err != nil {
 		return nil, err
 	}
+	notifyAccessRequest("approved", request)
 	return permission, nil
 }
 
@@ -346,13 +354,17 @@ func RevokeAccessRequest(request *AccessRequest, reviewer string, comment string
 	if comment != "" {
 		request.ReviewComment = comment
 	}
-	return updateAccessRequestStatus(request, AccessRequestApproved, func(session *xorm.Session) error {
+	err := updateAccessRequestStatus(request, AccessRequestApproved, func(session *xorm.Session) error {
 		if request.Permission == "" {
 			return nil
 		}
 		_, err := session.ID(core.PK{request.Owner, request.Permission}).Delete(&Permission{})
 		return err
 	}, "reviewer", "reviewed_time", "review_comment")
+	if err == nil {
+		notifyAccessRequest("revoked", request)
+	}
+	return err
 }
 
 func DeleteAccessRequest(request *AccessRequest) (bool, error) {
