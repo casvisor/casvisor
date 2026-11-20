@@ -146,12 +146,14 @@ func checkPublicKey(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions,
 		return nil, fmt.Errorf("unknown public key")
 	}
 
-	return &ssh.Permissions{Extensions: map[string]string{sshKeyExtension: sshKey.GetId()}}, nil
+	return checkLoginRules(meta, sshKey, &ssh.Permissions{Extensions: map[string]string{sshKeyExtension: sshKey.GetId()}})
 }
 
 func handleConn(conn net.Conn, config *ssh.ServerConfig) {
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
+	handshakeConns.Store(conn.RemoteAddr().String(), conn)
 	serverConn, chans, reqs, err := ssh.NewServerConn(conn, config)
+	handshakeConns.Delete(conn.RemoteAddr().String())
 	if err != nil {
 		_ = conn.Close()
 		return

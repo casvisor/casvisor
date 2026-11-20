@@ -52,28 +52,32 @@ p, *, *, POST, /api/signin, *, *
 p, *, *, POST, /api/signout, *, *
 p, *, *, GET, /api/get-account, *, *
 p, *, *, GET, /api/connect-agent, *, *
+p, *, *, GET, /api/get-login-review-status, *, *
+p, *, *, POST, /api/cancel-login-review, *, *
 `
 
 var Enforcer *casbin.Enforcer
 
 var userApis = map[string]bool{
-	"/api/signin":            true,
-	"/api/signout":           true,
-	"/api/get-account":       true,
-	"/api/change-password":   true,
-	"/api/get-mfa-setup":     true,
-	"/api/enable-mfa":        true,
-	"/api/disable-mfa":       true,
-	"/api/get-assets":        true,
-	"/api/get-asset":         true,
-	"/api/get-asset-nodes":   true,
-	"/api/add-asset-tunnel":  true,
-	"/api/get-asset-ssh":     true,
-	"/api/get-asset-vnc":     true,
-	"/api/get-asset-rdp":     true,
-	"/api/get-asset-desktop": true,
-	"/api/get-asset-telnet":  true,
-	"/api/start-session":     true,
+	"/api/signin":                  true,
+	"/api/signout":                 true,
+	"/api/get-account":             true,
+	"/api/get-login-review-status": true,
+	"/api/cancel-login-review":     true,
+	"/api/change-password":         true,
+	"/api/get-mfa-setup":           true,
+	"/api/enable-mfa":              true,
+	"/api/disable-mfa":             true,
+	"/api/get-assets":              true,
+	"/api/get-asset":               true,
+	"/api/get-asset-nodes":         true,
+	"/api/add-asset-tunnel":        true,
+	"/api/get-asset-ssh":           true,
+	"/api/get-asset-vnc":           true,
+	"/api/get-asset-rdp":           true,
+	"/api/get-asset-desktop":       true,
+	"/api/get-asset-telnet":        true,
+	"/api/start-session":           true,
 
 	"/api/get-asset-database":     true,
 	"/api/export-database-result": true,

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, ListChecks, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, SquareTerminal, Users, type LucideIcon} from "lucide-react";
+import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, Users, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -79,6 +79,18 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         label: i18next.t("general:Permissions"),
         icon: KeyRound,
         description: i18next.t("general:Who can connect to which assets"),
+      },
+      {
+        key: "/login-rules",
+        label: i18next.t("general:Login rules"),
+        icon: LogIn,
+        description: i18next.t("general:Allow, reject, review or ask for two-step verification when users sign in, by user, IP and time"),
+      },
+      {
+        key: "/login-reviews",
+        label: i18next.t("general:Login reviews"),
+        icon: ShieldCheck,
+        description: i18next.t("general:Approve or reject the sign-ins that login rules hold for review"),
       },
       {
         key: "/patches",

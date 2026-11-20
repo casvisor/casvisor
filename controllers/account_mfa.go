@@ -109,6 +109,7 @@ func (c *ApiController) EnableMfa() {
 	}
 
 	c.DelSession(mfaSecretSessionKey)
+	c.DelSession(MfaSetupRequiredSessionKey)
 	c.ResponseOk()
 }
 
