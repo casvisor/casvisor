@@ -21,6 +21,7 @@ import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/
 import {Input} from "@/components/ui/input";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import type {Asset} from "@/backend/types";
+import {getAssetCredentialRequirements} from "@/lib/asset";
 
 const credentialsKeyPrefix = "casvisorConnect:";
 const credentialsTtlMs = 60 * 1000;
@@ -64,7 +65,7 @@ export function takeCredentials(assetId: string): {username: string; password: s
 }
 
 function openAccessPage(asset: Asset, username: string, password: string, account = "") {
-  if (username !== "" && password !== "") {
+  if (username !== "" || password !== "") {
     saveCredentials(`${asset.owner}/${asset.name}`, username, password);
   }
   const query = account ? `?account=${encodeURIComponent(account)}` : "";
@@ -72,15 +73,17 @@ function openAccessPage(asset: Asset, username: string, password: string, accoun
 }
 
 /**
- * The "Connect" button of an asset. An asset that keeps both a username and a
- * password connects straight away; otherwise it asks for what is missing. When
- * the user may connect as several accounts of the asset, it lists them first.
+ * The "Connect" button of an asset. It asks only for credentials the protocol
+ * needs that are not saved. When the user may connect as several accounts of
+ * the asset, it lists them first.
  */
 export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boolean}) {
   const [open, setOpen] = React.useState(false);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const hasCredentials = Boolean(asset.username && asset.password);
+  const {needsUsername, needsPassword} = getAssetCredentialRequirements(asset);
+  const hasCredentials = !needsUsername && !needsPassword;
+  const canSubmit = (!needsUsername || username !== "") && (!needsPassword || password !== "");
   const accounts = asset.accounts ?? [];
 
   const start = () => {
@@ -98,11 +101,11 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
   };
 
   const submit = () => {
-    if (!username || !password) {
+    if (!canSubmit) {
       return;
     }
     setOpen(false);
-    openAccessPage(asset, username, password);
+    openAccessPage(asset, needsUsername ? username : "", needsPassword ? password : "");
   };
 
   const trigger = accounts.length > 1 ? (
@@ -121,14 +124,16 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
             onSelect={() => (account.isDefault ? start() : openAccessPage(asset, "", "", account.username))}
           >
             <User />
-            <span className="font-mono">{account.username || i18next.t("account:Enter an account")}</span>
+            <span className="font-mono">
+              {account.username || i18next.t(account.isDefault && hasCredentials ? "account:Default" : "account:Enter an account")}
+            </span>
             {account.displayName ? <span className="text-xs text-muted-foreground">{account.displayName}</span> : null}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
   ) : (
-    <Button size="sm" variant={hasCredentials || accounts.length === 1 && !accounts[0].isDefault ? "default" : "outline"} disabled={disabled} onClick={start}>
+    <Button size="sm" variant={hasCredentials || (accounts.length === 1 && !accounts[0].isDefault) ? "default" : "outline"} disabled={disabled} onClick={start}>
       {i18next.t("general:Connect")}
     </Button>
   );
@@ -148,30 +153,37 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
               submit();
             }}
           >
-            <div className="relative">
-              <User className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-8"
-                placeholder={i18next.t("general:Username")}
-                value={username}
-                disabled={Boolean(asset.username)}
-                autoComplete="username"
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <PasswordInput
-                className="[&_input]:pl-8"
-                placeholder={i18next.t("general:Password")}
-                value={password}
-                autoFocus
-                autoComplete="current-password"
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+            {asset.protocol !== "VNC" && (
+              <div className="relative">
+                <User className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-8"
+                  placeholder={i18next.t("general:Username")}
+                  value={username}
+                  disabled={!needsUsername}
+                  required={needsUsername}
+                  autoFocus={needsUsername}
+                  autoComplete="username"
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+            )}
+            {needsPassword && (
+              <div className="relative">
+                <Lock className="absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <PasswordInput
+                  className="[&_input]:pl-8"
+                  placeholder={i18next.t("general:Password")}
+                  value={password}
+                  required
+                  autoFocus={!needsUsername}
+                  autoComplete="current-password"
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            )}
             <DialogFooter>
-              <Button type="submit" className="w-full" disabled={!username || !password}>
+              <Button type="submit" className="w-full" disabled={!canSubmit}>
                 {i18next.t("general:Connect")}
               </Button>
             </DialogFooter>

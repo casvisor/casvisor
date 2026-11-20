@@ -63,7 +63,7 @@ export function ThemeProvider({children}: {children: React.ReactNode}) {
   const setTheme = React.useCallback((next: Theme) => {
     setThemeState(next);
     try {
-      localStorage.setItem(STORAGE_KEY, next === "dark" ? JSON.stringify(["dark"]) : JSON.stringify(["default"]));
+      localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // ignore quota / private-mode failures
     }
