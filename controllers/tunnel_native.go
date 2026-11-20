@@ -37,10 +37,23 @@ import (
 var nativeUpgrader = websocket.Upgrader{
 	ReadBufferSize:  32 * 1024,
 	WriteBufferSize: 32 * 1024,
-	CheckOrigin: func(r *http.Request) bool {
+	CheckOrigin:     checkWebSocketOrigin,
+	Subprotocols:    []string{"binary"},
+}
+
+func checkWebSocketOrigin(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	origins := r.Header.Values("Origin")
+	if len(origins) == 0 {
+		// Non-browser clients, such as the reverse agent, do not send Origin.
 		return true
-	},
-	Subprotocols: []string{"binary"},
+	}
+	if len(origins) > 1 {
+		return false
+	}
+	return conf.IsOriginAllowed(r, conf.GetAllowedOrigins())
 }
 
 type wsStream struct {

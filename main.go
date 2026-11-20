@@ -18,10 +18,11 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strings"
 
 	"github.com/beego/beego"
+	"github.com/beego/beego/context"
 	"github.com/beego/beego/logs"
-	"github.com/beego/beego/plugins/cors"
 	_ "github.com/beego/beego/session/redis"
 	"github.com/casvisor/casvisor/agent"
 	"github.com/casvisor/casvisor/authz"
@@ -36,6 +37,39 @@ import (
 	"github.com/casvisor/casvisor/task"
 	"github.com/casvisor/casvisor/util"
 )
+
+func newCorsFilter(allowedOrigins []string) beego.FilterFunc {
+	return func(ctx *context.Context) {
+		if ctx == nil || ctx.Request == nil || ctx.ResponseWriter == nil {
+			return
+		}
+		r, w := ctx.Request, ctx.ResponseWriter
+		header := w.Header()
+		header.Add("Vary", "Origin")
+		isPreflight := r.Method == http.MethodOptions && strings.TrimSpace(r.Header.Get("Access-Control-Request-Method")) != ""
+		if isPreflight {
+			header.Add("Vary", "Access-Control-Request-Method")
+			header.Add("Vary", "Access-Control-Request-Headers")
+		}
+
+		origins := r.Header.Values("Origin")
+		if len(origins) != 1 || !conf.IsOriginAllowed(r, allowedOrigins) {
+			if isPreflight {
+				w.WriteHeader(http.StatusForbidden)
+			}
+			return
+		}
+
+		header.Set("Access-Control-Allow-Origin", strings.TrimSpace(origins[0]))
+		header.Set("Access-Control-Allow-Credentials", "true")
+		header.Set("Access-Control-Expose-Headers", "Content-Length")
+		if isPreflight {
+			header.Set("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, PATCH, OPTIONS")
+			header.Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
+			w.WriteHeader(http.StatusNoContent)
+		}
+	}
+}
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "agent" {
@@ -71,13 +105,7 @@ func main() {
 	util.InitIpDb()
 	util.InitParser()
 
-	beego.InsertFilter("*", beego.BeforeRouter, cors.Allow(&cors.Options{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "X-Requested-With", "Content-Type", "Accept"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-	}))
+	beego.InsertFilter("*", beego.BeforeRouter, newCorsFilter(conf.GetAllowedOrigins()))
 
 	beego.SetStaticPath("/swagger", "swagger")
 	// https://studygolang.com/articles/2303

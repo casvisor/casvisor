@@ -15,6 +15,9 @@
 package conf
 
 import (
+	"net/http"
+	"net/netip"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -80,6 +83,95 @@ func GetConfigBool(key string) bool {
 	} else {
 		return false
 	}
+}
+
+func GetAllowedOrigins() []string {
+	return splitConfigList(GetConfigString("allowedOrigins"))
+}
+
+func GetTrustedProxies() []string {
+	return splitConfigList(GetConfigString("trustedProxies"))
+}
+
+func splitConfigList(value string) []string {
+	var entries []string
+	for _, entry := range strings.Split(value, ",") {
+		if entry = strings.TrimSpace(entry); entry != "" {
+			entries = append(entries, entry)
+		}
+	}
+	return entries
+}
+
+// IsOriginAllowed checks a browser origin against the request host and the configured allowlist.
+func IsOriginAllowed(r *http.Request, allowedOrigins []string) bool {
+	if r == nil {
+		return false
+	}
+	origins := r.Header.Values("Origin")
+	if len(origins) != 1 {
+		return false
+	}
+	incoming, ok := parseOrigin(origins[0])
+	if !ok {
+		return false
+	}
+
+	// HTTPS can also reach a plain HTTP listener through a TLS-terminating proxy.
+	if r.TLS == nil || incoming.scheme == "https" {
+		if same, ok := parseOrigin(incoming.scheme + "://" + r.Host); ok && incoming == same {
+			return true
+		}
+	}
+	for _, entry := range allowedOrigins {
+		if allowed, ok := parseOrigin(entry); ok && incoming == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+type origin struct {
+	scheme string
+	host   string
+	port   string
+}
+
+func parseOrigin(value string) (origin, bool) {
+	value = strings.TrimSpace(value)
+	// Reject empty query/fragment delimiters, combined origins and wildcards.
+	if strings.ContainsAny(value, "?#,*") {
+		return origin{}, false
+	}
+	u, err := url.Parse(value)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Path != "" {
+		return origin{}, false
+	}
+
+	host, port := u.Hostname(), u.Port()
+	if host == "" || strings.HasSuffix(u.Host, ":") {
+		return origin{}, false
+	}
+	if strings.HasPrefix(u.Host, "[") {
+		ip, err := netip.ParseAddr(host)
+		if err != nil || !ip.Is6() || ip.Zone() != "" {
+			return origin{}, false
+		}
+		host = ip.String()
+	} else if strings.ContainsAny(host, ":[]<>\"%") {
+		return origin{}, false
+	}
+
+	if port != "" {
+		if p, err := strconv.ParseUint(port, 10, 16); err != nil || p == 0 || port[0] == '0' {
+			return origin{}, false
+		}
+	} else if u.Scheme == "https" {
+		port = "443"
+	} else {
+		port = "80"
+	}
+	return origin{scheme: u.Scheme, host: strings.ToLower(host), port: port}, true
 }
 
 func GetConfigDataSourceName() string {
