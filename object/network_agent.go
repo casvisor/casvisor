@@ -120,7 +120,7 @@ func RevokeNetworkGatewayToken(gateway *NetworkGateway) error {
 
 func sendAgentConfig(gateway *NetworkGateway) {
 	a := getAgent(gateway.GetId())
-	if a == nil {
+	if a == nil || gateway.IsDesktop() {
 		return
 	}
 	go func() {
@@ -183,13 +183,15 @@ func ServeAgent(gateway *NetworkGateway, conn *ssh.ServerConn, chans <-chan ssh.
 
 	a := &agentConn{
 		conn:    conn,
-		version: strings.TrimPrefix(string(conn.ClientVersion()), "SSH-2.0-CasvisorAgent_"),
+		version: getAgentVersion(string(conn.ClientVersion())),
 		ip:      ip,
 	}
-	err := a.sendConfig(gateway)
-	if err != nil {
-		logs.Warning(fmt.Sprintf("failed to send the config to the agent of the network gateway: %s: %s", gateway.GetId(), err.Error()))
-		return
+	if !gateway.IsDesktop() {
+		err := a.sendConfig(gateway)
+		if err != nil {
+			logs.Warning(fmt.Sprintf("failed to send the config to the agent of the network gateway: %s: %s", gateway.GetId(), err.Error()))
+			return
+		}
 	}
 
 	id := gateway.GetId()
@@ -262,7 +264,43 @@ func (gateway *NetworkGateway) getOfflineError() error {
 	return fmt.Errorf("the agent of the network gateway: %s is offline, last online at %s", gateway.GetId(), gateway.LastOnlineTime)
 }
 
+func getAgentVersion(clientVersion string) string {
+	for _, prefix := range []string{"SSH-2.0-CasvisorAgent_", "SSH-2.0-CasvisorDesktop_"} {
+		if strings.HasPrefix(clientVersion, prefix) {
+			return strings.TrimPrefix(clientVersion, prefix)
+		}
+	}
+	return clientVersion
+}
+
+// OpenDesktopChannel starts a remote session on the Casvisor Desktop device of gateway.
+func OpenDesktopChannel(gateway *NetworkGateway) (ssh.Channel, error) {
+	if !gateway.IsDesktop() {
+		return nil, fmt.Errorf("the network gateway: %s is not a Casvisor Desktop device", gateway.GetId())
+	}
+	if !gateway.IsEnabled {
+		return nil, fmt.Errorf("the device: %s is disabled", gateway.GetId())
+	}
+	a := getAgent(gateway.GetId())
+	if a == nil {
+		return nil, gateway.getOfflineError()
+	}
+
+	channel, reqs, err := a.conn.OpenChannel(agent.DesktopChannelType, nil)
+	if err != nil {
+		if openErr, ok := err.(*ssh.OpenChannelError); ok {
+			return nil, fmt.Errorf("the device: %s refused the remote session: %s", gateway.GetId(), openErr.Message)
+		}
+		return nil, fmt.Errorf("failed to start a remote session on the device: %s: %s", gateway.GetId(), err.Error())
+	}
+	go ssh.DiscardRequests(reqs)
+	return channel, nil
+}
+
 func (gateway *NetworkGateway) dialAgent(address string) (net.Conn, error) {
+	if gateway.IsDesktop() {
+		return nil, fmt.Errorf("the network gateway: %s is a Casvisor Desktop device, which can't reach other machines", gateway.GetId())
+	}
 	host, portString, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err

@@ -31,11 +31,13 @@ import (
 )
 
 const (
-	Username          = "casvisor-agent"
-	DialChannelType   = "dial@casvisor.org"
-	ConfigRequestType = "config@casvisor.org"
-	KeepaliveRequest  = "keepalive@openssh.com"
-	TokenPrefix       = "cva_"
+	Username        = "casvisor-agent"
+	DialChannelType = "dial@casvisor.org"
+	// DesktopChannelType is a remote session on Casvisor Desktop.
+	DesktopChannelType = "desktop@casvisor.org"
+	ConfigRequestType  = "config@casvisor.org"
+	KeepaliveRequest   = "keepalive@openssh.com"
+	TokenPrefix        = "cva_"
 )
 
 // Version is set at build time with -ldflags "-X github.com/casvisor/casvisor/agent.Version=v1.2.3".

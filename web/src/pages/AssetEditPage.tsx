@@ -28,7 +28,7 @@ import {AssetAccountsPanel} from "@/components/access/AssetAccountsPanel";
 import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
-import {getDefaultPort, isDatabaseProtocol, OperatingSystems, Protocols} from "@/lib/asset";
+import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, OperatingSystems, Protocols} from "@/lib/asset";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
 import NotFoundPage from "@/pages/NotFoundPage";
@@ -111,26 +111,30 @@ export default function AssetEditPage() {
           onChange={(protocol) => updateFields({protocol, port: getDefaultPort(protocol)})}
         />
       </FormRow>
-      <FormRow labelKey="asset:Host">
-        <Input value={asset.host} onChange={(e) => updateField("host", e.target.value)} />
-      </FormRow>
-      <FormRow labelKey="general:Port">
-        <Input
-          type="number"
-          value={asset.port}
-          onChange={(e) => updateField("port", Setting.myParseInt(e.target.value))}
-        />
-      </FormRow>
-      <FormRow labelKey="general:Username">
-        <Input value={asset.username} autoComplete="off" onChange={(e) => updateField("username", e.target.value)} />
-      </FormRow>
-      <FormRow labelKey="general:Password">
-        <PasswordInput
-          value={asset.password}
-          autoComplete="new-password"
-          onChange={(e) => updateField("password", e.target.value)}
-        />
-      </FormRow>
+      {asset.protocol !== DesktopProtocol ? (
+        <>
+          <FormRow labelKey="asset:Host">
+            <Input value={asset.host} onChange={(e) => updateField("host", e.target.value)} />
+          </FormRow>
+          <FormRow labelKey="general:Port">
+            <Input
+              type="number"
+              value={asset.port}
+              onChange={(e) => updateField("port", Setting.myParseInt(e.target.value))}
+            />
+          </FormRow>
+          <FormRow labelKey="general:Username">
+            <Input value={asset.username} autoComplete="off" onChange={(e) => updateField("username", e.target.value)} />
+          </FormRow>
+          <FormRow labelKey="general:Password">
+            <PasswordInput
+              value={asset.password}
+              autoComplete="new-password"
+              onChange={(e) => updateField("password", e.target.value)}
+            />
+          </FormRow>
+        </>
+      ) : null}
       {isDatabaseProtocol(asset.protocol) ? (
         <FormRow label={i18next.t("asset:Database")} tooltip={i18next.t("asset:Database - Tooltip")}>
           <Input value={asset.database ?? ""} onChange={(e) => updateField("database", e.target.value)} />
@@ -161,16 +165,30 @@ export default function AssetEditPage() {
           </div>
         </FormRow>
       ) : null}
-      <FormRow label={i18next.t("asset:Network gateway")} tooltip={i18next.t("asset:Network gateway - Tooltip")}>
-        <SelectField
-          value={asset.networkGateway || directConnection}
-          options={[
-            {id: directConnection, name: i18next.t("asset:Direct connection")},
-            ...gateways.map((gateway) => ({id: gateway.name, name: gateway.displayName || gateway.name})),
-          ]}
-          onChange={(value) => updateField("networkGateway", value === directConnection ? "" : value)}
-        />
-      </FormRow>
+      {asset.protocol === DesktopProtocol ? (
+        <FormRow label={i18next.t("asset:Casvisor Desktop device")} tooltip={i18next.t("asset:Casvisor Desktop device - Tooltip")}>
+          <SelectField
+            value={asset.networkGateway}
+            options={gateways
+              .filter((gateway) => gateway.type === DesktopProtocol)
+              .map((gateway) => ({id: gateway.name, name: gateway.displayName || gateway.name}))}
+            onChange={(value) => updateField("networkGateway", value)}
+          />
+        </FormRow>
+      ) : (
+        <FormRow label={i18next.t("asset:Network gateway")} tooltip={i18next.t("asset:Network gateway - Tooltip")}>
+          <SelectField
+            value={asset.networkGateway || directConnection}
+            options={[
+              {id: directConnection, name: i18next.t("asset:Direct connection")},
+              ...gateways
+                .filter((gateway) => gateway.type !== DesktopProtocol)
+                .map((gateway) => ({id: gateway.name, name: gateway.displayName || gateway.name})),
+            ]}
+            onChange={(value) => updateField("networkGateway", value === directConnection ? "" : value)}
+          />
+        </FormRow>
+      )}
       <FormRow labelKey="asset:OS">
         <SelectField
           value={asset.os}

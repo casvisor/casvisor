@@ -24,6 +24,7 @@ import * as Setting from "@/lib/setting";
 const SshView = React.lazy(() => import("@/components/access/SshView"));
 const VncView = React.lazy(() => import("@/components/access/VncView"));
 const RdpView = React.lazy(() => import("@/components/access/RdpView"));
+const DesktopView = React.lazy(() => import("@/components/access/DesktopView"));
 const DatabaseView = React.lazy(() => import("@/components/access/DatabaseView"));
 
 /** Looks the asset up and opens it with the client its protocol needs. */
@@ -52,6 +53,8 @@ export function AssetConnection(props: ConnectionProps) {
         <VncView {...props} />
       ) : protocol === "RDP" ? (
         <RdpView {...props} />
+      ) : protocol === "Desktop" ? (
+        <DesktopView {...props} />
       ) : isDatabaseProtocol(protocol) ? (
         <DatabaseView {...props} />
       ) : (

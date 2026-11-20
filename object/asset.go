@@ -21,6 +21,9 @@ import (
 	"xorm.io/core"
 )
 
+// ProtocolDesktop is a computer running Casvisor Desktop, reached through its device.
+const ProtocolDesktop = "Desktop"
+
 type Asset struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -224,6 +227,9 @@ func (asset *Asset) GetId() string {
 
 func (asset *Asset) checkNetworkGateway() error {
 	if asset.NetworkGateway == "" {
+		if asset.Protocol == ProtocolDesktop {
+			return fmt.Errorf("a Desktop asset needs its Casvisor Desktop device as the network gateway")
+		}
 		return nil
 	}
 
@@ -233,6 +239,12 @@ func (asset *Asset) checkNetworkGateway() error {
 	}
 	if gateway == nil {
 		return fmt.Errorf("the network gateway: %s does not exist in the organization: %s", asset.NetworkGateway, asset.Owner)
+	}
+	if asset.Protocol == ProtocolDesktop && !gateway.IsDesktop() {
+		return fmt.Errorf("the network gateway: %s of the Desktop asset is not a Casvisor Desktop device", asset.NetworkGateway)
+	}
+	if asset.Protocol != ProtocolDesktop && gateway.IsDesktop() {
+		return fmt.Errorf("the network gateway: %s is a Casvisor Desktop device, only a Desktop asset can use it", asset.NetworkGateway)
 	}
 	return nil
 }

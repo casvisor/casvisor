@@ -20,6 +20,7 @@ import {Terminal} from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import RFB from "@novnc/novnc/core/rfb.js";
 import {RdpScreen, type CursorMessage} from "@/components/access/rdpScreen";
+import {DesktopScreen} from "@/components/access/desktopScreen";
 import {KindData, KindResize, KindText, parseText, toArrayBuffer, type RecordingHeader} from "@/lib/recording";
 
 export interface ReplayScreen {
@@ -36,6 +37,8 @@ export function createScreen(container: HTMLElement, header: RecordingHeader): R
     return new VncScreen(container);
   case "RDP":
     return new RdpReplayScreen(container, header);
+  case "Desktop":
+    return new DesktopReplayScreen(container);
   default:
     return new TerminalScreen(container, header);
   }
@@ -263,6 +266,38 @@ class RdpReplayScreen implements ReplayScreen {
   }
 
   dispose() {
+    this.container.replaceChildren();
+  }
+}
+
+class DesktopReplayScreen implements ReplayScreen {
+  private canvas!: HTMLCanvasElement;
+  private screen!: DesktopScreen;
+
+  constructor(private container: HTMLElement) {
+    this.start();
+  }
+
+  private start() {
+    this.screen?.dispose();
+    this.canvas = document.createElement("canvas");
+    this.canvas.className = "h-full w-full object-contain";
+    this.container.replaceChildren(this.canvas);
+    this.screen = new DesktopScreen(this.canvas, true);
+  }
+
+  apply(kind: number, data: Uint8Array) {
+    if (kind === KindData && data.length >= 5) {
+      this.screen.apply(data);
+    }
+  }
+
+  reset() {
+    this.start();
+  }
+
+  dispose() {
+    this.screen.dispose();
     this.container.replaceChildren();
   }
 }

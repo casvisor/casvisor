@@ -129,6 +129,7 @@ func initAPI() {
 	beego.Router("/api/get-asset-ssh", &controllers.ApiController{}, "GET:GetAssetSsh")
 	beego.Router("/api/get-asset-vnc", &controllers.ApiController{}, "GET:GetAssetVnc")
 	beego.Router("/api/get-asset-rdp", &controllers.ApiController{}, "GET:GetAssetRdp")
+	beego.Router("/api/get-asset-desktop", &controllers.ApiController{}, "GET:GetAssetDesktop")
 	beego.Router("/api/get-asset-telnet", &controllers.ApiController{}, "GET:GetAssetTelnet")
 	beego.Router("/api/get-asset-database", &controllers.ApiController{}, "GET:GetAssetDatabase")
 	beego.Router("/api/export-database-result", &controllers.ApiController{}, "GET:ExportDatabaseResult")

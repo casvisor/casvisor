@@ -14,10 +14,16 @@
 
 import type {Asset} from "@/backend/types";
 
-export const Protocols = ["RDP", "VNC", "SSH", "Telnet", "MySQL", "PostgreSQL"];
+export const Protocols = ["RDP", "VNC", "SSH", "Telnet", "MySQL", "PostgreSQL", "Desktop"];
+
+/** A computer running Casvisor Desktop, reached through its device instead of a host and port. */
+export const DesktopProtocol = "Desktop";
 
 /** Which credentials the asset's own account still needs from the user. */
 export function getAssetCredentialRequirements(asset: Pick<Asset, "protocol" | "username" | "password" | "privateKey">) {
+  if (asset.protocol === DesktopProtocol) {
+    return {needsUsername: false, needsPassword: false};
+  }
   return {
     needsUsername: asset.protocol !== "VNC" && !asset.username,
     needsPassword: !asset.password && (asset.protocol !== "SSH" || !asset.privateKey),
