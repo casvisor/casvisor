@@ -15,7 +15,9 @@
 package routers
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -23,7 +25,6 @@ import (
 
 	"github.com/beego/beego/context"
 	"github.com/casvisor/casvisor/conf"
-	"github.com/casvisor/casvisor/util"
 )
 
 var (
@@ -37,39 +38,117 @@ var (
 	newCasdoorApplication  = conf.GetConfigString("casdoorApplication")
 )
 
+var errInvalidStaticPath = errors.New("invalid static path")
+
 func TransparentStatic(ctx *context.Context) {
+	if ctx == nil || ctx.Request == nil || ctx.Request.URL == nil || ctx.ResponseWriter == nil {
+		return
+	}
+
 	urlPath := ctx.Request.URL.Path
 	if strings.HasPrefix(urlPath, "/api/") {
 		return
 	}
 
-	path := "web/build"
-	if urlPath == "/" {
-		path += "/index.html"
-	} else {
-		path += urlPath
+	name, err := resolveStaticFile("web/build", urlPath)
+	if err != nil {
+		writeStaticFileError(ctx.ResponseWriter, ctx.Request, err)
+		return
 	}
 
-	if !util.FileExist(path) {
-		path = "web/build/index.html"
+	serveFileWithReplace(ctx.ResponseWriter, ctx.Request, name)
+}
+
+func resolveStaticFile(staticRoot, urlPath string) (string, error) {
+	if strings.HasPrefix(urlPath, "//") || strings.ContainsAny(urlPath, "\x00\\") {
+		return "", errInvalidStaticPath
 	}
 
-	serveFileWithReplace(ctx.ResponseWriter, ctx.Request, path)
+	path := filepath.FromSlash(strings.TrimPrefix(urlPath, "/"))
+	// filepath.VolumeName does not recognize Windows drive letters on Unix.
+	drivePrefix := len(path) >= 2 && path[1] == ':' &&
+		(path[0] >= 'A' && path[0] <= 'Z' || path[0] >= 'a' && path[0] <= 'z')
+	if filepath.VolumeName(path) != "" || drivePrefix {
+		return "", errInvalidStaticPath
+	}
+
+	absRoot, err := filepath.Abs(staticRoot)
+	if err != nil {
+		return "", err
+	}
+	candidate := filepath.Join(absRoot, path)
+	if !isWithinStaticRoot(absRoot, candidate) {
+		return "", errInvalidStaticPath
+	}
+
+	info, err := os.Stat(candidate)
+	if errors.Is(err, os.ErrNotExist) || (err == nil && info.IsDir()) {
+		candidate = filepath.Join(absRoot, "index.html")
+		info, err = os.Stat(candidate)
+	}
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", errInvalidStaticPath
+	}
+
+	realRoot, err := filepath.EvalSymlinks(absRoot)
+	if err != nil {
+		return "", err
+	}
+	realCandidate, err := filepath.EvalSymlinks(candidate)
+	if err != nil {
+		return "", err
+	}
+	if !isWithinStaticRoot(realRoot, realCandidate) {
+		return "", errInvalidStaticPath
+	}
+	return realCandidate, nil
+}
+
+func isWithinStaticRoot(root, name string) bool {
+	rel, err := filepath.Rel(root, name)
+	// IsLocal also rules out Windows device names and alternate streams.
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) &&
+		!filepath.IsAbs(rel) && filepath.IsLocal(rel)
+}
+
+func writeStaticFileError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, errInvalidStaticPath):
+		http.Error(w, "Forbidden", http.StatusForbidden)
+	case errors.Is(err, os.ErrNotExist):
+		http.NotFound(w, r)
+	default:
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 func serveFileWithReplace(w http.ResponseWriter, r *http.Request, name string) {
-	f, err := os.Open(filepath.Clean(name))
+	f, err := os.Open(name)
 	if err != nil {
-		panic(err)
+		writeStaticFileError(w, r, err)
+		return
 	}
 	defer f.Close()
 
 	d, err := f.Stat()
 	if err != nil {
-		panic(err)
+		writeStaticFileError(w, r, err)
+		return
+	}
+	if !d.Mode().IsRegular() {
+		writeStaticFileError(w, r, errInvalidStaticPath)
+		return
 	}
 
-	content := util.ReadStringFromPath(name)
+	data, err := io.ReadAll(f)
+	if err != nil {
+		writeStaticFileError(w, r, err)
+		return
+	}
+	content := string(data)
 	if oldCasdoorEndpoint != newCasdoorEndpoint {
 		content = strings.ReplaceAll(content, fmt.Sprintf("\"%s\"", oldCasdoorEndpoint), fmt.Sprintf("\"%s\"", newCasdoorEndpoint))
 	}

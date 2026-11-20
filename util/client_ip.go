@@ -17,29 +17,125 @@ package util
 import (
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
+	"sync"
+
+	"github.com/casvisor/casvisor/conf"
 )
 
-// GetClientIp only trusts X-Forwarded-For when the request comes from a local reverse proxy,
-// and then takes the last hop, which is the address the proxy saw.
-func GetClientIp(req *http.Request) string {
-	remoteIp := req.RemoteAddr
-	if host, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
-		remoteIp = host
+// A nil set trusts loopback only; a configured but empty set trusts no proxies.
+type trustedProxySet []netip.Prefix
+
+var trustedProxyCache struct {
+	sync.RWMutex
+	raw string
+	set trustedProxySet
+}
+
+func getTrustedProxySet() trustedProxySet {
+	raw := conf.GetConfigString("trustedProxies")
+	trustedProxyCache.RLock()
+	if raw == trustedProxyCache.raw {
+		set := trustedProxyCache.set
+		trustedProxyCache.RUnlock()
+		return set
+	}
+	trustedProxyCache.RUnlock()
+
+	trustedProxyCache.Lock()
+	defer trustedProxyCache.Unlock()
+	if raw != trustedProxyCache.raw {
+		trustedProxyCache.set = parseTrustedProxySet(raw)
+		trustedProxyCache.raw = raw
+	}
+	return trustedProxyCache.set
+}
+
+func parseTrustedProxySet(raw string) trustedProxySet {
+	if strings.TrimSpace(raw) == "" {
+		return nil
 	}
 
-	ip := net.ParseIP(remoteIp)
-	if ip == nil {
+	set := make(trustedProxySet, 0)
+	for _, entry := range strings.Split(raw, ",") {
+		entry = strings.TrimSpace(entry)
+		if prefix, err := netip.ParsePrefix(entry); err == nil {
+			// Only prefixes wholly in mapped IPv4 space can be unmapped.
+			if prefix.Addr().Is4In6() && prefix.Bits() >= 96 {
+				prefix = netip.PrefixFrom(prefix.Addr().Unmap(), prefix.Bits()-96)
+			}
+			set = append(set, prefix.Masked())
+		} else if addr, err := netip.ParseAddr(entry); err == nil && addr.Zone() == "" {
+			addr = addr.Unmap()
+			set = append(set, netip.PrefixFrom(addr, addr.BitLen()))
+		}
+	}
+	return set
+}
+
+func (set trustedProxySet) contains(addr netip.Addr) bool {
+	if set == nil {
+		return addr.IsLoopback()
+	}
+	for _, prefix := range set {
+		if prefix.Contains(addr) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseClientAddr(value string) netip.Addr {
+	value = strings.TrimSpace(value)
+	if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
+		value = value[1 : len(value)-1]
+	}
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		return netip.Addr{}
+	}
+	return addr
+}
+
+// GetClientIp follows X-Forwarded-For only as far as the trusted proxies go.
+func GetClientIp(req *http.Request) string {
+	if req == nil {
 		return ""
 	}
 
-	if ip.IsLoopback() || ip.IsPrivate() {
-		forwarded := strings.Split(req.Header.Get("X-Forwarded-For"), ",")
-		last := strings.TrimSpace(forwarded[len(forwarded)-1])
-		if net.ParseIP(last) != nil {
-			return last
-		}
+	peer := req.RemoteAddr
+	if host, _, err := net.SplitHostPort(peer); err == nil {
+		peer = host
+	}
+	current := parseClientAddr(peer)
+	if !current.IsValid() {
+		return ""
+	}
+	current = current.WithZone("").Unmap()
+
+	forwarded := req.Header.Values("X-Forwarded-For")
+	if len(forwarded) == 0 {
+		return current.String()
+	}
+	trusted := getTrustedProxySet()
+	if !trusted.contains(current) {
+		return current.String()
 	}
 
-	return ip.String()
+	for i := len(forwarded) - 1; i >= 0; i-- {
+		hops := strings.Split(forwarded[i], ",")
+		for j := len(hops) - 1; j >= 0; j-- {
+			hop := parseClientAddr(hops[j])
+			if !hop.IsValid() || hop.Zone() != "" {
+				return current.String()
+			}
+			hop = hop.Unmap()
+			if !trusted.contains(hop) {
+				return hop.String()
+			}
+			current = hop
+		}
+	}
+	return current.String()
 }

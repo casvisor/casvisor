@@ -15,6 +15,8 @@
 package routers
 
 import (
+	"crypto/subtle"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -68,22 +70,28 @@ func requestDeny(ctx *context.Context) {
 }
 
 func getUsernameByClientIdSecret(ctx *context.Context) (string, error) {
-	clientId, clientSecret, ok := ctx.Request.BasicAuth()
-	if !ok {
-		clientId = ctx.Input.Query("clientId")
-		clientSecret = ctx.Input.Query("clientSecret")
-	}
-
-	if clientId == "" || clientSecret == "" {
+	if ctx == nil || ctx.Request == nil {
 		return "", nil
 	}
 
-	applicationName := conf.GetConfigString("casdoorApplication")
-	if clientSecret != conf.GetConfigString("clientSecret") {
-		return "", fmt.Errorf("Incorrect client secret for application: %s", applicationName)
+	clientId, clientSecret, ok := ctx.Request.BasicAuth()
+	if !ok || clientId == "" || clientSecret == "" {
+		return "", nil
 	}
 
-	return fmt.Sprintf("app/%s", applicationName), nil
+	expectedClientId := conf.GetConfigString("clientId")
+	expectedClientSecret := conf.GetConfigString("clientSecret")
+	if expectedClientId == "" || expectedClientSecret == "" {
+		return "", errors.New("application credentials are not configured")
+	}
+
+	idMatch := subtle.ConstantTimeCompare([]byte(clientId), []byte(expectedClientId))
+	secretMatch := subtle.ConstantTimeCompare([]byte(clientSecret), []byte(expectedClientSecret))
+	if (idMatch & secretMatch) != 1 {
+		return "", errors.New("invalid application credentials")
+	}
+
+	return fmt.Sprintf("app/%s", conf.GetConfigString("casdoorApplication")), nil
 }
 
 // RefreshLocalUser keeps the signed-in local user in step with the user table,
