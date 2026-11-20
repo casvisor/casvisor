@@ -258,18 +258,28 @@ func (c *ApiController) GetAccount() {
 
 	claims := c.GetSessionClaims()
 
+	var (
+		user             *object.LocalUser
+		mfaSetupRequired bool
+	)
 	if object.IsLocalAuth() {
-		user, err := object.GetLocalUser(fmt.Sprintf("%s/%s", claims.User.Owner, claims.User.Name))
+		var err error
+		user, err = object.GetLocalUser(fmt.Sprintf("%s/%s", claims.User.Owner, claims.User.Name))
 		if err != nil {
 			c.ResponseError(err.Error())
 			return
 		}
-		if user != nil {
-			mfaSetupRequired, _ := c.GetSession(MfaSetupRequiredSessionKey).(bool)
-			c.ResponseOk(claims, map[string]bool{"mfaEnabled": user.MfaEnabled, "mfaSetupRequired": mfaSetupRequired && !user.MfaEnabled})
-			return
-		}
+		mfaSetupRequired, _ = c.GetSession(MfaSetupRequiredSessionKey).(bool)
 	}
 
-	c.ResponseOk(claims)
+	c.ResponseOk(claims, accountExtra(user, mfaSetupRequired))
+}
+
+func accountExtra(user *object.LocalUser, mfaSetupRequired bool) map[string]bool {
+	extra := map[string]bool{"enableWatermark": conf.GetConfigBool("enableWatermark")}
+	if user != nil {
+		extra["mfaEnabled"] = user.MfaEnabled
+		extra["mfaSetupRequired"] = mfaSetupRequired && !user.MfaEnabled
+	}
+	return extra
 }

@@ -15,8 +15,10 @@
 import * as React from "react";
 import i18next from "i18next";
 import * as AssetBackend from "@/backend/AssetBackend";
+import {Watermark} from "@/components/access/Watermark";
 import {Loading} from "@/components/common/Loading";
 import type {ConnectionProps} from "@/components/access/util";
+import {useAccount} from "@/hooks/use-account";
 import {isDatabaseProtocol, KubernetesProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
@@ -30,6 +32,7 @@ const KubernetesView = React.lazy(() => import("@/components/access/KubernetesVi
 
 /** Looks the asset up and opens it with the client its protocol needs. */
 export function AssetConnection(props: ConnectionProps) {
+  const {account, enableWatermark} = useAccount();
   const [protocol, setProtocol] = React.useState("");
 
   React.useEffect(() => {
@@ -48,21 +51,26 @@ export function AssetConnection(props: ConnectionProps) {
     return fallback;
   }
 
+  const watermarkText = account ? [account.owner, account.name].filter(Boolean).join("/") : "";
+
   return (
-    <React.Suspense fallback={fallback}>
-      {protocol === "VNC" ? (
-        <VncView {...props} />
-      ) : protocol === "RDP" ? (
-        <RdpView {...props} />
-      ) : protocol === "Desktop" ? (
-        <DesktopView {...props} />
-      ) : isDatabaseProtocol(protocol) ? (
-        <DatabaseView {...props} />
-      ) : protocol === KubernetesProtocol ? (
-        <KubernetesView {...props} />
-      ) : (
-        <SshView {...props} protocol={protocol} />
-      )}
-    </React.Suspense>
+    <div className="relative h-full w-full overflow-hidden">
+      <React.Suspense fallback={fallback}>
+        {protocol === "VNC" ? (
+          <VncView {...props} />
+        ) : protocol === "RDP" ? (
+          <RdpView {...props} />
+        ) : protocol === "Desktop" ? (
+          <DesktopView {...props} />
+        ) : isDatabaseProtocol(protocol) ? (
+          <DatabaseView {...props} />
+        ) : protocol === KubernetesProtocol ? (
+          <KubernetesView {...props} />
+        ) : (
+          <SshView {...props} protocol={protocol} />
+        )}
+      </React.Suspense>
+      {enableWatermark && watermarkText ? <Watermark text={watermarkText} /> : null}
+    </div>
   );
 }

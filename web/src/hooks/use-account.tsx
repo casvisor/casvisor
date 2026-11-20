@@ -29,6 +29,7 @@ export interface Account {
 interface AccountContextValue {
   /** undefined = still loading, null = not signed in */
   account: Account | null | undefined;
+  enableWatermark: boolean;
   loading: boolean;
   setAccount: (account: Account | null) => void;
   reload: () => Promise<void>;
@@ -36,6 +37,7 @@ interface AccountContextValue {
 
 const AccountContext = React.createContext<AccountContextValue>({
   account: undefined,
+  enableWatermark: false,
   loading: true,
   setAccount: () => undefined,
   reload: async() => undefined,
@@ -43,6 +45,7 @@ const AccountContext = React.createContext<AccountContextValue>({
 
 export function AccountProvider({children}: {children: React.ReactNode}) {
   const [account, setAccountState] = React.useState<Account | null | undefined>(undefined);
+  const [enableWatermark, setEnableWatermark] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
 
   const fetchAccount = React.useCallback(async() => {
@@ -51,14 +54,17 @@ export function AccountProvider({children}: {children: React.ReactNode}) {
       const res = await AccountBackend.getAccount();
       if (res?.status === "ok" && res.data) {
         setAccountState(res.data2?.mfaSetupRequired ? {...res.data, mfaSetupRequired: true} : res.data);
+        setEnableWatermark(Boolean(res.data2?.enableWatermark));
         if (!localStorage.getItem("language") && res.data.language) {
           Setting.setLanguage(res.data.language);
         }
       } else {
         setAccountState(null);
+        setEnableWatermark(false);
       }
     } catch (e: any) {
       setAccountState(null);
+      setEnableWatermark(false);
       Setting.showMessage("error", e?.message ?? String(e));
     } finally {
       setLoading(false);
@@ -69,14 +75,22 @@ export function AccountProvider({children}: {children: React.ReactNode}) {
     fetchAccount();
   }, [fetchAccount]);
 
+  const setAccount = React.useCallback((next: Account | null) => {
+    setAccountState(next);
+    if (!next) {
+      setEnableWatermark(false);
+    }
+  }, []);
+
   const value = React.useMemo<AccountContextValue>(
     () => ({
       account,
+      enableWatermark,
       loading,
-      setAccount: (next) => setAccountState(next),
+      setAccount,
       reload: fetchAccount,
     }),
-    [account, loading, fetchAccount],
+    [account, enableWatermark, loading, setAccount, fetchAccount],
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
