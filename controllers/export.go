@@ -35,8 +35,12 @@ type exportQuery struct {
 }
 
 func (c *ApiController) getExportQuery() (*exportQuery, bool) {
+	owner, ok := c.resolveQueryOwner(c.Input().Get("owner"))
+	if !ok {
+		return nil, false
+	}
 	query := &exportQuery{
-		owner:     c.Input().Get("owner"),
+		owner:     owner,
 		field:     c.Input().Get("field"),
 		value:     c.Input().Get("value"),
 		sortField: c.Input().Get("sortField"),
@@ -81,20 +85,21 @@ func (c *ApiController) exportCsv(name string, header []string, iterate func(wri
 		logs.Error("failed to export the %s: %s", name, err.Error())
 	}
 
-	user := c.GetSessionUser()
-	detail := fmt.Sprintf("Exported %d rows to %s", count, fileName)
-	if query := c.Ctx.Request.URL.RawQuery; query != "" {
-		detail += ", filter: " + query
+	if user := c.GetSessionUser(); user != nil {
+		detail := fmt.Sprintf("Exported %d rows to %s", count, fileName)
+		if query := c.Ctx.Request.URL.RawQuery; query != "" {
+			detail += ", filter: " + query
+		}
+		object.AddAuditRecord(&object.AuditEvent{
+			Organization: user.Owner,
+			User:         user.Name,
+			ClientIp:     c.getClientIp(),
+			UserAgent:    c.getUserAgent(),
+			Method:       "Export",
+			Action:       "export-" + name,
+			Detail:       detail,
+		})
 	}
-	object.AddAuditRecord(&object.AuditEvent{
-		Organization: user.Owner,
-		User:         user.Name,
-		ClientIp:     c.getClientIp(),
-		UserAgent:    c.getUserAgent(),
-		Method:       "Export",
-		Action:       "export-" + name,
-		Detail:       detail,
-	})
 }
 
 // ExportSessions

@@ -16,13 +16,18 @@ package object
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/beego/beego/context"
+	"github.com/beego/beego/logs"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/util"
 )
+
+// ErrAuditRecordImmutable is returned when an audit record is updated or deleted.
+var ErrAuditRecordImmutable = errors.New("audit records are append-only and cannot be modified or deleted")
 
 var logPostOnly bool
 
@@ -83,42 +88,32 @@ func GetPaginationRecords(owner string, offset, limit int, field, value, sortFie
 }
 
 func getRecord(owner string, name string) (*Record, error) {
-	if owner == "" || name == "" {
+	if strings.TrimSpace(owner) == "" || strings.TrimSpace(name) == "" {
 		return nil, nil
 	}
 
-	record := Record{Name: name}
+	if adapter == nil || adapter.engine == nil {
+		return nil, fmt.Errorf("database adapter is not initialized")
+	}
+
+	record := Record{Owner: owner, Name: name}
 	existed, err := adapter.engine.Get(&record)
-	if err != nil {
-		return &record, err
+	if err != nil || !existed {
+		return nil, err
 	}
-
-	if existed {
-		return &record, nil
-	} else {
-		return nil, nil
-	}
+	return &record, nil
 }
 
 func GetRecord(id string) (*Record, error) {
-	owner, name := util.GetOwnerAndNameFromIdNoCheck(id)
-	return getRecord(owner, name)
+	tokens := strings.Split(id, "/")
+	if len(tokens) != 2 || strings.TrimSpace(tokens[0]) == "" || strings.TrimSpace(tokens[1]) == "" {
+		return nil, nil
+	}
+	return getRecord(tokens[0], tokens[1])
 }
 
 func UpdateRecord(id string, record *Record) (bool, error) {
-	owner, name := util.GetOwnerAndNameFromId(id)
-	if p, err := getRecord(owner, name); err != nil {
-		return false, err
-	} else if p == nil {
-		return false, nil
-	}
-
-	affected, err := adapter.engine.Where("name = ?", name).AllCols().Update(record)
-	if err != nil {
-		return false, err
-	}
-
-	return affected != 0, nil
+	return false, ErrAuditRecordImmutable
 }
 
 func NewRecord(ctx *context.Context) (*Record, error) {
@@ -166,35 +161,41 @@ func NewRecord(ctx *context.Context) (*Record, error) {
 	return &record, nil
 }
 
-func AddRecord(record *Record) bool {
-	if logPostOnly {
-		if record.Method == "GET" {
-			return false
-		}
+func AddRecord(record *Record) (bool, error) {
+	if record == nil {
+		return false, errors.New("record is nil")
 	}
-
+	if logPostOnly && record.Method == "GET" {
+		return false, nil
+	}
 	if strings.HasSuffix(record.Action, "-record") {
-		return false
+		return false, nil
 	}
 
-	record.Owner = record.Organization
-
-	affected, err := adapter.engine.Insert(record)
-	if err != nil {
-		panic(err)
+	if record.Organization != "" {
+		record.Owner = record.Organization
+	} else if record.Owner != "" {
+		record.Organization = record.Owner
 	}
 
-	forwardRecord(record)
-	return affected != 0
-}
-
-func DeleteRecord(record *Record) (bool, error) {
-	affected, err := adapter.engine.Where("name = ?", record.Name).Delete(&Record{})
-	if err != nil {
+	if adapter == nil || adapter.engine == nil {
+		err := errors.New("database adapter is not initialized")
+		logs.Error("failed to add record: %s", err.Error())
 		return false, err
 	}
 
+	affected, err := adapter.engine.Insert(record)
+	if err != nil {
+		logs.Error("failed to add record: %s", err.Error())
+		return false, err
+	}
+
+	forwardRecord(record)
 	return affected != 0, nil
+}
+
+func DeleteRecord(record *Record) (bool, error) {
+	return false, ErrAuditRecordImmutable
 }
 
 func (record *Record) getId() string {

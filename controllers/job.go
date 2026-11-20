@@ -46,7 +46,10 @@ type jobFile struct {
 // @Success 200 {object} object.Job The Response object
 // @router /get-jobs [get]
 func (c *ApiController) GetJobs() {
-	owner := c.Input().Get("owner")
+	owner, ok := c.resolveQueryOwner(c.Input().Get("owner"))
+	if !ok {
+		return
+	}
 	field := c.Input().Get("field")
 	value := c.Input().Get("value")
 	sortField := c.Input().Get("sortField")
@@ -80,9 +83,12 @@ func (c *ApiController) GetJobs() {
 // @Success 200 {object} object.Job The Response object
 // @router /get-job [get]
 func (c *ApiController) GetJob() {
-	id := c.Input().Get("id")
+	owner, name, ok := c.resolveTenantId(c.Input().Get("id"))
+	if !ok {
+		return
+	}
 
-	job, err := object.GetJob(id)
+	job, err := object.GetJob(util.GetIdFromOwnerAndName(owner, name))
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -127,13 +133,12 @@ func (c *ApiController) StartJob() {
 // @Success 200 {object} object.Job The Response object
 // @router /rerun-job [post]
 func (c *ApiController) RerunJob() {
-	id := c.Input().Get("id")
-	owner, _ := util.GetOwnerAndNameFromIdNoCheck(id)
-	if !c.checkOwner(owner) {
+	owner, name, ok := c.resolveTenantId(c.Input().Get("id"))
+	if !ok {
 		return
 	}
 
-	job, err := object.RerunJob(id, c.GetSessionUser(), c.getClientIp())
+	job, err := object.RerunJob(util.GetIdFromOwnerAndName(owner, name), c.GetSessionUser(), c.getClientIp())
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -150,13 +155,12 @@ func (c *ApiController) RerunJob() {
 // @Success 200 {object} controllers.Response The Response object
 // @router /cancel-job [post]
 func (c *ApiController) CancelJob() {
-	id := c.Input().Get("id")
-	owner, _ := util.GetOwnerAndNameFromIdNoCheck(id)
-	if !c.checkOwner(owner) {
+	owner, name, ok := c.resolveTenantId(c.Input().Get("id"))
+	if !ok {
 		return
 	}
 
-	err := object.CancelJob(id)
+	err := object.CancelJob(util.GetIdFromOwnerAndName(owner, name))
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
