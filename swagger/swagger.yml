@@ -452,24 +452,6 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
-  /delete-record:
-    post:
-      tags:
-      - Record API
-      description: delete a record
-      operationId: ApiController.DeleteRecord
-      parameters:
-      - in: body
-        name: body
-        description: The details of the record
-        required: true
-        schema:
-          $ref: '#/definitions/object.Record'
-      responses:
-        "200":
-          description: The Response object
-          schema:
-            $ref: '#/definitions/controllers.Response'
   /delete-session:
     post:
       tags:
@@ -1636,29 +1618,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.Permission'
-      responses:
-        "200":
-          description: The Response object
-          schema:
-            $ref: '#/definitions/controllers.Response'
-  /update-record:
-    post:
-      tags:
-      - Record API
-      description: update record
-      operationId: ApiController.UpdateRecord
-      parameters:
-      - in: query
-        name: id
-        description: The id ( owner/name ) of the record
-        required: true
-        type: string
-      - in: body
-        name: body
-        description: The details of the record
-        required: true
-        schema:
-          $ref: '#/definitions/object.Record'
       responses:
         "200":
           description: The Response object
