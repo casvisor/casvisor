@@ -21,7 +21,7 @@ import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/
 import {Input} from "@/components/ui/input";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import type {Asset} from "@/backend/types";
-import {getAssetCredentialRequirements} from "@/lib/asset";
+import {getAssetCredentialRequirements, KubernetesProtocol} from "@/lib/asset";
 
 type Credentials = {username: string; password: string};
 
@@ -186,7 +186,7 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
               submit();
             }}
           >
-            {asset.protocol !== "VNC" && (
+            {asset.protocol !== "VNC" && asset.protocol !== KubernetesProtocol && (
               <div className="relative">
                 <User className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -206,7 +206,7 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
                 <Lock className="absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <PasswordInput
                   className="[&_input]:pl-8"
-                  placeholder={i18next.t("general:Password")}
+                  placeholder={asset.protocol === KubernetesProtocol ? i18next.t("asset:Token") : i18next.t("general:Password")}
                   value={password}
                   required
                   autoFocus={!needsUsername}

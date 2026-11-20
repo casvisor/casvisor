@@ -166,6 +166,11 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		asset.PrivateKey = p.PrivateKey
 	}
 
+	err = asset.normalizeKubernetes()
+	if err != nil {
+		return false, err
+	}
+
 	err = asset.checkNetworkGateway()
 	if err != nil {
 		return false, err
@@ -197,7 +202,12 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 }
 
 func AddAsset(asset *Asset) (bool, error) {
-	err := asset.checkNetworkGateway()
+	err := asset.normalizeKubernetes()
+	if err != nil {
+		return false, err
+	}
+
+	err = asset.checkNetworkGateway()
 	if err != nil {
 		return false, err
 	}

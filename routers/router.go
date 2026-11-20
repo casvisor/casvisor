@@ -152,6 +152,8 @@ func initAPI() {
 	beego.Router("/api/get-asset-telnet", &controllers.ApiController{}, "GET:GetAssetTelnet")
 	beego.Router("/api/get-asset-database", &controllers.ApiController{}, "GET:GetAssetDatabase")
 	beego.Router("/api/export-database-result", &controllers.ApiController{}, "GET:ExportDatabaseResult")
+	beego.Router("/api/get-kubernetes-pods", &controllers.ApiController{}, "POST:GetKubernetesPods")
+	beego.Router("/api/get-asset-kubernetes", &controllers.ApiController{}, "GET:GetAssetKubernetes")
 
 	beego.Router("/api/get-session-files", &controllers.ApiController{}, "GET:GetSessionFiles")
 	beego.Router("/api/download-session-file", &controllers.ApiController{}, "GET:DownloadSessionFile")

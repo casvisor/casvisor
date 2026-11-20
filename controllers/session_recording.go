@@ -33,7 +33,7 @@ import (
 // GetSessionRecording
 // @Title GetSessionRecording
 // @Tag Session API
-// @Description download a recording of a session, as a Casvisor recording or, for SSH and Telnet, as an asciicast
+// @Description download a recording of a session, as a Casvisor recording or, for SSH, Telnet and Kubernetes, as an asciicast
 // @Param   id     query    string  true        "The id of the session"
 // @Param   index     query    int  false        "Which recording of the session, from 0"
 // @Param   format     query    string  false        "cast for an asciicast v2 file"
@@ -100,8 +100,8 @@ func (c *ApiController) GetSessionRecording() {
 			c.ResponseError(err.Error())
 			return
 		}
-		if header.Protocol != "SSH" && header.Protocol != "Telnet" {
-			c.ResponseError("only SSH and Telnet recordings can be converted to asciicast")
+		if header.Protocol != "SSH" && header.Protocol != "Telnet" && header.Protocol != object.ProtocolKubernetes {
+			c.ResponseError("only SSH, Telnet and Kubernetes recordings can be converted to asciicast")
 			return
 		}
 

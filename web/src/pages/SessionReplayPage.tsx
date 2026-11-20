@@ -25,7 +25,7 @@ import {Button} from "@/components/ui/button";
 import {Switch} from "@/components/ui/switch";
 import {ReplayPlayer} from "@/components/replay/player";
 import {createScreen} from "@/components/replay/screens";
-import {isDatabaseProtocol} from "@/lib/asset";
+import {isDatabaseProtocol, isTerminalProtocol} from "@/lib/asset";
 import {formatDuration, parseRecording, type Recording} from "@/lib/recording";
 import * as Setting from "@/lib/setting";
 
@@ -116,7 +116,7 @@ function RecordingReplay() {
   }, [recording]);
 
   React.useEffect(() => {
-    if (!recording || (recording.header.protocol !== "SSH" && recording.header.protocol !== "Telnet")) {
+    if (!recording || !isTerminalProtocol(recording.header.protocol)) {
       setCommands([]);
       return;
     }
@@ -135,7 +135,7 @@ function RecordingReplay() {
 
   const player = playerRef.current;
   const header = recording?.header;
-  const isTerminal = header?.protocol === "SSH" || header?.protocol === "Telnet";
+  const isTerminal = isTerminalProtocol(header?.protocol ?? "");
   const downloadUrl = (format?: string) =>
     `${Setting.ServerUrl}/api/get-session-recording?id=${encodeURIComponent(sessionId)}&index=${index}${format ? `&format=${format}` : ""}`;
 

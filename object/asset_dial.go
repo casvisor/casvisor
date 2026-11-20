@@ -27,6 +27,12 @@ import (
 const dialTimeout = 10 * time.Second
 
 func (asset *Asset) getAddress() string {
+	if asset.Protocol == ProtocolKubernetes {
+		u, err := getKubernetesUrl(asset.Host, asset.Port)
+		if err == nil {
+			return u.Host
+		}
+	}
 	return net.JoinHostPort(asset.Host, strconv.Itoa(asset.Port))
 }
 

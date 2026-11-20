@@ -81,6 +81,8 @@ var userApis = map[string]bool{
 
 	"/api/get-asset-database":     true,
 	"/api/export-database-result": true,
+	"/api/get-kubernetes-pods":    true,
+	"/api/get-asset-kubernetes":   true,
 
 	"/api/get-session-files":     true,
 	"/api/download-session-file": true,

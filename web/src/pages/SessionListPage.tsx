@@ -23,7 +23,7 @@ import {ExportCsvButton} from "@/components/crud/ExportCsvButton";
 import {textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
-import {isDatabaseProtocol, Protocols} from "@/lib/asset";
+import {isDatabaseProtocol, KubernetesProtocol, Protocols} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 export default function SessionListPage() {
@@ -66,11 +66,14 @@ export default function SessionListPage() {
       width: 200,
       sortable: true,
       searchable: true,
-      render: (value) =>
+      render: (value, session) =>
         value ? (
-          <Link to={`/assets/${value}`} className="font-medium underline-offset-4 hover:underline">
-            {value}
-          </Link>
+          <>
+            <Link to={`/assets/${value}`} className="font-medium underline-offset-4 hover:underline">
+              {value}
+            </Link>
+            {session.target ? <div className="break-all font-mono text-xs text-muted-foreground">{session.target}</div> : null}
+          </>
         ) : null,
     },
     {
@@ -130,7 +133,7 @@ export default function SessionListPage() {
       title: i18next.t("general:Commands"),
       width: 110,
       render: (value, session) =>
-        session.protocol === "SSH" || isDatabaseProtocol(session.protocol) ? (
+        session.protocol === "SSH" || session.protocol === KubernetesProtocol || isDatabaseProtocol(session.protocol) ? (
           <Link to={`/commands?session=${encodeURIComponent(Setting.getIdFromObject(session))}`} className="tabular-nums underline-offset-4 hover:underline">
             {value ?? 0}
           </Link>

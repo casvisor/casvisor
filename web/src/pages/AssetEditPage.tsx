@@ -30,7 +30,7 @@ import {AssetAccountsPanel} from "@/components/access/AssetAccountsPanel";
 import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
-import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, OperatingSystems, Protocols} from "@/lib/asset";
+import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, KubernetesProtocol, OperatingSystems, Protocols} from "@/lib/asset";
 import {getNodeOptions} from "@/lib/assetNode";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
@@ -91,6 +91,8 @@ export default function AssetEditPage() {
     }).finally(() => setSaving(false));
   };
 
+  const isKubernetes = asset.protocol === KubernetesProtocol;
+
   return (
     <EditPageShell
       title={i18next.t(getModeTitleKey("asset:Edit Asset", mode))}
@@ -122,8 +124,12 @@ export default function AssetEditPage() {
       </FormRow>
       {asset.protocol !== DesktopProtocol ? (
         <>
-          <FormRow labelKey="asset:Host">
-            <Input value={asset.host} onChange={(e) => updateField("host", e.target.value)} />
+          <FormRow labelKey={isKubernetes ? "asset:API server" : "asset:Host"}>
+            <Input
+              value={asset.host}
+              placeholder={isKubernetes ? "https://192.168.1.10:6443" : undefined}
+              onChange={(e) => updateField("host", e.target.value)}
+            />
           </FormRow>
           <FormRow labelKey="general:Port">
             <Input
@@ -132,10 +138,10 @@ export default function AssetEditPage() {
               onChange={(e) => updateField("port", Setting.myParseInt(e.target.value))}
             />
           </FormRow>
-          <FormRow labelKey="general:Username">
+          <FormRow labelKey="general:Username" tooltip={isKubernetes ? i18next.t("asset:Username of a Kubernetes cluster - Tooltip") : undefined}>
             <Input value={asset.username} autoComplete="off" onChange={(e) => updateField("username", e.target.value)} />
           </FormRow>
-          <FormRow labelKey="general:Password">
+          <FormRow labelKey={isKubernetes ? "asset:Token" : "general:Password"}>
             <PasswordInput
               value={asset.password}
               autoComplete="new-password"
@@ -149,6 +155,11 @@ export default function AssetEditPage() {
           <Input value={asset.database ?? ""} onChange={(e) => updateField("database", e.target.value)} />
         </FormRow>
       ) : null}
+      {isKubernetes ? (
+        <FormRow labelKey="asset:Namespace">
+          <Input value={asset.database ?? ""} placeholder="default" onChange={(e) => updateField("database", e.target.value)} />
+        </FormRow>
+      ) : null}
       {asset.protocol === "SSH" ? (
         <FormRow labelKey="asset:Private key">
           <Textarea
@@ -160,7 +171,7 @@ export default function AssetEditPage() {
           />
         </FormRow>
       ) : null}
-      {asset.protocol === "SSH" || asset.protocol === "RDP" ? (
+      {asset.protocol === "SSH" || asset.protocol === "RDP" || isKubernetes ? (
         <FormRow labelKey="asset:Fingerprint">
           <div className="flex w-full flex-col gap-1">
             <Input
@@ -169,7 +180,9 @@ export default function AssetEditPage() {
               onChange={(e) => updateField("fingerprint", e.target.value)}
             />
             <span className="text-xs text-muted-foreground">
-              {i18next.t("asset:Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed")}
+              {isKubernetes
+                ? i18next.t("asset:The public key of the API server is recorded on the first connection, a different one is rejected afterwards. Clear it if the cluster was reinstalled")
+                : i18next.t("asset:Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed")}
             </span>
           </div>
         </FormRow>

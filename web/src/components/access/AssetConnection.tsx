@@ -17,7 +17,7 @@ import i18next from "i18next";
 import * as AssetBackend from "@/backend/AssetBackend";
 import {Loading} from "@/components/common/Loading";
 import type {ConnectionProps} from "@/components/access/util";
-import {isDatabaseProtocol} from "@/lib/asset";
+import {isDatabaseProtocol, KubernetesProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 // each client library is only downloaded for the protocol that needs it
@@ -26,6 +26,7 @@ const VncView = React.lazy(() => import("@/components/access/VncView"));
 const RdpView = React.lazy(() => import("@/components/access/RdpView"));
 const DesktopView = React.lazy(() => import("@/components/access/DesktopView"));
 const DatabaseView = React.lazy(() => import("@/components/access/DatabaseView"));
+const KubernetesView = React.lazy(() => import("@/components/access/KubernetesView"));
 
 /** Looks the asset up and opens it with the client its protocol needs. */
 export function AssetConnection(props: ConnectionProps) {
@@ -57,6 +58,8 @@ export function AssetConnection(props: ConnectionProps) {
         <DesktopView {...props} />
       ) : isDatabaseProtocol(protocol) ? (
         <DatabaseView {...props} />
+      ) : protocol === KubernetesProtocol ? (
+        <KubernetesView {...props} />
       ) : (
         <SshView {...props} protocol={protocol} />
       )}

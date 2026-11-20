@@ -71,6 +71,8 @@
     "days": "days"
   },
   "asset": {
+    "API server": "API server",
+    "API server - Tooltip": "The address of the API server, like https://192.168.1.10:6443, with a path for a cluster behind a proxy; a host alone uses the port below",
     "Can not paste": "Can not paste",
     "Can not paste files": "Can not paste files",
     "Casvisor Desktop device": "Casvisor Desktop device",
@@ -108,6 +110,8 @@
     "Host - Tooltip": "Host - Tooltip",
     "Keep it running, then connect your client to": "Keep it running, then connect your client to",
     "Key combinations": "Key combinations",
+    "Namespace": "Namespace",
+    "Namespace - Tooltip": "The namespace shown first, and the only one shown when the token may not list namespaces; \"default\" when empty",
     "Network gateway": "Network gateway",
     "Network gateway - Tooltip": "Connect to the asset through an SSH jump host or an agent in its network, for assets that Casvisor cannot reach directly",
     "New Asset": "New Asset",
@@ -121,11 +125,15 @@
     "Reconnecting...": "Reconnecting...",
     "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed": "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed",
     "Rename": "Rename",
+    "The public key of the API server is recorded on the first connection, a different one is rejected afterwards. Clear it if the cluster was reinstalled": "The public key of the API server is recorded on the first connection, a different one is rejected afterwards. Clear it if the cluster was reinstalled",
     "The remote computer is offline or can't be reached.": "The remote computer is offline or can't be reached.",
     "The remote computer is showing the lock screen or a UAC prompt, which can't be shown here": "The remote computer is showing the lock screen or a UAC prompt, which can't be shown here",
     "This browser can't decode the remote screen, use a recent Chrome, Edge, Firefox or Safari": "This browser can't decode the remote screen, use a recent Chrome, Edge, Firefox or Safari",
+    "Token": "Token",
+    "Token - Tooltip": "A bearer token of the cluster, like a service account token from \"kubectl create token\"; its RBAC decides which pods can be opened",
     "Upload": "Upload",
     "Uploaded successfully": "Uploaded successfully",
+    "Username of a Kubernetes cluster - Tooltip": "Optional, a name for the token, which permissions and sessions show",
     "View Asset": "View Asset",
     "Waiting for the person at the remote computer to allow the session...": "Waiting for the person at the remote computer to allow the session..."
   },
@@ -392,6 +400,14 @@
     "What runs now is stopped, and the assets not reached yet are skipped.": "What runs now is stopped, and the assets not reached yet are skipped.",
     "{{count}} failed": "{{count}} failed",
     "{{count}} succeeded": "{{count}} succeeded"
+  },
+  "kubernetes": {
+    "Failed to list the pods": "Failed to list the pods",
+    "Filter pods": "Filter pods",
+    "Namespace": "Namespace",
+    "No pods": "No pods",
+    "Only running pods can be opened": "Only running pods can be opened",
+    "Select a container to open a shell in it": "Select a container to open a shell in it"
   },
   "login": {
     "Additional Information": "Additional Information",

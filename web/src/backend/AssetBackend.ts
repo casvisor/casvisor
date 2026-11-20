@@ -43,3 +43,15 @@ export function addAsset(asset: any) {
 export function deleteAsset(asset: any) {
   return post("/api/delete-asset", {}, asset);
 }
+
+/** Lists the namespaces and the pods of a namespace of a Kubernetes asset, with the token typed for an asset that keeps none. */
+export function getKubernetesPods(assetId: string, account = "", namespace = "", password = "") {
+  const query: Record<string, string> = {assetId};
+  if (account) {
+    query.account = account;
+  }
+  if (namespace) {
+    query.namespace = namespace;
+  }
+  return post("/api/get-kubernetes-pods", query, password ? {password} : undefined);
+}
