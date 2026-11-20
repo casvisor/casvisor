@@ -1,3 +1,18 @@
-*.html linguist-language=go
-*.css linguist-language=go
-*.js linguist-language=go
+# demo/ is compiled into Casvisor.
+demo/** linguist-documentation=false
+
+# Generated specs and lockfile.
+swagger/swagger.json linguist-generated
+swagger/swagger.yml linguist-generated
+web/yarn.lock linguist-generated
+
+# Vendored Swagger UI assets.
+swagger/swagger-ui* linguist-vendored
+swagger/index.html linguist-vendored
+swagger/oauth2-redirect.html linguist-vendored
+swagger/favicon-*.png linguist-vendored
+
+# Vendored data and shadcn/ui primitives.
+data/regexes.yaml linguist-vendored
+util/17monipdb.dat linguist-vendored
+web/src/components/ui/** linguist-vendored
