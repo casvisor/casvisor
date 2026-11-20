@@ -15,7 +15,7 @@
 import * as React from "react";
 import i18next from "i18next";
 import {Link} from "react-router-dom";
-import {ChevronRight, Monitor, Search, X} from "lucide-react";
+import {ChevronRight, Monitor, Plus, Search, X} from "lucide-react";
 import * as AssetBackend from "@/backend/AssetBackend";
 import type {Asset} from "@/backend/types";
 import {Input} from "@/components/ui/input";
@@ -27,9 +27,15 @@ import * as Setting from "@/lib/setting";
 import {cn} from "@/lib/utils";
 
 interface Pane {
-  key: string;
+  id: string;
+  targetKey: string;
   asset: Asset;
   account: string;
+  seq: number;
+}
+
+function getTargetKey(asset: Asset, account: string) {
+  return `${asset.owner}/${asset.name}@${account}`;
 }
 
 /** The accounts to list under an asset, one entry with no name when there is only the default one. */
@@ -53,7 +59,12 @@ function groupAssets(assets: Asset[]): [string, Asset[]][] {
   return [...groups.values()].map((group) => [group.label, group.items]);
 }
 
-function AssetTree({assets, activeId, onSelect}: {assets: Asset[]; activeId: string; onSelect: (asset: Asset, account: string) => void}) {
+function AssetTree({assets, activeId, openCounts, onSelect}: {
+  assets: Asset[];
+  activeId: string;
+  openCounts: Map<string, number>;
+  onSelect: (asset: Asset, account: string, forceNew?: boolean) => void;
+}) {
   const [search, setSearch] = React.useState("");
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
 
@@ -106,23 +117,40 @@ function AssetTree({assets, activeId, onSelect}: {assets: Asset[]; activeId: str
                 ? items.flatMap((asset) => {
                   const choices = getAccountChoices(asset);
                   return choices.map((accountName) => {
-                    const id = `${asset.owner}/${asset.name}@${accountName}`;
+                    const id = getTargetKey(asset, accountName);
                     const username = accountName || asset.username;
+                    const openCount = openCounts.get(id) ?? 0;
                     return (
-                      <button
+                      <div
                         key={id}
-                        type="button"
-                        title={`${asset.protocol} ${username ? `${username}@` : ""}${asset.host}:${asset.port}`}
                         className={cn(
-                          "flex w-full items-center gap-2 rounded py-1 pl-6 pr-2 text-left text-sm hover:bg-accent",
+                          "group flex w-full items-center rounded hover:bg-accent",
                           activeId === id && "bg-accent font-medium",
                         )}
-                        onClick={() => onSelect(asset, accountName)}
                       >
-                        <span className="truncate">{asset.displayName || asset.name}</span>
-                        {choices.length > 1 ? <span className="truncate font-mono text-xs text-muted-foreground">{username}</span> : null}
-                        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{asset.protocol}</span>
-                      </button>
+                        <button
+                          type="button"
+                          title={`${asset.protocol} ${username ? `${username}@` : ""}${asset.host}:${asset.port}`}
+                          className="flex min-w-0 flex-1 items-center gap-2 py-1 pl-6 pr-2 text-left text-sm"
+                          onClick={() => onSelect(asset, accountName)}
+                        >
+                          <span className="truncate">{asset.displayName || asset.name}</span>
+                          {choices.length > 1 ? <span className="truncate font-mono text-xs text-muted-foreground">{username}</span> : null}
+                          {openCount > 1 ? <span className="shrink-0 rounded bg-muted px-1 font-mono text-[10px] text-muted-foreground">{openCount}</span> : null}
+                          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{asset.protocol}</span>
+                        </button>
+                        {openCount > 0 ? (
+                          <button
+                            type="button"
+                            title={i18next.t("asset:Open in new tab")}
+                            aria-label={i18next.t("asset:Open in new tab")}
+                            className="mr-1 shrink-0 rounded p-0.5 text-muted-foreground opacity-70 hover:bg-background hover:text-foreground hover:opacity-100"
+                            onClick={() => onSelect(asset, accountName, true)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
                     );
                   });
                 })
@@ -139,8 +167,8 @@ function AssetTree({assets, activeId, onSelect}: {assets: Asset[]; activeId: str
 export default function WorkbenchPage() {
   const {account} = useAccount();
   const [assets, setAssets] = React.useState<Asset[] | null>(null);
-  const [panes, setPanes] = React.useState<Pane[]>([]);
-  const [activeKey, setActiveKey] = React.useState("");
+  const [tabs, setTabs] = React.useState<{panes: Pane[]; activeId: string}>({panes: [], activeId: ""});
+  const nextTabId = React.useRef(0);
   const clients = React.useRef(new Map<string, {disconnect: () => void}>());
 
   React.useEffect(() => {
@@ -155,31 +183,57 @@ export default function WorkbenchPage() {
     });
   }, [account]);
 
-  const openAsset = (asset: Asset, account: string) => {
-    const existing = panes.find((pane) => pane.asset.owner === asset.owner && pane.asset.name === asset.name && pane.account === account);
-    if (existing) {
-      setActiveKey(existing.key);
-      return;
-    }
-    const key = `asset-${Date.now()}`;
-    setPanes((previous) => [...previous, {key, asset, account}]);
-    setActiveKey(key);
-  };
-
-  const closePane = (key: string) => {
-    clients.current.get(key)?.disconnect();
-    clients.current.delete(key);
-    setPanes((previous) => {
-      const index = previous.findIndex((pane) => pane.key === key);
-      const next = previous.filter((pane) => pane.key !== key);
-      if (key === activeKey && next.length > 0) {
-        setActiveKey(next[Math.max(0, index - 1)].key);
+  const openAsset = React.useCallback((asset: Asset, accountName: string, forceNew = false) => {
+    const targetKey = getTargetKey(asset, accountName);
+    const id = `tab-${++nextTabId.current}`;
+    setTabs((previous) => {
+      if (!forceNew) {
+        const active = previous.panes.find((pane) => pane.id === previous.activeId);
+        if (active?.targetKey === targetKey) {
+          return previous;
+        }
+        const existing = previous.panes.find((pane) => pane.targetKey === targetKey);
+        if (existing) {
+          return {...previous, activeId: existing.id};
+        }
       }
-      return next;
+      const seq = previous.panes
+        .filter((pane) => pane.targetKey === targetKey)
+        .reduce((max, pane) => Math.max(max, pane.seq), 0) + 1;
+      return {
+        panes: [...previous.panes, {id, targetKey, asset, account: accountName, seq}],
+        activeId: id,
+      };
     });
-  };
+  }, []);
 
-  const activePane = panes.find((pane) => pane.key === activeKey);
+  const closePane = React.useCallback((id: string) => {
+    clients.current.get(id)?.disconnect();
+    clients.current.delete(id);
+    setTabs((previous) => {
+      const index = previous.panes.findIndex((pane) => pane.id === id);
+      if (index < 0) {
+        return previous;
+      }
+      const nextPanes = previous.panes.filter((pane) => pane.id !== id);
+      const nextActiveId = previous.activeId !== id
+        ? previous.activeId
+        : nextPanes.length > 0
+          ? nextPanes[Math.max(0, index - 1)].id
+          : "";
+      return {panes: nextPanes, activeId: nextActiveId};
+    });
+  }, []);
+
+  const {panes, activeId} = tabs;
+  const activePane = panes.find((pane) => pane.id === activeId);
+  const openCounts = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const pane of panes) {
+      counts.set(pane.targetKey, (counts.get(pane.targetKey) ?? 0) + 1);
+    }
+    return counts;
+  }, [panes]);
 
   return (
     <div className="flex h-screen bg-muted/40">
@@ -193,7 +247,8 @@ export default function WorkbenchPage() {
           ) : (
             <AssetTree
               assets={assets}
-              activeId={activePane ? `${activePane.asset.owner}/${activePane.asset.name}@${activePane.account}` : ""}
+              activeId={activePane ? activePane.targetKey : ""}
+              openCounts={openCounts}
               onSelect={openAsset}
             />
           )}
@@ -211,37 +266,53 @@ export default function WorkbenchPage() {
             <div className="flex h-10 shrink-0 items-end gap-1 overflow-x-auto border-b bg-background px-2 scrollbar-thin">
               {panes.map((pane) => (
                 <div
-                  key={pane.key}
+                  key={pane.id}
                   className={cn(
                     "group flex h-8 items-center gap-1 rounded-t-md border border-b-0 px-3 text-sm",
-                    pane.key === activeKey ? "bg-[#1b1b1b] text-white" : "bg-muted text-muted-foreground hover:text-foreground",
+                    pane.id === activeId ? "bg-[#1b1b1b] text-white" : "bg-muted text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <button type="button" className="max-w-[160px] truncate" onClick={() => setActiveKey(pane.key)}>
-                    {pane.asset.displayName || pane.asset.name}
-                    {pane.account ? <span className="ml-1 font-mono text-xs opacity-70">{pane.account}</span> : null}
+                  <button
+                    type="button"
+                    className="flex items-center gap-1"
+                    onClick={() => setTabs((prev) => ({...prev, activeId: pane.id}))}
+                  >
+                    <span className="max-w-[160px] truncate">{pane.asset.displayName || pane.asset.name}</span>
+                    {pane.account ? <span className="shrink-0 font-mono text-xs opacity-70">{pane.account}</span> : null}
+                    {(openCounts.get(pane.targetKey) ?? 0) > 1 ? <span className="shrink-0 font-mono text-xs opacity-70">#{pane.seq}</span> : null}
                   </button>
                   <button
                     type="button"
                     aria-label={i18next.t("general:Close")}
                     className="rounded p-0.5 opacity-60 hover:opacity-100"
-                    onClick={() => closePane(pane.key)}
+                    onClick={() => closePane(pane.id)}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
+              {activePane ? (
+                <button
+                  type="button"
+                  title={i18next.t("asset:Open in new tab")}
+                  aria-label={i18next.t("asset:Open in new tab")}
+                  className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                  onClick={() => openAsset(activePane.asset, activePane.account, true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              ) : null}
             </div>
             {/* inactive connections stay mounted, so switching tabs does not drop them */}
             <div className="relative min-h-0 flex-1">
               {panes.map((pane) => (
-                <div key={pane.key} className={cn("absolute inset-0", pane.key !== activeKey && "invisible")}>
+                <div key={pane.id} className={cn("absolute inset-0", pane.id !== activeId && "invisible")}>
                   <AssetConnection
                     assetId={`${pane.asset.owner}/${pane.asset.name}`}
                     account={pane.account}
                     inTab
-                    addClient={(client) => clients.current.set(pane.key, client)}
-                    onClose={() => closePane(pane.key)}
+                    addClient={(client) => clients.current.set(pane.id, client)}
+                    onClose={() => closePane(pane.id)}
                   />
                 </div>
               ))}
