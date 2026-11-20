@@ -1,3 +1,5 @@
+//go:build manual
+
 // Copyright 2023 The casbin Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +18,8 @@ package util
 
 import "testing"
 
+// TestUpdateAllHeaders updates license headers across repository files in place.
+// Run manually with: go test -tags manual ./util -run TestUpdateAllHeaders
 func TestUpdateAllHeaders(t *testing.T) {
 	updateAllHeaders()
 }

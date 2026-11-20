@@ -1,3 +1,5 @@
+//go:build manual
+
 // Copyright 2023 The casbin Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +18,8 @@ package i18n
 
 import "testing"
 
+// TestGenerateI18nStrings updates web/src/locales/*/data.json in place.
+// Run manually with: go test -tags manual ./i18n -run TestGenerateI18nStrings
 func TestGenerateI18nStrings(t *testing.T) {
 	words := parseToData()
 

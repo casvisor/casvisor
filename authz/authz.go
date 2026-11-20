@@ -26,6 +26,34 @@ import (
 	stringadapter "github.com/qiangmzsx/string-adapter/v2"
 )
 
+const authzModelText = `
+[request_definition]
+r = subOwner, subName, method, urlPath, objOwner, objName
+
+[policy_definition]
+p = subOwner, subName, method, urlPath, objOwner, objName
+
+[role_definition]
+g = _, _
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = (r.subOwner == p.subOwner || p.subOwner == "*") && (r.subName == p.subName || p.subName == "*") && \
+  (r.method == p.method || p.method == "*") && (r.urlPath == p.urlPath || p.urlPath == "*") && \
+  (r.objOwner == p.objOwner || p.objOwner == "*") && (r.objName == p.objName || p.objName == "*")
+`
+
+const defaultPolicyText = `
+p, built-in, *, *, *, *, *
+p, app, *, *, *, *, *
+p, *, *, POST, /api/signin, *, *
+p, *, *, POST, /api/signout, *, *
+p, *, *, GET, /api/get-account, *, *
+p, *, *, GET, /api/connect-agent, *, *
+`
+
 var Enforcer *casbin.Enforcer
 
 var userApis = map[string]bool{
@@ -85,26 +113,7 @@ func InitAuthz() {
 		panic(err)
 	}
 
-	modelText := `
-[request_definition]
-r = subOwner, subName, method, urlPath, objOwner, objName
-
-[policy_definition]
-p = subOwner, subName, method, urlPath, objOwner, objName
-
-[role_definition]
-g = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = (r.subOwner == p.subOwner || p.subOwner == "*") && (r.subName == p.subName || p.subName == "*") && \
-  (r.method == p.method || p.method == "*") && (r.urlPath == p.urlPath || p.urlPath == "*") && \
-  (r.objOwner == p.objOwner || p.objOwner == "*") && (r.objName == p.objName || p.objName == "*")
-`
-
-	m, err := model.NewModelFromString(modelText)
+	m, err := model.NewModelFromString(authzModelText)
 	if err != nil {
 		panic(err)
 	}
@@ -115,16 +124,7 @@ m = (r.subOwner == p.subOwner || p.subOwner == "*") && (r.subName == p.subName |
 	}
 
 	if true {
-		ruleText := `
-p, built-in, *, *, *, *, *
-p, app, *, *, *, *, *
-p, *, *, POST, /api/signin, *, *
-p, *, *, POST, /api/signout, *, *
-p, *, *, GET, /api/get-account, *, *
-p, *, *, GET, /api/connect-agent, *, *
-`
-
-		sa := stringadapter.NewAdapter(ruleText)
+		sa := stringadapter.NewAdapter(defaultPolicyText)
 		// load all rules from string adapter to enforcer's memory
 		err := sa.LoadPolicy(Enforcer.GetModel())
 		if err != nil {
