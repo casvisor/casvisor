@@ -40,7 +40,7 @@ type AssetAccount struct {
 	Username    string `xorm:"varchar(100)" json:"username"`
 	DisplayName string `xorm:"varchar(100)" json:"displayName"`
 	Description string `xorm:"varchar(500)" json:"description"`
-	Password    string `xorm:"varchar(1000)" json:"password"`
+	Password    string `xorm:"text" json:"password"`
 	PrivateKey  string `xorm:"mediumtext" json:"privateKey"`
 	IsEnabled   bool   `json:"isEnabled"`
 
@@ -154,11 +154,11 @@ func (account *AssetAccount) mask() {
 
 func (account *AssetAccount) encryptCredentials() error {
 	var err error
-	account.Password, err = encryptCredential(account.Password)
+	account.Password, err = encryptCredentialForColumn(account.Password, "password")
 	if err != nil {
 		return err
 	}
-	account.PrivateKey, err = encryptCredential(account.PrivateKey)
+	account.PrivateKey, err = encryptCredentialForColumn(account.PrivateKey, "private_key")
 	return err
 }
 
@@ -307,7 +307,7 @@ func updateAssetAccountRotation(account *AssetAccount, password string, status s
 	cols := []string{"rotate_status", "rotate_message", "updated_time"}
 	update := &AssetAccount{RotateStatus: status, RotateMessage: message, UpdatedTime: util.GetCurrentTime()}
 	if password != "" {
-		encrypted, err := encryptCredential(password)
+		encrypted, err := encryptCredentialForColumn(password, "password")
 		if err != nil {
 			return err
 		}

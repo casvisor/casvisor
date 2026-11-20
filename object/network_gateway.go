@@ -43,7 +43,7 @@ type NetworkGateway struct {
 	Host     string `xorm:"varchar(200)" json:"host"`
 	Port     int    `json:"port"`
 	Username string `xorm:"varchar(100)" json:"username"`
-	Password string `xorm:"varchar(1000)" json:"password"`
+	Password string `xorm:"text" json:"password"`
 
 	PrivateKey  string `xorm:"mediumtext" json:"privateKey"`
 	Fingerprint string `xorm:"varchar(200)" json:"fingerprint"`
@@ -307,11 +307,11 @@ func (gateway *NetworkGateway) check() error {
 
 func (gateway *NetworkGateway) encryptCredentials() error {
 	var err error
-	gateway.Password, err = encryptCredential(gateway.Password)
+	gateway.Password, err = encryptCredentialForColumn(gateway.Password, "password")
 	if err != nil {
 		return err
 	}
-	gateway.PrivateKey, err = encryptCredential(gateway.PrivateKey)
+	gateway.PrivateKey, err = encryptCredentialForColumn(gateway.PrivateKey, "private_key")
 	return err
 }
 

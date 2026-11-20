@@ -114,7 +114,7 @@ func EnableLocalUserMfa(owner string, name string, secret string, code string) e
 		return fmt.Errorf("the code is wrong or has expired")
 	}
 
-	encrypted, err := encryptCredential(secret)
+	encrypted, err := encryptCredentialForColumn(secret, "totp_secret")
 	if err != nil {
 		return err
 	}

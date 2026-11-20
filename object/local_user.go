@@ -58,7 +58,7 @@ type LocalUser struct {
 
 	// MfaEnabled asks for a code from an authenticator app at sign-in; an administrator can only turn it off
 	MfaEnabled   bool   `json:"mfaEnabled"`
-	TotpSecret   string `xorm:"varchar(200)" json:"-"`
+	TotpSecret   string `xorm:"text" json:"-"`
 	TotpLastStep int64  `json:"-"`
 }
 
@@ -201,6 +201,11 @@ func AddLocalUser(user *LocalUser) (bool, error) {
 	}
 
 	err := user.setPassword(user.Password)
+	if err != nil {
+		return false, err
+	}
+
+	user.TotpSecret, err = encryptCredentialForColumn(user.TotpSecret, "totp_secret")
 	if err != nil {
 		return false, err
 	}

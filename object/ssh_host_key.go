@@ -51,7 +51,7 @@ func GetSshHostKeySigner() (ssh.Signer, error) {
 		}
 
 		hostKey.CreatedTime = util.GetCurrentTime()
-		hostKey.PrivateKey, err = encryptCredential(string(pem.EncodeToMemory(block)))
+		hostKey.PrivateKey, err = encryptCredentialForColumn(string(pem.EncodeToMemory(block)), "private_key")
 		if err != nil {
 			return nil, err
 		}
