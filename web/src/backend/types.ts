@@ -211,6 +211,8 @@ export interface Session {
   protocol: string;
   asset: string;
   account?: string;
+  /** the namespace, pod and container of a Kubernetes session */
+  target?: string;
   creator: string;
   clientIp: string;
   userAgent: string;
@@ -435,4 +437,18 @@ export interface Job {
   succeeded: number;
   failed: number;
   results?: JobResult[] | null;
+}
+
+export interface KubernetesPod {
+  name: string;
+  phase: string;
+  node: string;
+  containers: string[];
+  createdTime: string;
+}
+
+export interface KubernetesPods {
+  namespaces: string[];
+  namespace: string;
+  pods: KubernetesPod[];
 }

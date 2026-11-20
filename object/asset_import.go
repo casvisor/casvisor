@@ -29,9 +29,9 @@ const MaxImportAssets = 5000
 // AssetImportColumns are the columns of an asset CSV file, in the order of the template and the export.
 var AssetImportColumns = []string{"name", "displayName", "description", "protocol", "host", "port", "username", "password", "privateKey", "database", "os", "tag", "nodes", "networkGateway"}
 
-var assetProtocols = []string{"SSH", "RDP", "VNC", "Telnet", ProtocolMysql, ProtocolPostgresql, ProtocolDesktop}
+var assetProtocols = []string{"SSH", "RDP", "VNC", "Telnet", ProtocolMysql, ProtocolPostgresql, ProtocolKubernetes, ProtocolDesktop}
 
-var assetDefaultPorts = map[string]int{"SSH": 22, "RDP": 3389, "VNC": 5900, "Telnet": 23, ProtocolMysql: 3306, ProtocolPostgresql: 5432}
+var assetDefaultPorts = map[string]int{"SSH": 22, "RDP": 3389, "VNC": 5900, "Telnet": 23, ProtocolMysql: 3306, ProtocolPostgresql: 5432, ProtocolKubernetes: KubernetesDefaultPort}
 
 const (
 	AssetImportCreate = "create"
@@ -301,6 +301,10 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 
 			if asset.Protocol != ProtocolDesktop && asset.Host == "" {
 				return fmt.Errorf("the host can not be empty")
+			}
+			err := asset.normalizeKubernetes()
+			if err != nil {
+				return err
 			}
 			if asset.Protocol == ProtocolDesktop && asset.NetworkGateway == "" {
 				return fmt.Errorf("a Desktop asset needs its Casvisor Desktop device in the networkGateway column")

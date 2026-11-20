@@ -21,7 +21,7 @@ import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/
 import {Input} from "@/components/ui/input";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import type {Asset} from "@/backend/types";
-import {DesktopProtocol} from "@/lib/asset";
+import {DesktopProtocol, KubernetesProtocol} from "@/lib/asset";
 
 type Credentials = {username: string; password: string};
 
@@ -114,7 +114,9 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
   const [open, setOpen] = React.useState(false);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const hasCredentials = asset.protocol === DesktopProtocol || Boolean(asset.username && asset.password);
+  const isKubernetes = asset.protocol === KubernetesProtocol;
+  const hasCredentials = asset.protocol === DesktopProtocol || Boolean((isKubernetes || asset.username) && asset.password);
+  const canSubmit = (isKubernetes || username !== "") && password !== "";
   const accounts = asset.accounts ?? [];
 
   const start = () => {
@@ -132,11 +134,11 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
   };
 
   const submit = () => {
-    if (!username || !password) {
+    if (!canSubmit) {
       return;
     }
     setOpen(false);
-    openAccessPage(asset, username, password);
+    openAccessPage(asset, isKubernetes ? "" : username, password);
   };
 
   const trigger = accounts.length > 1 ? (
@@ -182,22 +184,24 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
               submit();
             }}
           >
-            <div className="relative">
-              <User className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-8"
-                placeholder={i18next.t("general:Username")}
-                value={username}
-                disabled={Boolean(asset.username)}
-                autoComplete="username"
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
+            {!isKubernetes && (
+              <div className="relative">
+                <User className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-8"
+                  placeholder={i18next.t("general:Username")}
+                  value={username}
+                  disabled={Boolean(asset.username)}
+                  autoComplete="username"
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+            )}
             <div className="relative">
               <Lock className="absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <PasswordInput
                 className="[&_input]:pl-8"
-                placeholder={i18next.t("general:Password")}
+                placeholder={isKubernetes ? i18next.t("asset:Token") : i18next.t("general:Password")}
                 value={password}
                 autoFocus
                 autoComplete="current-password"
@@ -205,7 +209,7 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
               />
             </div>
             <DialogFooter>
-              <Button type="submit" className="w-full" disabled={!username || !password}>
+              <Button type="submit" className="w-full" disabled={!canSubmit}>
                 {i18next.t("general:Connect")}
               </Button>
             </DialogFooter>

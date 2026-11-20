@@ -26,8 +26,15 @@ import * as Setting from "@/lib/setting";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
-/** An SSH or Telnet shell in xterm.js, talking to the backend's native tunnel. */
-export default function SshView(props: ConnectionProps & {protocol: string}) {
+/** The container a Kubernetes shell is opened in. */
+export interface KubernetesTarget {
+  namespace: string;
+  pod: string;
+  container: string;
+}
+
+/** An SSH, Telnet or Kubernetes shell in xterm.js, talking to the backend's native tunnel. */
+export default function SshView(props: ConnectionProps & {protocol: string; kubernetes?: KubernetesTarget}) {
   const {assetId, inTab, addClient, username, password, protocol} = props;
   const assetName = Setting.getShortName(assetId);
 
@@ -72,11 +79,13 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
         sessionId: `${session.owner}/${session.name}`,
         cols: terminal.cols,
         rows: terminal.rows,
+        ...props.kubernetes,
       };
+      const endpoint = protocol === "Telnet" ? "telnet" : protocol === "Kubernetes" ? "kubernetes" : "ssh";
 
       let errorMessage = "";
       let connected = false;
-      const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-asset-${protocol === "Telnet" ? "telnet" : "ssh"}?${qs.stringify(params)}`));
+      const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-asset-${endpoint}?${qs.stringify(params)}`));
       ws.binaryType = "arraybuffer";
       wsRef.current = ws;
 

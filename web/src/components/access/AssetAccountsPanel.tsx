@@ -266,7 +266,7 @@ export function AssetAccountsPanel({owner, asset, protocol, ownUsername}: {owner
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">{i18next.t("general:Password")}</label>
+                <label className="text-sm font-medium">{protocol === "Kubernetes" ? i18next.t("asset:Token") : i18next.t("general:Password")}</label>
                 <PasswordInput value={editing.password} autoComplete="new-password" onChange={(e) => update({password: e.target.value})} />
               </div>
               {protocol === "SSH" ? (

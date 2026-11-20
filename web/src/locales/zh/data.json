@@ -71,6 +71,8 @@
     "days": "天改一次口令"
   },
   "asset": {
+    "API server": "API Server 地址",
+    "API server - Tooltip": "API Server 的地址，例如 https://192.168.1.10:6443，经代理访问的集群可以带路径；只填主机时使用下面的端口",
     "Can not paste": "无法粘贴",
     "Can not paste files": "无法粘贴文件",
     "Casvisor Desktop device": "Casvisor Desktop 设备",
@@ -108,6 +110,8 @@
     "Host - Tooltip": "资产的主机名或 IP 地址",
     "Keep it running, then connect your client to": "保持它运行，再用客户端连接",
     "Key combinations": "组合键",
+    "Namespace": "命名空间",
+    "Namespace - Tooltip": "先显示的命名空间；令牌无权列出命名空间时只显示它，留空为 \"default\"",
     "Network gateway": "网域网关",
     "Network gateway - Tooltip": "经资产所在网络里的 SSH 跳板机或 agent 连接，用于 Casvisor 直接连不到的资产",
     "New Asset": "新建资产",
@@ -121,11 +125,15 @@
     "Reconnecting...": "正在重新连接...",
     "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed": "首次连接时自动记录，之后主机密钥或证书不一致会拒绝连接。服务器重装或证书更新后清空即可",
     "Rename": "重命名",
+    "The public key of the API server is recorded on the first connection, a different one is rejected afterwards. Clear it if the cluster was reinstalled": "首次连接时记录 API Server 的公钥，之后公钥不同会被拒绝。集群重装后请清空",
     "The remote computer is offline or can't be reached.": "远程电脑不在线或连不上。",
     "The remote computer is showing the lock screen or a UAC prompt, which can't be shown here": "远程电脑正在显示锁屏或 UAC 弹窗，这里暂时看不到",
     "This browser can't decode the remote screen, use a recent Chrome, Edge, Firefox or Safari": "这个浏览器不能解码远程画面，请用新版 Chrome、Edge、Firefox 或 Safari",
+    "Token": "令牌",
+    "Token - Tooltip": "集群的 Bearer 令牌，例如 \"kubectl create token\" 生成的服务账号令牌；能打开哪些 Pod 由它的 RBAC 决定",
     "Upload": "上传",
     "Uploaded successfully": "上传成功",
+    "Username of a Kubernetes cluster - Tooltip": "可选，令牌的名称，显示在授权和会话里",
     "View Asset": "查看资产",
     "Waiting for the person at the remote computer to allow the session...": "等待远程电脑前的人同意..."
   },
@@ -392,6 +400,14 @@
     "What runs now is stopped, and the assets not reached yet are skipped.": "正在执行的会被终止，还没轮到的资产会被跳过。",
     "{{count}} failed": "{{count}} 台失败",
     "{{count}} succeeded": "{{count}} 台成功"
+  },
+  "kubernetes": {
+    "Failed to list the pods": "获取 Pod 列表失败",
+    "Filter pods": "筛选 Pod",
+    "Namespace": "命名空间",
+    "No pods": "没有 Pod",
+    "Only running pods can be opened": "只能打开运行中的 Pod",
+    "Select a container to open a shell in it": "选择一个容器，在其中打开 Shell"
   },
   "login": {
     "Additional Information": "附加信息",
