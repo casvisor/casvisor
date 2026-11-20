@@ -43,7 +43,7 @@ type NetworkGateway struct {
 	Host     string `xorm:"varchar(200)" json:"host"`
 	Port     int    `json:"port"`
 	Username string `xorm:"varchar(100)" json:"username"`
-	Password string `xorm:"varchar(1000)" json:"password"`
+	Password string `xorm:"text" json:"password"`
 
 	PrivateKey  string `xorm:"mediumtext" json:"privateKey"`
 	Fingerprint string `xorm:"varchar(200)" json:"fingerprint"`

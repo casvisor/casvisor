@@ -40,7 +40,7 @@ type AssetAccount struct {
 	Username    string `xorm:"varchar(100)" json:"username"`
 	DisplayName string `xorm:"varchar(100)" json:"displayName"`
 	Description string `xorm:"varchar(500)" json:"description"`
-	Password    string `xorm:"varchar(1000)" json:"password"`
+	Password    string `xorm:"text" json:"password"`
 	PrivateKey  string `xorm:"mediumtext" json:"privateKey"`
 	IsEnabled   bool   `json:"isEnabled"`
 

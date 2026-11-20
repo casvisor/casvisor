@@ -204,6 +204,10 @@ func AddLocalUser(user *LocalUser) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	user.TotpSecret, err = encryptCredential(user.TotpSecret)
+	if err != nil {
+		return false, err
+	}
 
 	user.CreatedTime = util.GetCurrentTime()
 	user.UpdatedTime = user.CreatedTime
