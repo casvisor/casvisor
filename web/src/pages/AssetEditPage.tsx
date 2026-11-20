@@ -16,8 +16,10 @@ import * as React from "react";
 import i18next from "i18next";
 import {useNavigate, useParams} from "react-router-dom";
 import * as AssetBackend from "@/backend/AssetBackend";
+import * as AssetNodeBackend from "@/backend/AssetNodeBackend";
 import * as NetworkGatewayBackend from "@/backend/NetworkGatewayBackend";
-import type {Asset, NetworkGateway} from "@/backend/types";
+import type {Asset, AssetNode, NetworkGateway} from "@/backend/types";
+import {MultiSelect} from "@/components/common/MultiSelect";
 import {Input} from "@/components/ui/input";
 import {Textarea} from "@/components/ui/textarea";
 import {Loading} from "@/components/common/Loading";
@@ -29,6 +31,7 @@ import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
 import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, OperatingSystems, Protocols} from "@/lib/asset";
+import {getNodeOptions} from "@/lib/assetNode";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
 import NotFoundPage from "@/pages/NotFoundPage";
@@ -46,10 +49,16 @@ export default function AssetEditPage() {
   });
 
   const [gateways, setGateways] = React.useState<NetworkGateway[]>([]);
+  const [nodes, setNodes] = React.useState<AssetNode[]>([]);
   React.useEffect(() => {
     NetworkGatewayBackend.getNetworkGateways(owner).then((res) => {
       if (res.status === "ok") {
         setGateways(res.data ?? []);
+      }
+    });
+    AssetNodeBackend.getAssetNodes(owner).then((res) => {
+      if (res.status === "ok") {
+        setNodes(res.data ?? []);
       }
     });
   }, [owner]);
@@ -195,6 +204,9 @@ export default function AssetEditPage() {
           options={OperatingSystems.map((os) => ({id: os, name: os}))}
           onChange={(os) => updateField("os", os)}
         />
+      </FormRow>
+      <FormRow label={i18next.t("assetNode:Nodes")} tooltip={i18next.t("assetNode:Nodes - Tooltip")}>
+        <MultiSelect value={asset.nodes ?? []} options={getNodeOptions(nodes)} onChange={(value) => updateField("nodes", value)} />
       </FormRow>
       <FormRow labelKey="general:Tag">
         <Input value={asset.tag} onChange={(e) => updateField("tag", e.target.value)} />

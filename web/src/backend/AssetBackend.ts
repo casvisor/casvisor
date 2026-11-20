@@ -14,8 +14,18 @@
 
 import {get, listQuery, post, type ListParams} from "@/backend/request";
 
-export function getAssets(owner: string, params: ListParams = {}) {
-  return get("/api/get-assets", listQuery(owner, params));
+/** `node` keeps the assets in that node or below it, "@none" the assets in no node. */
+export function getAssets(owner: string, params: ListParams = {}, node = "") {
+  return get("/api/get-assets", {...listQuery(owner, params), node});
+}
+
+export function importAssets(owner: string, csv: string, update: boolean, dryRun: boolean) {
+  return post("/api/import-assets", {}, {owner, csv, update, dryRun});
+}
+
+/** "add" puts the assets in the nodes as well, "remove" takes them out, "set" leaves them in exactly the nodes. */
+export function moveAssets(owner: string, assets: string[], nodes: string[], mode: "add" | "remove" | "set") {
+  return post("/api/move-assets", {}, {owner, assets, nodes, mode});
 }
 
 export function getAsset(owner: string, name: string) {

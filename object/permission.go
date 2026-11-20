@@ -53,6 +53,7 @@ type Permission struct {
 	Groups    []string `xorm:"mediumtext" json:"groups"`
 	Assets    []string `xorm:"mediumtext" json:"assets"`
 	AssetTags []string `xorm:"mediumtext" json:"assetTags"`
+	Nodes     []string `xorm:"mediumtext" json:"nodes"`
 	Accounts  []string `xorm:"mediumtext" json:"accounts"`
 	Actions   []string `xorm:"varchar(500)" json:"actions"`
 	ClientIps []string `xorm:"mediumtext" json:"clientIps"`

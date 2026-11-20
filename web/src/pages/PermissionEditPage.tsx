@@ -18,8 +18,9 @@ import dayjs from "dayjs";
 import {useNavigate, useParams} from "react-router-dom";
 import * as AssetAccountBackend from "@/backend/AssetAccountBackend";
 import * as AssetBackend from "@/backend/AssetBackend";
+import * as AssetNodeBackend from "@/backend/AssetNodeBackend";
 import * as PermissionBackend from "@/backend/PermissionBackend";
-import type {Asset, AssetAccount, Permission, Principal} from "@/backend/types";
+import type {Asset, AssetAccount, AssetNode, Permission, Principal} from "@/backend/types";
 import {Input} from "@/components/ui/input";
 import {Switch} from "@/components/ui/switch";
 import {Loading} from "@/components/common/Loading";
@@ -30,6 +31,7 @@ import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
 import {PermissionActions} from "@/lib/asset";
+import {getNodeOptions} from "@/lib/assetNode";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import NotFoundPage from "@/pages/NotFoundPage";
 
@@ -69,6 +71,7 @@ export default function PermissionEditPage() {
   const [groups, setGroups] = React.useState<Principal[]>([]);
   const [assets, setAssets] = React.useState<Asset[]>([]);
   const [accountNames, setAccountNames] = React.useState<string[]>([]);
+  const [nodes, setNodes] = React.useState<AssetNode[]>([]);
 
   const {record: permission, updateField, loading, notFound, denied, mode} = useEditRecord<Permission>({
     fetch: () => PermissionBackend.getPermission(owner, name),
@@ -79,6 +82,7 @@ export default function PermissionEditPage() {
     PermissionBackend.getUsers().then((res) => res.status === "ok" && setUsers(res.data ?? []));
     PermissionBackend.getGroups().then((res) => res.status === "ok" && setGroups(res.data ?? []));
     AssetBackend.getAssets(owner).then((res) => res.status === "ok" && setAssets(res.data ?? []));
+    AssetNodeBackend.getAssetNodes(owner).then((res) => res.status === "ok" && setNodes(res.data ?? []));
     AssetAccountBackend.getAssetAccounts(owner, "").then((res) => {
       if (res.status === "ok") {
         setAccountNames([...new Set<string>((res.data ?? []).map((account: AssetAccount) => account.username))].sort());
@@ -169,6 +173,13 @@ export default function PermissionEditPage() {
           value={permission.assets ?? []}
           options={getPrincipalOptions(assets)}
           onChange={(value) => updateField("assets", value)}
+        />
+      </FormRow>
+      <FormRow label={i18next.t("assetNode:Nodes")} tooltip={i18next.t("permission:Nodes - Tooltip")}>
+        <MultiSelect
+          value={permission.nodes ?? []}
+          options={getNodeOptions(nodes)}
+          onChange={(value) => updateField("nodes", value)}
         />
       </FormRow>
       <FormRow labelKey="permission:Asset tags">

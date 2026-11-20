@@ -38,6 +38,7 @@ var userApis = map[string]bool{
 	"/api/disable-mfa":       true,
 	"/api/get-assets":        true,
 	"/api/get-asset":         true,
+	"/api/get-asset-nodes":   true,
 	"/api/add-asset-tunnel":  true,
 	"/api/get-asset-ssh":     true,
 	"/api/get-asset-vnc":     true,

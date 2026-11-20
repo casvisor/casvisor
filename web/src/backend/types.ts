@@ -30,8 +30,39 @@ export interface Asset {
   privateKey: string;
   fingerprint: string;
   networkGateway: string;
+  /** the names of the nodes of the asset tree the asset is in */
+  nodes?: string[] | null;
   /** the accounts the signed-in user may connect as, the asset's own account first */
   accounts?: AccountInfo[];
+}
+
+/** A folder of the asset tree. */
+export interface AssetNode {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  parent: string;
+  /** the assets in the node or below it */
+  assetCount: number;
+}
+
+export interface AssetImportResult {
+  row: number;
+  name: string;
+  action: "create" | "update" | "skip" | "error";
+  message: string;
+  changes: string[] | null;
+}
+
+export interface AssetImportSummary {
+  created: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  createdNodes: number;
 }
 
 export interface AccountInfo {
@@ -120,6 +151,7 @@ export interface Permission {
   groups: string[] | null;
   assets: string[] | null;
   assetTags: string[] | null;
+  nodes?: string[] | null;
   accounts: string[] | null;
   actions: string[] | null;
   clientIps: string[] | null;
