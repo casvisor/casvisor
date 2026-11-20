@@ -268,6 +268,12 @@ export default function DesktopView(props: ConnectionProps) {
   };
 
   const sendCombinationKey = (keys: number[]) => {
+    // Windows ignores an injected Ctrl+Alt+Del, the device's service sends it instead.
+    if (keys.join(",") === [0xffe3, 0xffe9, 0xffff].join(",")) {
+      sendRaw(encodeJson(DesktopMessage.Control, {type: "ctrl-alt-del"}));
+      canvasRef.current?.focus();
+      return;
+    }
     const mapped = keys.map(keysymToScancode).filter(Boolean) as {code: number; extended: boolean}[];
     for (const k of mapped) {
       sendRaw(encodeKey(scancodeOf(k), true));
