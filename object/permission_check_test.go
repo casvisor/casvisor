@@ -183,7 +183,7 @@ func newPermissionTestDB(t *testing.T) *xorm.Engine {
 			t.Errorf("close permission test database: %v", err)
 		}
 	})
-	if err := engine.Sync2(new(Permission), new(AssetAccount)); err != nil {
+	if err := engine.Sync2(new(Permission), new(AssetAccount), new(AssetNode)); err != nil {
 		t.Fatalf("create permission test tables: %v", err)
 	}
 	adapter = &Adapter{driverName: "sqlite", dataSourceName: ":memory:", engine: engine}
@@ -504,5 +504,51 @@ func TestFilterAllowedAssets(t *testing.T) {
 				t.Errorf("FilterAllowedAssets = %v, want %v", gotIDs, tt.wantIDs)
 			}
 		})
+	}
+}
+
+func TestAssetNodePermissions(t *testing.T) {
+	engine := newPermissionTestDB(t)
+	insertPermissionTestRows(t, engine,
+		&AssetNode{Owner: "org1", Name: "dc", DisplayName: "DC"},
+		&AssetNode{Owner: "org1", Name: "prod", DisplayName: "Prod", Parent: "dc"},
+		&AssetNode{Owner: "org1", Name: "web", DisplayName: "Web", Parent: "prod"},
+		&AssetNode{Owner: "org1", Name: "dev", DisplayName: "Dev", Parent: "dc"},
+		&Permission{Owner: "org1", Name: "prod", Users: []string{"alice"}, Nodes: []string{"prod"}, Actions: []string{ActionConnect}, IsEnabled: true},
+	)
+	alice := &casdoorsdk.User{Owner: "org1", Name: "alice"}
+	inWeb := &Asset{Owner: "org1", Name: "web-1", Username: "root", Nodes: []string{"web"}}
+	inProd := &Asset{Owner: "org1", Name: "db-1", Username: "root", Nodes: []string{"dev", "prod"}}
+	inDev := &Asset{Owner: "org1", Name: "dev-1", Username: "root", Nodes: []string{"dev"}}
+	inNone := &Asset{Owner: "org1", Name: "lone", Username: "root"}
+
+	allowed, err := FilterAllowedAssets(alice, []*Asset{inWeb, inProd, inDev, inNone}, "")
+	if err != nil {
+		t.Fatalf("FilterAllowedAssets: %v", err)
+	}
+	names := []string{}
+	for _, asset := range allowed {
+		names = append(names, asset.Name)
+	}
+	if !slices.Equal(names, []string{"web-1", "db-1"}) {
+		t.Errorf("FilterAllowedAssets = %v, want [web-1 db-1]", names)
+	}
+	checkAssetAccess(t, alice, inWeb, "", []string{ActionConnect}, []AccountInfo{{Username: "root", IsDefault: true}})
+	checkAssetAccess(t, alice, inDev, "", nil, nil)
+
+	nodes, err := GetAssetNodes("org1")
+	if err != nil {
+		t.Fatalf("GetAssetNodes: %v", err)
+	}
+	if got := GetAssetNodeDescendants(nodes, "prod"); !got["web"] || got["dev"] || got["dc"] {
+		t.Errorf("GetAssetNodeDescendants(prod) = %v", got)
+	}
+	if got := GetAssetNodePath(getAssetNodeMap(nodes), "web"); got != "DC/Prod/Web" {
+		t.Errorf("GetAssetNodePath(web) = %q, want DC/Prod/Web", got)
+	}
+
+	cycle := &AssetNode{Owner: "org1", Name: "dc", DisplayName: "DC", Parent: "web"}
+	if err := cycle.check(nodes, "dc"); err == nil {
+		t.Errorf("moving a node under its descendant should fail")
 	}
 }

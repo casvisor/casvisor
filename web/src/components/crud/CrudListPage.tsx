@@ -72,6 +72,10 @@ export interface CrudListPageProps<T extends Record<string, any>> {
    * list page per path.
    */
   tableId?: string;
+  /** a panel beside the table, such as the asset tree */
+  aside?: React.ReactNode;
+  /** more buttons for the selected rows of the page, next to Delete */
+  selectionActions?: (records: T[], ctx: {refresh: () => void; clearSelection: () => void}) => React.ReactNode;
 }
 
 export function CrudListPage<T extends Record<string, any>>({
@@ -98,6 +102,8 @@ export function CrudListPage<T extends Record<string, any>>({
   rowReadOnly,
   deleteDisabled,
   tableId,
+  aside,
+  selectionActions,
 }: CrudListPageProps<T>) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -221,12 +227,50 @@ export function CrudListPage<T extends Record<string, any>>({
 
   // a read-only viewer has nothing to do with a selection, and neither does a
   // list that cannot delete
-  const selectable = Boolean(remove) && !readOnly && showActionColumn;
+  const selectable = (Boolean(remove) || Boolean(selectionActions)) && !readOnly && showActionColumn;
+  const selectedRecords = (rows ?? []).filter((row, index) => selected.has(keyOf(row, index)));
 
   const visibility = useColumnVisibility(allColumns, tableId ?? location.pathname);
   const shownColumns = React.useMemo(
     () => allColumns.filter((column) => !visibility.hidden.has(columnKey(column))),
     [allColumns, visibility.hidden],
+  );
+
+  const table = (
+    <DataTable
+      columns={shownColumns}
+      rows={rows}
+      total={total}
+      loading={loading}
+      query={query}
+      onQueryChange={setQuery}
+      rowKey={rowKey}
+      rowClassName={rowClassName}
+      selection={
+        selectable
+          ? {
+            selected,
+            onChange: setSelected,
+            actions: (
+              <>
+                {selectionActions?.(selectedRecords, {refresh, clearSelection: () => setSelected(new Set())})}
+                {remove ? (
+                  <ConfirmButton
+                    variant="destructive"
+                    size="sm"
+                    loading={deletingMany}
+                    description={`${selected.size}`}
+                    onConfirm={deleteSelected}
+                  >
+                    {i18next.t("general:Delete")}
+                  </ConfirmButton>
+                ) : null}
+              </>
+            ),
+          }
+          : undefined
+      }
+    />
   );
 
   if (denied) {
@@ -254,35 +298,12 @@ export function CrudListPage<T extends Record<string, any>>({
           </>
         }
       />
-      <DataTable
-        columns={shownColumns}
-        rows={rows}
-        total={total}
-        loading={loading}
-        query={query}
-        onQueryChange={setQuery}
-        rowKey={rowKey}
-        rowClassName={rowClassName}
-        selection={
-          selectable
-            ? {
-              selected,
-              onChange: setSelected,
-              actions: (
-                <ConfirmButton
-                  variant="destructive"
-                  size="sm"
-                  loading={deletingMany}
-                  description={`${selected.size}`}
-                  onConfirm={deleteSelected}
-                >
-                  {i18next.t("general:Delete")}
-                </ConfirmButton>
-              ),
-            }
-            : undefined
-        }
-      />
+      {aside ? (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          {aside}
+          <div className="min-w-0 flex-1">{table}</div>
+        </div>
+      ) : table}
     </div>
   );
 }

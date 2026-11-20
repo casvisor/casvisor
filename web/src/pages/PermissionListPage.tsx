@@ -15,17 +15,27 @@
 import * as React from "react";
 import i18next from "i18next";
 import dayjs from "dayjs";
+import * as AssetNodeBackend from "@/backend/AssetNodeBackend";
 import * as PermissionBackend from "@/backend/PermissionBackend";
-import type {Permission} from "@/backend/types";
+import type {AssetNode, Permission} from "@/backend/types";
+import {Badge} from "@/components/ui/badge";
 import {CrudListPage} from "@/components/crud/CrudListPage";
 import {boolColumn, linkColumn, tagsColumn, textColumn} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
+import {getNodePath} from "@/lib/assetNode";
 import * as Setting from "@/lib/setting";
 
 export default function PermissionListPage() {
   const {account} = useAccount();
   const owner = Setting.getRequestOrganization(account);
+  const [nodes, setNodes] = React.useState<AssetNode[]>([]);
+
+  React.useEffect(() => {
+    if (owner) {
+      AssetNodeBackend.getAssetNodes(owner).then((res) => res.status === "ok" && setNodes(res.data ?? []));
+    }
+  }, [owner]);
 
   const fetchPermissions = React.useCallback(
     (query: TableQuery) =>
@@ -51,6 +61,7 @@ export default function PermissionListPage() {
     groups: [],
     assets: [],
     assetTags: [],
+    nodes: [],
     accounts: ["@default"],
     actions: ["Connect", "Copy", "Paste"],
     clientIps: [],
@@ -65,6 +76,15 @@ export default function PermissionListPage() {
     tagsColumn<Permission>({dataIndex: "users", title: i18next.t("permission:Users")}),
     tagsColumn<Permission>({dataIndex: "groups", title: i18next.t("permission:Groups")}),
     tagsColumn<Permission>({dataIndex: "assets", title: i18next.t("general:Assets")}),
+    {
+      dataIndex: "nodes",
+      title: i18next.t("assetNode:Nodes"),
+      render: (value: string[] | null) => (value && value.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {value.map((name) => <Badge key={name} variant="secondary" className="font-normal">{getNodePath(nodes, name)}</Badge>)}
+        </div>
+      ) : null),
+    },
     tagsColumn<Permission>({dataIndex: "assetTags", title: i18next.t("permission:Asset tags")}),
     tagsColumn<Permission>({dataIndex: "accounts", title: i18next.t("permission:Accounts")}),
     tagsColumn<Permission>({dataIndex: "actions", title: i18next.t("permission:Actions")}),

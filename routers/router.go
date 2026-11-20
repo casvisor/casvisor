@@ -56,6 +56,15 @@ func initAPI() {
 	beego.Router("/api/update-asset", &controllers.ApiController{}, "POST:UpdateAsset")
 	beego.Router("/api/add-asset", &controllers.ApiController{}, "POST:AddAsset")
 	beego.Router("/api/delete-asset", &controllers.ApiController{}, "POST:DeleteAsset")
+	beego.Router("/api/import-assets", &controllers.ApiController{}, "POST:ImportAssets")
+	beego.Router("/api/export-assets", &controllers.ApiController{}, "GET:ExportAssets")
+	beego.Router("/api/move-assets", &controllers.ApiController{}, "POST:MoveAssets")
+
+	beego.Router("/api/get-asset-nodes", &controllers.ApiController{}, "GET:GetAssetNodes")
+	beego.Router("/api/get-asset-node", &controllers.ApiController{}, "GET:GetAssetNode")
+	beego.Router("/api/add-asset-node", &controllers.ApiController{}, "POST:AddAssetNode")
+	beego.Router("/api/update-asset-node", &controllers.ApiController{}, "POST:UpdateAssetNode")
+	beego.Router("/api/delete-asset-node", &controllers.ApiController{}, "POST:DeleteAssetNode")
 
 	beego.Router("/api/get-asset-accounts", &controllers.ApiController{}, "GET:GetAssetAccounts")
 	beego.Router("/api/get-asset-account", &controllers.ApiController{}, "GET:GetAssetAccount")

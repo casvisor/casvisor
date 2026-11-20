@@ -46,6 +46,8 @@ type Asset struct {
 	Fingerprint    string `xorm:"varchar(200)" json:"fingerprint"`
 	NetworkGateway string `xorm:"varchar(100)" json:"networkGateway"`
 
+	Nodes []string `xorm:"mediumtext" json:"nodes"`
+
 	Accounts []*AccountInfo `xorm:"-" json:"accounts,omitempty"`
 }
 
@@ -73,6 +75,18 @@ func GetPaginationAssets(owner string, offset, limit int, field, value, sortFiel
 	}
 
 	return assets, nil
+}
+
+// GetFilteredAssets returns the assets that match the search of the asset list and are in the node or below it.
+func GetFilteredAssets(owner, node, field, value, sortField, sortOrder string) ([]*Asset, error) {
+	assets := []*Asset{}
+	session := GetSession(owner, -1, -1, field, value, sortField, sortOrder)
+	err := session.Find(&assets)
+	if err != nil {
+		return assets, err
+	}
+
+	return FilterAssetsByNode(owner, assets, node)
 }
 
 func getAsset(owner string, name string) (*Asset, error) {
@@ -157,6 +171,11 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		return false, err
 	}
 
+	asset.Nodes, err = checkAssetNodes(asset.Owner, asset.Nodes)
+	if err != nil {
+		return false, err
+	}
+
 	err = asset.encryptCredentials()
 	if err != nil {
 		return false, err
@@ -179,6 +198,11 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 
 func AddAsset(asset *Asset) (bool, error) {
 	err := asset.checkNetworkGateway()
+	if err != nil {
+		return false, err
+	}
+
+	asset.Nodes, err = checkAssetNodes(asset.Owner, asset.Nodes)
 	if err != nil {
 		return false, err
 	}

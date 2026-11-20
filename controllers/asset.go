@@ -39,9 +39,20 @@ func (c *ApiController) GetAssets() {
 	value := c.Input().Get("value")
 	sortField := c.Input().Get("sortField")
 	sortOrder := c.Input().Get("sortOrder")
+	node := c.Input().Get("node")
 
 	if !c.isAdmin() {
-		c.getAllowedAssets(limit, page)
+		c.getAllowedAssets(limit, page, node)
+		return
+	}
+
+	if node != "" {
+		assets, err := object.GetMaskedAssets(object.GetFilteredAssets(owner, node, field, value, sortField, sortOrder))
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		c.responseAssetPage(assets, limit, page)
 		return
 	}
 
@@ -79,7 +90,7 @@ func (c *ApiController) GetAssets() {
 	}
 }
 
-func (c *ApiController) getAllowedAssets(limit string, page string) {
+func (c *ApiController) getAllowedAssets(limit string, page string, node string) {
 	user := c.GetSessionUser()
 	assets, err := object.GetAssets(user.Owner)
 	if err != nil {
@@ -93,6 +104,16 @@ func (c *ApiController) getAllowedAssets(limit string, page string) {
 		return
 	}
 
+	assets, err = object.FilterAssetsByNode(user.Owner, assets, node)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.responseAssetPage(assets, limit, page)
+}
+
+func (c *ApiController) responseAssetPage(assets []*object.Asset, limit string, page string) {
 	if limit == "" || page == "" {
 		if !c.fillAssetAccounts(assets) {
 			return

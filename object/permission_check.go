@@ -131,6 +131,9 @@ func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enfo
 		for _, tag := range permission.AssetTags {
 			objects = append(objects, "tag:"+tag)
 		}
+		for _, node := range permission.Nodes {
+			objects = append(objects, "node:"+node)
+		}
 
 		clientIps := permission.ClientIps
 		if len(clientIps) == 0 {
@@ -176,11 +179,24 @@ func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enfo
 		return nil, err
 	}
 
+	nodes, err := GetAssetNodes(user.Owner)
+	if err != nil {
+		return nil, err
+	}
+
 	assetGroupings := map[[2]string]bool{}
 	for _, asset := range assets {
 		assetGroupings[[2]string{"asset:" + asset.Name, "asset:*"}] = true
 		if asset.Tag != "" {
 			assetGroupings[[2]string{"asset:" + asset.Name, "tag:" + asset.Tag}] = true
+		}
+		for _, node := range asset.Nodes {
+			assetGroupings[[2]string{"asset:" + asset.Name, "node:" + node}] = true
+		}
+	}
+	for _, node := range nodes {
+		if node.Parent != "" && node.Parent != node.Name {
+			assetGroupings[[2]string{"node:" + node.Name, "node:" + node.Parent}] = true
 		}
 	}
 	rules = [][]string{}
