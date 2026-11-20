@@ -55,7 +55,7 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
     status.loading(i18next.t("asset:Connecting..."));
     setSession(null);
 
-    SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
+    SessionBackend.addAssetTunnel(assetId, props.account, username, password).then((res) => {
       if (terminalRef.current !== terminal) {
         return;
       }
@@ -73,10 +73,6 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
         cols: terminal.cols,
         rows: terminal.rows,
       };
-      if (username || password) {
-        params.username = username;
-        params.password = password;
-      }
 
       let errorMessage = "";
       let connected = false;

@@ -52,7 +52,7 @@ export default function VncView(props: ConnectionProps) {
   const connect = () => {
     status.loading(i18next.t("asset:Connecting..."));
 
-    SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
+    SessionBackend.addAssetTunnel(assetId, props.account, username, password).then((res) => {
       if (!activeRef.current) {
         return;
       }
@@ -66,10 +66,6 @@ export default function VncView(props: ConnectionProps) {
       operationsRef.current = session.operations ?? [];
 
       const params: Record<string, any> = {sessionId: `${session.owner}/${session.name}`};
-      if (username || password) {
-        params.username = username;
-        params.password = password;
-      }
 
       const screen = screenRef.current!;
       while (screen.firstChild) {

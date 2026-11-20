@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import * as React from "react";
 import {useParams, useSearchParams} from "react-router-dom";
 import {AssetConnection} from "@/components/access/AssetConnection";
 import {takeCredentials} from "@/components/access/ConnectButton";
@@ -22,10 +23,19 @@ export default function AccessPage() {
   const [searchParams] = useSearchParams();
   const assetId = `${owner}/${name}`;
 
-  // the Connect dialog hands over what was typed; ?username=&password= is the antd frontend's link
+  // a password in an old link is dropped from the address bar and not used, so that it goes no further
+  React.useEffect(() => {
+    if (searchParams.has("password")) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("password");
+      window.history.replaceState(window.history.state, "", url.toString());
+    }
+  }, [searchParams]);
+
+  // the Connect dialog hands over what was typed; ?username= is the antd frontend's link
   const credentials = takeCredentials(assetId);
   const username = credentials.username || searchParams.get("username") || "";
-  const password = credentials.password || searchParams.get("password") || "";
+  const password = credentials.password;
 
   return (
     <div className="h-screen w-screen overflow-hidden">

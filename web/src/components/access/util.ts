@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {saveCredentials} from "@/components/access/ConnectButton";
+import {keepCredentialsInTab} from "@/components/access/ConnectButton";
 
 export function debounce<T extends (...args: any[]) => void>(fn: T, delay = 500) {
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -94,7 +94,7 @@ export async function reloadIfUpdated(props: ConnectionProps): Promise<boolean> 
     return false;
   }
   if (props.username || props.password) {
-    saveCredentials(props.assetId, props.username ?? "", props.password ?? "");
+    keepCredentialsInTab(props.assetId, props.username ?? "", props.password ?? "");
   }
   window.location.reload();
   return true;

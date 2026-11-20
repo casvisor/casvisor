@@ -157,7 +157,7 @@ export default function DatabaseView(props: ConnectionProps) {
     setTables({});
     setColumns({});
 
-    SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
+    SessionBackend.addAssetTunnel(assetId, props.account, username, password).then((res) => {
       if (res.status !== "ok") {
         status.dismiss();
         Setting.showMessage("error", `${i18next.t("asset:Failed to connect")}: ${res.msg}`);
@@ -167,10 +167,6 @@ export default function DatabaseView(props: ConnectionProps) {
       const session = res.data;
       const id = `${session.owner}/${session.name}`;
       const params: Record<string, any> = {sessionId: id};
-      if (username || password) {
-        params.username = username;
-        params.password = password;
-      }
 
       let errorMessage = "";
       let isConnected = false;
