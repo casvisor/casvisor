@@ -11,6 +11,7 @@ require (
 	github.com/casdoor/xorm-adapter/v3 v3.1.0
 	github.com/casvisor/gordp v1.7.0
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02
@@ -33,7 +34,6 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/indece-official/go-ebcdic v1.2.0 // indirect

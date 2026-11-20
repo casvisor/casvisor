@@ -14,62 +14,22 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {ChevronDown, Lock, User} from "lucide-react";
+import {ChevronDown, User} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
-import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/components/ui/dialog";
-import {Input} from "@/components/ui/input";
-import {PasswordInput} from "@/components/common/PasswordInput";
+import {ConnectCredentialsDialog} from "@/components/access/ConnectCredentialsDialog";
+import * as SessionBackend from "@/backend/SessionBackend";
 import type {Asset} from "@/backend/types";
 import {getAssetCredentialRequirements} from "@/lib/asset";
 
-const credentialsKeyPrefix = "casvisorConnect:";
-const credentialsTtlMs = 60 * 1000;
-const takenCredentials = new Map<string, {username: string; password: string}>();
-
-/**
- * Hands the credentials typed here to the access page in the new tab. They go
- * through localStorage for a minute rather than the URL, so a password never
- * lands in the browser history or a server log.
- */
-export function saveCredentials(assetId: string, username: string, password: string) {
-  try {
-    localStorage.setItem(credentialsKeyPrefix + assetId, JSON.stringify({username, password, time: Date.now()}));
-  } catch {
-    // a blocked store leaves the asset's own credentials to the backend
-  }
-}
-
-/** Reads the credentials once; StrictMode renders twice, so the first read is cached. */
-export function takeCredentials(assetId: string): {username: string; password: string} {
-  const cached = takenCredentials.get(assetId);
-  if (cached) {
-    return cached;
-  }
-
-  let result = {username: "", password: ""};
-  try {
-    const raw = localStorage.getItem(credentialsKeyPrefix + assetId);
-    localStorage.removeItem(credentialsKeyPrefix + assetId);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (Date.now() - saved.time < credentialsTtlMs) {
-        result = {username: saved.username ?? "", password: saved.password ?? ""};
-      }
-    }
-  } catch {
-    // fall back to the asset's own credentials
-  }
-  takenCredentials.set(assetId, result);
-  return result;
-}
-
-function openAccessPage(asset: Asset, username: string, password: string, account = "") {
-  if (username !== "" || password !== "") {
-    saveCredentials(`${asset.owner}/${asset.name}`, username, password);
-  }
+function buildAccessUrl(asset: Asset, account = "", ticket = "") {
   const query = account ? `?account=${encodeURIComponent(account)}` : "";
-  window.open(`/access/${asset.owner}/${asset.name}${query}`, "_blank");
+  const hash = ticket ? `#ticket=${encodeURIComponent(ticket)}` : "";
+  return `/access/${encodeURIComponent(asset.owner)}/${encodeURIComponent(asset.name)}${query}${hash}`;
+}
+
+function openAccessPage(asset: Asset, account = "") {
+  window.open(buildAccessUrl(asset, account), "_blank", "noopener");
 }
 
 /**
@@ -79,33 +39,55 @@ function openAccessPage(asset: Asset, username: string, password: string, accoun
  */
 export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boolean}) {
   const [open, setOpen] = React.useState(false);
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
   const {needsUsername, needsPassword} = getAssetCredentialRequirements(asset);
   const hasCredentials = !needsUsername && !needsPassword;
-  const canSubmit = (!needsUsername || username !== "") && (!needsPassword || password !== "");
   const accounts = asset.accounts ?? [];
 
   const start = () => {
     if (accounts.length === 1 && !accounts[0].isDefault) {
-      openAccessPage(asset, "", "", accounts[0].username);
+      openAccessPage(asset, accounts[0].username);
       return;
     }
     if (hasCredentials) {
-      openAccessPage(asset, "", "");
+      openAccessPage(asset);
       return;
     }
-    setUsername(asset.username || "");
-    setPassword("");
     setOpen(true);
   };
 
-  const submit = () => {
-    if (!canSubmit) {
-      return;
+  const submit = async (username: string, password: string) => {
+    let popup: Window | null = null;
+    let ticket: string;
+    try {
+      // the tab is opened before the request, while the click still allows a popup
+      popup = window.open("", "_blank");
+      if (popup) {
+        popup.opener = null;
+      }
+      const res = await SessionBackend.createConnectTicket(`${asset.owner}/${asset.name}`, username, password);
+      const issuedTicket = res?.data?.ticket;
+      if (res?.status !== "ok" || typeof issuedTicket !== "string" || !issuedTicket) {
+        throw new Error(res?.msg || i18next.t("asset:Failed to connect"));
+      }
+      ticket = issuedTicket;
+    } catch (err) {
+      if (popup && !popup.closed) {
+        popup.close();
+      }
+      throw err;
     }
-    setOpen(false);
-    openAccessPage(asset, needsUsername ? username : "", needsPassword ? password : "");
+
+    const url = buildAccessUrl(asset, "", ticket);
+    if (popup && !popup.closed) {
+      try {
+        popup.location.replace(new URL(url, window.location.origin).href);
+        return true;
+      } catch {
+        // The tab may have closed during navigation.
+      }
+    }
+    window.location.assign(url);
+    return true;
   };
 
   const trigger = accounts.length > 1 ? (
@@ -121,7 +103,7 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
         {accounts.map((account) => (
           <DropdownMenuItem
             key={`${account.isDefault}:${account.username}`}
-            onSelect={() => (account.isDefault ? start() : openAccessPage(asset, "", "", account.username))}
+            onSelect={() => (account.isDefault ? start() : openAccessPage(asset, account.username))}
           >
             <User />
             <span className="font-mono">
@@ -141,55 +123,7 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
   return (
     <>
       {trigger}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{i18next.t("general:Connect")}: {asset.displayName || asset.name}</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              submit();
-            }}
-          >
-            {asset.protocol !== "VNC" && (
-              <div className="relative">
-                <User className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="pl-8"
-                  placeholder={i18next.t("general:Username")}
-                  value={username}
-                  disabled={!needsUsername}
-                  required={needsUsername}
-                  autoFocus={needsUsername}
-                  autoComplete="username"
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </div>
-            )}
-            {needsPassword && (
-              <div className="relative">
-                <Lock className="absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <PasswordInput
-                  className="[&_input]:pl-8"
-                  placeholder={i18next.t("general:Password")}
-                  value={password}
-                  required
-                  autoFocus={!needsUsername}
-                  autoComplete="current-password"
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-            )}
-            <DialogFooter>
-              <Button type="submit" className="w-full" disabled={!canSubmit}>
-                {i18next.t("general:Connect")}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ConnectCredentialsDialog asset={asset} open={open} onOpenChange={setOpen} onSubmit={submit} />
     </>
   );
 }

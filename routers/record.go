@@ -16,11 +16,30 @@ package routers
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/beego/beego/context"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/util"
 )
+
+// Keep credentials out of audit and access log URIs without changing the query read by handlers.
+func redactConnectQuery(ctx *context.Context) {
+	if ctx == nil || ctx.Request == nil || ctx.Request.URL == nil {
+		return
+	}
+	r := ctx.Request
+	query, err := url.ParseQuery(r.URL.RawQuery)
+	if err == nil && !query.Has("ticket") && !query.Has("password") {
+		return
+	}
+	query.Del("ticket")
+	query.Del("password")
+	auditURL := *r.URL
+	auditURL.RawQuery = query.Encode()
+	auditURL.ForceQuery = false
+	r.RequestURI = auditURL.RequestURI()
+}
 
 func RecordMessage(ctx *context.Context) {
 	if ctx.Request.URL.Path == "/api/login" || ctx.Request.URL.Path == "/api/signup" || ctx.Request.URL.Path == "/api/get-assets" {

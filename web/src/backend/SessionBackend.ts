@@ -34,6 +34,10 @@ export function deleteSession(session: any) {
   return post("/api/delete-session", {}, session);
 }
 
+export function createConnectTicket(assetId: string, username: string, password: string): Promise<{status: string; msg: string; data?: {ticket?: string}}> {
+  return post("/api/create-connect-ticket", {}, {assetId, username, password});
+}
+
 /** Creates the session a connection runs in. */
 export function addAssetTunnel(assetId: string, account = "") {
   return post("/api/add-asset-tunnel", account ? {assetId, account} : {assetId});

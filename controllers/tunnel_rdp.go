@@ -73,7 +73,7 @@ func (c *ApiController) GetAssetRdp() {
 	// so the remote desktop is drawn 1:1 on high-DPI screens.
 	scale, _ := strconv.Atoi(c.Input().Get("scale"))
 
-	session, asset, code, err := c.getTunnelSessionAndAsset(sessionId, c.Input().Get("username"), c.Input().Get("password"))
+	session, asset, code, err := c.getTunnelSessionAndAsset(sessionId, c.Input().Get("ticket"), c.Input().Get("username"))
 	if err != nil {
 		fail(code, err)
 		return

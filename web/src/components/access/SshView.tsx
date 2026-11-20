@@ -21,20 +21,22 @@ import "@xterm/xterm/css/xterm.css";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
 import {FilePanel} from "@/components/access/FilePanel";
-import {closeView, debounce, holdPageLock, reloadIfUpdated, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
+import {closeView, debounce, holdPageLock, reloadIfUpdated, takeTunnelCredentials, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
 /** An SSH or Telnet shell in xterm.js, talking to the backend's native tunnel. */
 export default function SshView(props: ConnectionProps & {protocol: string}) {
-  const {assetId, inTab, addClient, username, password, protocol} = props;
+  const {assetId, inTab, addClient, username, ticket, protocol} = props;
   const assetName = Setting.getShortName(assetId);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const terminalRef = React.useRef<Terminal | null>(null);
   const fitAddonRef = React.useRef<FitAddon | null>(null);
   const wsRef = React.useRef<WebSocket | null>(null);
+  const connectIdRef = React.useRef(0);
+  const initialTicketRef = React.useRef(ticket ?? "");
   const [failure, setFailure] = React.useState<string | null>(null);
   const [session, setSession] = React.useState<{id: string; operations: string[]} | null>(null);
   const [showFiles, setShowFiles] = React.useState(false);
@@ -47,7 +49,8 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
     }
   };
 
-  const connect = () => {
+  const connect = (overrideTicket?: string) => {
+    const connectId = ++connectIdRef.current;
     const terminal = terminalRef.current;
     if (!terminal) {
       return;
@@ -55,13 +58,21 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
     status.loading(i18next.t("asset:Connecting..."));
     setSession(null);
 
+    const failToConnect = (message: string) => {
+      status.dismiss();
+      if (props.requestConnectTicket) {
+        setFailure(message);
+      } else {
+        Setting.showMessage("error", message);
+      }
+    };
+
     SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
-      if (terminalRef.current !== terminal) {
+      if (connectIdRef.current !== connectId) {
         return;
       }
       if (res.status !== "ok") {
-        status.dismiss();
-        Setting.showMessage("error", `${i18next.t("asset:Failed to connect")}: ${res.msg}`);
+        failToConnect(`${i18next.t("asset:Failed to connect")}: ${res.msg}`);
         return;
       }
 
@@ -72,11 +83,8 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
         sessionId: `${session.owner}/${session.name}`,
         cols: terminal.cols,
         rows: terminal.rows,
+        ...takeTunnelCredentials(assetId, initialTicketRef, overrideTicket, username),
       };
-      if (username || password) {
-        params.username = username;
-        params.password = password;
-      }
 
       let errorMessage = "";
       let connected = false;
@@ -112,11 +120,17 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
           setFailure(errorMessage);
         } else if (!connected) {
           setFailure(NotReachable);
+        } else if (props.requestConnectTicket) {
+          setFailure(i18next.t("asset:Connection closed"));
         } else {
           terminal.write("\r\n\x1b[33mConnection closed\x1b[0m\r\n");
           status.error(i18next.t("asset:Connection closed"));
         }
       };
+    }).catch(() => {
+      if (connectIdRef.current === connectId) {
+        failToConnect(i18next.t("asset:Failed to connect"));
+      }
     });
   };
 
@@ -151,6 +165,7 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
     connect();
 
     return () => {
+      connectIdRef.current++;
       resizeObserver.disconnect();
       releaseLock();
       const ws = wsRef.current;
@@ -163,9 +178,27 @@ export default function SshView(props: ConnectionProps & {protocol: string}) {
   }, [assetId]);
 
   const reconnect = () => {
+    const previousFailure = failure;
+    const connectId = connectIdRef.current;
     setFailure(null);
+    if (props.requestConnectTicket) {
+      // the ticket was spent, so the credentials are asked for again
+      initialTicketRef.current = "";
+      props.requestConnectTicket().then((freshTicket) => {
+        if (connectIdRef.current !== connectId) {
+          return;
+        }
+        if (freshTicket) {
+          terminalRef.current?.reset();
+          connect(freshTicket);
+        } else {
+          setFailure(previousFailure);
+        }
+      });
+      return;
+    }
     reloadIfUpdated(props).then((reloaded) => {
-      if (!reloaded) {
+      if (!reloaded && connectIdRef.current === connectId) {
         terminalRef.current?.reset();
         connect();
       }

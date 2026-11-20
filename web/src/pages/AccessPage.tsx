@@ -14,7 +14,7 @@
 
 import {useParams, useSearchParams} from "react-router-dom";
 import {AssetConnection} from "@/components/access/AssetConnection";
-import {takeCredentials} from "@/components/access/ConnectButton";
+import {takeConnectTicket, takeLegacyPasswordRemoved} from "@/components/access/util";
 
 /** One asset in a window of its own, opened by the Connect button of the asset list. */
 export default function AccessPage() {
@@ -22,14 +22,19 @@ export default function AccessPage() {
   const [searchParams] = useSearchParams();
   const assetId = `${owner}/${name}`;
 
-  // the Connect dialog hands over what was typed; ?username=&password= is the antd frontend's link
-  const credentials = takeCredentials(assetId);
-  const username = credentials.username || searchParams.get("username") || "";
-  const password = credentials.password || searchParams.get("password") || "";
+  const legacyPasswordRemoved = takeLegacyPasswordRemoved(assetId);
+  const ticket = takeConnectTicket(assetId);
 
   return (
     <div className="h-screen w-screen overflow-hidden">
-      <AssetConnection assetId={assetId} account={searchParams.get("account") ?? ""} username={username} password={password} />
+      <AssetConnection
+        key={assetId}
+        assetId={assetId}
+        account={searchParams.get("account") ?? ""}
+        username={searchParams.get("username") ?? ""}
+        ticket={ticket}
+        legacyPasswordRemoved={legacyPasswordRemoved}
+      />
     </div>
   );
 }

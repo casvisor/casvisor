@@ -445,6 +445,34 @@
                 }
             }
         },
+        "/create-connect-ticket": {
+            "post": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "exchange manually entered asset credentials for a short-lived one-time connect ticket",
+                "operationId": "ApiController.CreateConnectTicket",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The asset and manual credentials",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.connectTicketRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/create-session-dir": {
             "post": {
                 "tags": [
@@ -1181,8 +1209,8 @@
                     },
                     {
                         "in": "query",
-                        "name": "password",
-                        "description": "The password, when the asset keeps none",
+                        "name": "ticket",
+                        "description": "A one-time connect ticket for manually entered credentials",
                         "type": "string"
                     }
                 ]
@@ -2716,6 +2744,27 @@
                     "type": "string"
                 },
                 "port": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.connectTicketRequest": {
+            "title": "connectTicketRequest",
+            "type": "object",
+            "properties": {
+                "assetId": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

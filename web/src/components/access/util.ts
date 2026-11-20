@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {saveCredentials} from "@/components/access/ConnectButton";
-
 export function debounce<T extends (...args: any[]) => void>(fn: T, delay = 500) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   return (...args: Parameters<T>) => {
@@ -41,13 +39,107 @@ export interface ConnectionProps {
   /** set inside the workbench, where the view shares the window with the tab bar */
   inTab?: boolean;
   username?: string;
-  password?: string;
+  /** a one-time ticket for credentials typed in the Connect dialog */
+  ticket?: string;
+  /** asks for the credentials again, as a ticket only works once; null when cancelled */
+  requestConnectTicket?: () => Promise<string | null>;
+  /** set when a password was removed from the address bar of an old link */
+  legacyPasswordRemoved?: boolean;
   /** the account of the asset to connect as, the asset's own account when empty */
   account?: string;
   /** lets the workbench close the connection when its tab is closed */
   addClient?: (client: {disconnect: () => void}) => void;
   /** closes the workbench tab, or the window when the view has it to itself */
   onClose?: () => void;
+}
+
+const legacyPasswordRemovedPrefix = "casvisorLegacyPasswordRemoved:";
+let takenLegacyPassword: {assetId: string; removed: boolean} | undefined;
+
+/** Removes legacy passwords from the URL without using or retaining their values. */
+export function scrubLegacyAccessPassword(pathname: string, search: string): string {
+  const params = new URLSearchParams(search);
+  if (!params.has("password")) {
+    return pathname + search;
+  }
+
+  params.delete("password");
+  const rest = params.toString();
+  const cleanedSearch = rest ? `?${rest}` : "";
+  window.history.replaceState(window.history.state, "", `${pathname}${cleanedSearch}${window.location.hash}`);
+  const match = /^\/access\/([^/]+)\/([^/]+)\/?$/.exec(pathname);
+  if (match) {
+    try {
+      const assetId = `${decodeURIComponent(match[1])}/${decodeURIComponent(match[2])}`;
+      sessionStorage.setItem(legacyPasswordRemovedPrefix + assetId, "1");
+    } catch {
+      // The URL is already clean even if the notice cannot be stored.
+    }
+  }
+  return pathname + cleanedSearch;
+}
+
+/** Takes the notice from this visit or from before sign-in. */
+export function takeLegacyPasswordRemoved(assetId: string): boolean {
+  const {pathname, search} = window.location;
+  let removed = scrubLegacyAccessPassword(pathname, search) !== pathname + search;
+  try {
+    const key = legacyPasswordRemovedPrefix + assetId;
+    if (sessionStorage.getItem(key) === "1") {
+      removed = true;
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Still report a password removed from the current URL.
+  }
+  if (removed) {
+    takenLegacyPassword = {assetId, removed: true};
+  } else if (takenLegacyPassword?.assetId !== assetId) {
+    takenLegacyPassword = undefined;
+  }
+  return takenLegacyPassword?.removed ?? false;
+}
+
+let takenConnectTicket: {assetId: string; ticket: string} | undefined;
+
+export function clearConnectTicket(assetId: string) {
+  if (takenConnectTicket?.assetId === assetId) {
+    takenConnectTicket = undefined;
+  }
+}
+
+/** Removes the ticket from the address bar and keeps it for repeated renders of this asset. */
+export function takeConnectTicket(assetId: string): string {
+  const {pathname, search, hash} = window.location;
+  const params = new URLSearchParams(hash.slice(1));
+  if (params.has("ticket")) {
+    const ticket = params.get("ticket") ?? "";
+    params.delete("ticket");
+    const rest = params.toString();
+    const nextUrl = `${pathname}${search}${rest ? `#${rest}` : ""}`;
+    window.history.replaceState(window.history.state, "", nextUrl);
+    takenConnectTicket = ticket ? {assetId, ticket} : undefined;
+    return ticket;
+  }
+
+  if (takenConnectTicket?.assetId !== assetId) {
+    takenConnectTicket = undefined;
+  }
+  return takenConnectTicket?.ticket ?? "";
+}
+
+/** The query a tunnel signs in with: a ticket, else the username of a direct link. The ticket
+ *  the page was opened with is spent by the first connection, so it is dropped here. */
+export function takeTunnelCredentials(assetId: string, initialTicket: {current: string}, ticket?: string, username?: string): Record<string, string> {
+  const wsTicket = ticket ?? initialTicket.current;
+  if (initialTicket.current) {
+    initialTicket.current = "";
+    clearConnectTicket(assetId);
+  }
+  if (wsTicket) {
+    return {ticket: wsTicket};
+  }
+  return username ? {username} : {};
 }
 
 /** Holds a Web Lock until the returned function is called. Chrome freezes a
@@ -73,9 +165,8 @@ const entryScript = /\/static\/index-[\w-]+\.js/;
 
 /** Reloads a connection page when the server has a newer frontend than the
  *  one it runs, which happens when the server is upgraded while the page stays
- *  open, and resolves whether it did. The credentials typed for the connection
- *  are handed to the reloaded page. The workbench is left alone, as reloading
- *  it would close its other tabs. */
+ *  open, and resolves whether it did. The workbench is left alone, as
+ *  reloading it would close its other tabs. */
 export async function reloadIfUpdated(props: ConnectionProps): Promise<boolean> {
   if (props.inTab) {
     return false;
@@ -92,9 +183,6 @@ export async function reloadIfUpdated(props: ConnectionProps): Promise<boolean> 
     }
   } catch {
     return false;
-  }
-  if (props.username || props.password) {
-    saveCredentials(props.assetId, props.username ?? "", props.password ?? "");
   }
   window.location.reload();
   return true;

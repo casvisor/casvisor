@@ -18,20 +18,21 @@ import qs from "qs";
 import RFB from "@novnc/novnc/core/rfb.js";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ClipboardDialog, ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
-import {closeView, holdPageLock, reloadIfUpdated, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
+import {closeView, holdPageLock, reloadIfUpdated, takeTunnelCredentials, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 
 const NotReachable = "Remote service exception, please check if the target device can be accessed normally.";
 
 /** A VNC screen in noVNC, talking to the backend's native VNC tunnel. */
 export default function VncView(props: ConnectionProps) {
-  const {assetId, inTab, addClient, username, password} = props;
+  const {assetId, inTab, addClient, username, ticket} = props;
   const assetName = Setting.getShortName(assetId);
 
   const screenRef = React.useRef<HTMLDivElement>(null);
   const rfbRef = React.useRef<any>(null);
   const operationsRef = React.useRef<string[]>([]);
-  const activeRef = React.useRef(false);
+  const connectIdRef = React.useRef(0);
+  const initialTicketRef = React.useRef(ticket ?? "");
   const [clipboardText, setClipboardText] = React.useState("");
   const [clipboardOpen, setClipboardOpen] = React.useState(false);
   const [failure, setFailure] = React.useState<string | null>(null);
@@ -49,27 +50,35 @@ export default function VncView(props: ConnectionProps) {
 
   const focus = () => rfbRef.current?.focus();
 
-  const connect = () => {
+  const connect = (overrideTicket?: string) => {
+    const connectId = ++connectIdRef.current;
     status.loading(i18next.t("asset:Connecting..."));
 
+    const failToConnect = (message: string) => {
+      status.dismiss();
+      if (props.requestConnectTicket) {
+        setFailure(message);
+      } else {
+        Setting.showMessage("error", message);
+      }
+    };
+
     SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
-      if (!activeRef.current) {
+      if (connectIdRef.current !== connectId) {
         return;
       }
       if (res.status !== "ok") {
-        status.dismiss();
-        Setting.showMessage("error", `${i18next.t("asset:Failed to connect")}: ${res.msg}`);
+        failToConnect(`${i18next.t("asset:Failed to connect")}: ${res.msg}`);
         return;
       }
 
       const session = res.data;
       operationsRef.current = session.operations ?? [];
 
-      const params: Record<string, any> = {sessionId: `${session.owner}/${session.name}`};
-      if (username || password) {
-        params.username = username;
-        params.password = password;
-      }
+      const params: Record<string, any> = {
+        sessionId: `${session.owner}/${session.name}`,
+        ...takeTunnelCredentials(assetId, initialTicketRef, overrideTicket, username),
+      };
 
       const screen = screenRef.current!;
       while (screen.firstChild) {
@@ -106,6 +115,8 @@ export default function VncView(props: ConnectionProps) {
           setFailure(failureReason);
         } else if (!connected) {
           setFailure(NotReachable);
+        } else if (props.requestConnectTicket) {
+          setFailure(i18next.t("asset:Connection closed"));
         } else {
           status.error(i18next.t("asset:Connection closed"));
         }
@@ -119,6 +130,36 @@ export default function VncView(props: ConnectionProps) {
         setClipboardText(text);
         navigator.clipboard?.writeText(text).catch(() => undefined);
       });
+    }).catch(() => {
+      if (connectIdRef.current === connectId) {
+        failToConnect(i18next.t("asset:Failed to connect"));
+      }
+    });
+  };
+
+  const reconnect = () => {
+    const previousFailure = failure;
+    const connectId = connectIdRef.current;
+    setFailure(null);
+    if (props.requestConnectTicket) {
+      // the ticket was spent, so the credentials are asked for again
+      initialTicketRef.current = "";
+      props.requestConnectTicket().then((freshTicket) => {
+        if (connectIdRef.current !== connectId) {
+          return;
+        }
+        if (freshTicket) {
+          connect(freshTicket);
+        } else {
+          setFailure(previousFailure);
+        }
+      });
+      return;
+    }
+    reloadIfUpdated(props).then((reloaded) => {
+      if (!reloaded && connectIdRef.current === connectId) {
+        connect();
+      }
     });
   };
 
@@ -139,12 +180,11 @@ export default function VncView(props: ConnectionProps) {
     }
 
     addClient?.({disconnect});
-    activeRef.current = true;
     const releaseLock = holdPageLock();
     connect();
 
     return () => {
-      activeRef.current = false;
+      connectIdRef.current++;
       releaseLock();
       disconnect();
     };
@@ -210,10 +250,7 @@ export default function VncView(props: ConnectionProps) {
       <FailureDialog
         assetName={assetName}
         message={failure}
-        onReconnect={() => {
-          setFailure(null);
-          reloadIfUpdated(props).then((reloaded) => !reloaded && connect());
-        }}
+        onReconnect={reconnect}
         onClose={() => closeView(props)}
       />
     </div>

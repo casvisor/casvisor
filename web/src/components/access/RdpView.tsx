@@ -19,7 +19,7 @@ import {toast} from "sonner";
 import * as SessionBackend from "@/backend/SessionBackend";
 import {ClipboardDialog, ConnectionToolbar, FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
 import {FilePanel} from "@/components/access/FilePanel";
-import {closeView, holdPageLock, reloadIfUpdated, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
+import {closeView, holdPageLock, reloadIfUpdated, takeTunnelCredentials, toggleFullscreen, type ConnectionProps} from "@/components/access/util";
 import * as Setting from "@/lib/setting";
 import {keysymToScancode, codeToScancode} from "@/components/access/rdpKeymap";
 import {RdpScreen, setCanvasCursor} from "@/components/access/rdpScreen";
@@ -61,12 +61,13 @@ function clipboardKey(data: LocalClipboard) {
  *  and caches and draws each server frame at once. Mouse and keyboard are
  *  relayed back. */
 export default function RdpView(props: ConnectionProps) {
-  const {assetId, inTab, addClient, username, password} = props;
+  const {assetId, inTab, addClient, username, ticket} = props;
   const assetName = Setting.getShortName(assetId);
 
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const wsRef = React.useRef<WebSocket | null>(null);
-  const activeRef = React.useRef(false);
+  const connectIdRef = React.useRef(0);
+  const initialTicketRef = React.useRef(ticket ?? "");
   const operationsRef = React.useRef<string[]>([]);
   const lastClipboardRef = React.useRef("");
   const [clipboardText, setClipboardText] = React.useState("");
@@ -90,6 +91,7 @@ export default function RdpView(props: ConnectionProps) {
   const status = useConnectionToast(assetId);
   // Reconnection attempts in a row that did not get the screen back.
   const reconnectsRef = React.useRef(0);
+  const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const send = (msg: any) => {
     const ws = wsRef.current;
@@ -225,15 +227,17 @@ export default function RdpView(props: ConnectionProps) {
   // Tries again after the connection dropped, waiting longer each time, and
   // gives up when the screen did not come back after a few tries.
   const reconnect = () => {
-    if (reconnectsRef.current >= 5) {
+    if (props.requestConnectTicket || ticket || reconnectsRef.current >= 5) {
       return false;
     }
+    const connectId = connectIdRef.current;
     const delay = Math.min(1000 * 2 ** reconnectsRef.current, 10000);
     reconnectsRef.current++;
     status.loading(i18next.t("asset:Reconnecting..."));
-    setTimeout(() => {
-      if (activeRef.current && !wsRef.current) {
-        connect(true);
+    reconnectTimerRef.current = setTimeout(() => {
+      reconnectTimerRef.current = undefined;
+      if (connectIdRef.current === connectId && !wsRef.current) {
+        connect(undefined, true);
       }
     }, delay);
     return true;
@@ -260,19 +264,30 @@ export default function RdpView(props: ConnectionProps) {
     return {x: Math.max(0, Math.round(x)), y: Math.max(0, Math.round(y))};
   };
 
-  const connect = (reconnecting = false) => {
+  const connect = (overrideTicket?: string, reconnecting = false) => {
+    const connectId = ++connectIdRef.current;
+    clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = undefined;
     status.loading(i18next.t(reconnecting ? "asset:Reconnecting..." : "asset:Connecting..."));
 
+    const failToConnect = (message: string) => {
+      status.dismiss();
+      if (props.requestConnectTicket) {
+        setFailure(message);
+      } else {
+        Setting.showMessage("error", message);
+      }
+    };
+
     SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
-      if (!activeRef.current) {
+      if (connectIdRef.current !== connectId) {
         return;
       }
       if (res.status !== "ok") {
         if (reconnecting && reconnect()) {
           return;
         }
-        status.dismiss();
-        Setting.showMessage("error", `${i18next.t("asset:Failed to connect")}: ${res.msg}`);
+        failToConnect(`${i18next.t("asset:Failed to connect")}: ${res.msg}`);
         return;
       }
 
@@ -287,11 +302,8 @@ export default function RdpView(props: ConnectionProps) {
         height: Math.round((canvas.parentElement?.clientHeight || 768) * ratio),
         scale: Math.round(ratio * 100),
         gfx: 1,
+        ...takeTunnelCredentials(assetId, initialTicketRef, overrideTicket, username),
       };
-      if (username || password) {
-        params.username = username;
-        params.password = password;
-      }
 
       const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-asset-rdp?${qs.stringify(params)}`), ["binary"]);
       ws.binaryType = "arraybuffer";
@@ -390,13 +402,17 @@ export default function RdpView(props: ConnectionProps) {
         // The remote session goes on, so a connection that dropped (1006) or
         // that the gateway ended on an error (1011) picks it up again.
         const dropped = connected ? event.code === 1006 || event.code === 1011 : reconnecting;
-        if (dropped && reconnect()) {
+        if (event.code !== 4000 && dropped && reconnect()) {
           return;
         }
         if (failureReason) {
           setFailure(failureReason);
+        } else if (event.code === 4000 && event.reason) {
+          setFailure(event.reason);
         } else if (!connected) {
           setFailure(NotReachable);
+        } else if (props.requestConnectTicket) {
+          setFailure(i18next.t("asset:Connection closed"));
         } else {
           status.error(i18next.t("asset:Connection closed"));
         }
@@ -407,11 +423,13 @@ export default function RdpView(props: ConnectionProps) {
         }
       };
     }).catch(() => {
-      if (reconnecting && activeRef.current && reconnect()) {
+      if (connectIdRef.current !== connectId) {
         return;
       }
-      status.dismiss();
-      Setting.showMessage("error", i18next.t("asset:Failed to connect"));
+      if (reconnecting && reconnect()) {
+        return;
+      }
+      failToConnect(i18next.t("asset:Failed to connect"));
     });
   };
 
@@ -420,11 +438,12 @@ export default function RdpView(props: ConnectionProps) {
       document.title = assetName;
     }
     addClient?.({disconnect});
-    activeRef.current = true;
     const releaseLock = holdPageLock();
     connect();
     return () => {
-      activeRef.current = false;
+      connectIdRef.current++;
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = undefined;
       releaseLock();
       disconnect();
     };
@@ -590,6 +609,32 @@ export default function RdpView(props: ConnectionProps) {
     canvasRef.current?.focus();
   };
 
+  const reconnectManually = () => {
+    const previousFailure = failure;
+    const connectId = connectIdRef.current;
+    setFailure(null);
+    if (props.requestConnectTicket) {
+      // the ticket was spent, so the credentials are asked for again
+      initialTicketRef.current = "";
+      props.requestConnectTicket().then((freshTicket) => {
+        if (connectIdRef.current !== connectId) {
+          return;
+        }
+        if (freshTicket) {
+          connect(freshTicket);
+        } else {
+          setFailure(previousFailure);
+        }
+      });
+      return;
+    }
+    reloadIfUpdated(props).then((reloaded) => {
+      if (!reloaded && connectIdRef.current === connectId) {
+        connect();
+      }
+    });
+  };
+
   const canTransfer = session !== null && session.operations.includes("fileSystem");
 
   return (
@@ -655,10 +700,7 @@ export default function RdpView(props: ConnectionProps) {
       <FailureDialog
         assetName={assetName}
         message={failure}
-        onReconnect={() => {
-          setFailure(null);
-          reloadIfUpdated(props).then((reloaded) => !reloaded && connect());
-        }}
+        onReconnect={reconnectManually}
         onClose={() => closeView(props)}
       />
     </div>

@@ -33,7 +33,7 @@ import {
 import * as SessionBackend from "@/backend/SessionBackend";
 import type {DatabaseColumn, DatabaseTable, SqlResult} from "@/backend/types";
 import {FailureDialog, useConnectionToast} from "@/components/access/ConnectionChrome";
-import {closeView, holdPageLock, reloadIfUpdated, type ConnectionProps} from "@/components/access/util";
+import {closeView, holdPageLock, reloadIfUpdated, takeTunnelCredentials, type ConnectionProps} from "@/components/access/util";
 import {Button} from "@/components/ui/button";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
 import {cn} from "@/lib/utils";
@@ -82,10 +82,12 @@ function toTsv(result: SqlResult) {
  *  the left, the editor and the results on the right. Every statement runs on
  *  the server, which checks it against the command rules and records it. */
 export default function DatabaseView(props: ConnectionProps) {
-  const {assetId, inTab, addClient, username, password} = props;
+  const {assetId, inTab, addClient, username, ticket} = props;
   const assetName = Setting.getShortName(assetId);
 
   const wsRef = React.useRef<WebSocket | null>(null);
+  const connectIdRef = React.useRef(0);
+  const initialTicketRef = React.useRef(ticket ?? "");
   const nextIdRef = React.useRef(1);
   const pendingRef = React.useRef(new Map<number, (reply: Reply) => void>());
   const runIdRef = React.useRef(0);
@@ -149,7 +151,8 @@ export default function DatabaseView(props: ConnectionProps) {
     });
   };
 
-  const connect = () => {
+  const connect = (overrideTicket?: string) => {
+    const connectId = ++connectIdRef.current;
     status.loading(i18next.t("asset:Connecting..."));
     setInfo(null);
     setClosed(false);
@@ -157,20 +160,27 @@ export default function DatabaseView(props: ConnectionProps) {
     setTables({});
     setColumns({});
 
+    const failToConnect = (message: string) => {
+      status.dismiss();
+      if (props.requestConnectTicket) {
+        setFailure(message);
+      } else {
+        Setting.showMessage("error", message);
+      }
+    };
+
     SessionBackend.addAssetTunnel(assetId, props.account).then((res) => {
+      if (connectIdRef.current !== connectId) {
+        return;
+      }
       if (res.status !== "ok") {
-        status.dismiss();
-        Setting.showMessage("error", `${i18next.t("asset:Failed to connect")}: ${res.msg}`);
+        failToConnect(`${i18next.t("asset:Failed to connect")}: ${res.msg}`);
         return;
       }
 
       const session = res.data;
       const id = `${session.owner}/${session.name}`;
-      const params: Record<string, any> = {sessionId: id};
-      if (username || password) {
-        params.username = username;
-        params.password = password;
-      }
+      const params: Record<string, any> = {sessionId: id, ...takeTunnelCredentials(assetId, initialTicketRef, overrideTicket, username)};
 
       let errorMessage = "";
       let isConnected = false;
@@ -223,6 +233,10 @@ export default function DatabaseView(props: ConnectionProps) {
           }
         }
       };
+    }).catch(() => {
+      if (connectIdRef.current === connectId) {
+        failToConnect(i18next.t("asset:Failed to connect"));
+      }
     });
   };
 
@@ -235,6 +249,7 @@ export default function DatabaseView(props: ConnectionProps) {
     connect();
 
     return () => {
+      connectIdRef.current++;
       releaseLock();
       const ws = wsRef.current;
       wsRef.current = null;
@@ -258,9 +273,26 @@ export default function DatabaseView(props: ConnectionProps) {
   }, [info?.database, protocol]);
 
   const reconnect = () => {
+    const previousFailure = failure;
+    const connectId = connectIdRef.current;
     setFailure(null);
+    if (props.requestConnectTicket) {
+      // the ticket was spent, so the credentials are asked for again
+      initialTicketRef.current = "";
+      props.requestConnectTicket().then((freshTicket) => {
+        if (connectIdRef.current !== connectId) {
+          return;
+        }
+        if (freshTicket) {
+          connect(freshTicket);
+        } else {
+          setFailure(previousFailure);
+        }
+      });
+      return;
+    }
     reloadIfUpdated(props).then((reloaded) => {
-      if (!reloaded) {
+      if (!reloaded && connectIdRef.current === connectId) {
         connect();
       }
     });

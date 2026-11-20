@@ -296,7 +296,7 @@ func (c *ApiController) GetAssetTelnet() {
 		return
 	}
 
-	session, asset, code, err := c.getTunnelSessionAndAsset(sessionId, c.Input().Get("username"), c.Input().Get("password"))
+	session, asset, code, err := c.getTunnelSessionAndAsset(sessionId, c.Input().Get("ticket"), c.Input().Get("username"))
 	if err != nil {
 		fail(code, err)
 		return

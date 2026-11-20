@@ -15,9 +15,11 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"runtime"
 	"runtime/debug"
@@ -27,6 +29,7 @@ import (
 	"time"
 
 	"github.com/beego/beego/logs"
+	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/recording"
@@ -234,7 +237,66 @@ func truncateCloseReason(msg string) string {
 	return msg[:123]
 }
 
-func (c *ApiController) getTunnelSessionAndAsset(sessionId string, username string, password string) (*object.Session, *object.Asset, int, error) {
+var (
+	errTunnelQuery         = errors.New("invalid WebSocket query parameters")
+	errTunnelPasswordQuery = errors.New("password query parameter is not allowed, use a connect ticket")
+)
+
+// checkTunnelQuery rejects passwords in the URL, which proxies and browsers keep in their logs.
+func checkTunnelQuery(r *http.Request) error {
+	if r == nil || r.URL == nil {
+		return errTunnelQuery
+	}
+	query, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return errTunnelQuery
+	}
+	for _, password := range query["password"] {
+		if password != "" {
+			return errTunnelPasswordQuery
+		}
+	}
+	if len(query["ticket"]) > 1 {
+		return errors.New("multiple connect ticket query parameters are not allowed")
+	}
+	return nil
+}
+
+// resolveTunnelCredentials fills in the credentials the asset does not keep, from the ticket or
+// else the username of a direct link. A bad ticket ends the connection instead of falling back.
+func resolveTunnelCredentials(store connectTicketBackend, user *casdoorsdk.User, asset *object.Asset, sessionAccount, ticket, queryUsername string) error {
+	username, password := "", ""
+	if ticket != "" {
+		var err error
+		username, password, err = store.Consume(ticket, getUserId(user), asset.GetId())
+		if err != nil {
+			return err
+		}
+	}
+	if sessionAccount != "" {
+		return nil
+	}
+
+	if username == "" {
+		username = queryUsername
+	}
+	if asset.Username == "" {
+		asset.Username = username
+	}
+	if asset.Password == "" {
+		asset.Password = password
+	}
+	return nil
+}
+
+func (c *ApiController) getTunnelSessionAndAsset(sessionId string, ticket string, username string) (*object.Session, *object.Asset, int, error) {
+	if c.Ctx == nil {
+		return nil, nil, ParametersError, errTunnelQuery
+	}
+	if err := checkTunnelQuery(c.Ctx.Request); err != nil {
+		return nil, nil, ParametersError, err
+	}
+
 	session, err := object.GetConnSession(sessionId)
 	if err != nil {
 		return nil, nil, SessionNotFound, err
@@ -244,7 +306,7 @@ func (c *ApiController) getTunnelSessionAndAsset(sessionId string, username stri
 	}
 
 	user := c.GetSessionUser()
-	if user == nil || session.Creator != getUserId(user) {
+	if user == nil || user.IsDeleted || user.IsForbidden || session.Creator != getUserId(user) {
 		return nil, nil, PermissionDenied, fmt.Errorf("you have no permission to use this session")
 	}
 
@@ -264,21 +326,24 @@ func (c *ApiController) getTunnelSessionAndAsset(sessionId string, username stri
 		return nil, nil, PermissionDenied, fmt.Errorf("you have no permission to connect to the asset: %s", session.Asset)
 	}
 
+	// Connections without a ticket do not depend on the ticket store being reachable.
+	var backend connectTicketBackend
+	if ticket != "" {
+		backend, err = getConnectTicketBackend()
+		if err != nil {
+			return nil, nil, PermissionDenied, err
+		}
+	}
+	err = resolveTunnelCredentials(backend, user, asset, session.Account, ticket, username)
+	if err != nil {
+		return nil, nil, PermissionDenied, err
+	}
 	if session.Account != "" {
 		asset, err = asset.WithAccount(session.Account)
 		if err != nil {
 			return nil, nil, PermissionDenied, err
 		}
-		return session, asset, Normal, nil
 	}
-
-	if asset.Username == "" {
-		asset.Username = username
-	}
-	if asset.Password == "" {
-		asset.Password = password
-	}
-
 	return session, asset, Normal, nil
 }
 

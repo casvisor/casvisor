@@ -29,21 +29,22 @@ import (
 var Enforcer *casbin.Enforcer
 
 var userApis = map[string]bool{
-	"/api/signin":           true,
-	"/api/signout":          true,
-	"/api/get-account":      true,
-	"/api/change-password":  true,
-	"/api/get-mfa-setup":    true,
-	"/api/enable-mfa":       true,
-	"/api/disable-mfa":      true,
-	"/api/get-assets":       true,
-	"/api/get-asset":        true,
-	"/api/add-asset-tunnel": true,
-	"/api/get-asset-ssh":    true,
-	"/api/get-asset-vnc":    true,
-	"/api/get-asset-rdp":    true,
-	"/api/get-asset-telnet": true,
-	"/api/start-session":    true,
+	"/api/signin":                true,
+	"/api/signout":               true,
+	"/api/get-account":           true,
+	"/api/change-password":       true,
+	"/api/get-mfa-setup":         true,
+	"/api/enable-mfa":            true,
+	"/api/disable-mfa":           true,
+	"/api/get-assets":            true,
+	"/api/get-asset":             true,
+	"/api/create-connect-ticket": true,
+	"/api/add-asset-tunnel":      true,
+	"/api/get-asset-ssh":         true,
+	"/api/get-asset-vnc":         true,
+	"/api/get-asset-rdp":         true,
+	"/api/get-asset-telnet":      true,
+	"/api/start-session":         true,
 
 	"/api/get-asset-database":     true,
 	"/api/export-database-result": true,
@@ -181,14 +182,14 @@ func IsAllowed(user *casdoorsdk.User, subOwner string, subName string, method st
 }
 
 func isAllowedInDemoMode(method string, urlPath string) bool {
-	if method == "POST" {
-		if strings.HasPrefix(urlPath, "/api/signin") || urlPath == "/api/signout" || urlPath == "/api/add-asset-tunnel" || urlPath == "/api/start-session" || urlPath == "/api/stop-session" {
-			return true
-		} else {
-			return false
-		}
+	if method != "POST" {
+		return true
 	}
 
-	// If method equals GET
-	return true
+	switch urlPath {
+	case "/api/signout", "/api/add-asset-tunnel", "/api/create-connect-ticket", "/api/start-session", "/api/stop-session":
+		return true
+	default:
+		return strings.HasPrefix(urlPath, "/api/signin")
+	}
 }

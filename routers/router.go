@@ -30,6 +30,7 @@ func initAPI() {
 		),
 	)
 	beego.AddNamespace(ns)
+	beego.InsertFilter("/api/*", beego.BeforeStatic, redactConnectQuery)
 
 	beego.Router("/api/signin", &controllers.ApiController{}, "POST:Signin")
 	beego.Router("/api/signout", &controllers.ApiController{}, "POST:Signout")
@@ -125,6 +126,7 @@ func initAPI() {
 	beego.Router("/api/delete-job", &controllers.ApiController{}, "POST:DeleteJob")
 	beego.Router("/api/upload-job-file", &controllers.ApiController{}, "POST:UploadJobFile")
 
+	beego.Router("/api/create-connect-ticket", &controllers.ApiController{}, "POST:CreateConnectTicket")
 	beego.Router("/api/add-asset-tunnel", &controllers.ApiController{}, "POST:AddAssetTunnel")
 	beego.Router("/api/get-asset-ssh", &controllers.ApiController{}, "GET:GetAssetSsh")
 	beego.Router("/api/get-asset-vnc", &controllers.ApiController{}, "GET:GetAssetVnc")

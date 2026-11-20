@@ -14,6 +14,7 @@
 
 import * as React from "react";
 import {Navigate, Route, Routes, useLocation} from "react-router-dom";
+import {scrubLegacyAccessPassword} from "@/components/access/util";
 import {Loading} from "@/components/common/Loading";
 import {AppLayout} from "@/components/layout/AppLayout";
 import {useAccount} from "@/hooks/use-account";
@@ -44,7 +45,10 @@ function RequireAuth({children}: {children: React.ReactNode}) {
     return <Loading className="min-h-screen" />;
   }
   if (account === null) {
-    sessionStorage.setItem("from", location.pathname + location.search);
+    const from = location.pathname.startsWith("/access/")
+      ? scrubLegacyAccessPassword(location.pathname, location.search)
+      : location.pathname + location.search;
+    sessionStorage.setItem("from", from);
     window.location.replace(Setting.getSigninUrl());
     return <Loading className="min-h-screen" />;
   }
