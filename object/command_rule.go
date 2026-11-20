@@ -207,21 +207,40 @@ func (rule *CommandRule) covers(user *casdoorsdk.User, asset *Asset) bool {
 }
 
 // MatchCommandRule returns the rule a command breaks on the asset, a Block rule
-// before an Alert rule, or nil when the command may run without notice.
+// before an Alert rule, or nil when the command may run without notice. An error
+// means the command can't be checked, and callers must not run it.
 func MatchCommandRule(user *casdoorsdk.User, asset *Asset, command string) (*CommandRule, error) {
+	if user == nil || asset == nil {
+		return nil, fmt.Errorf("failed to evaluate command rules: no user or asset")
+	}
 	rules, err := GetCommandRules(asset.Owner)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to evaluate command rules: %w", err)
 	}
 
 	var res *CommandRule
+	var brokenErr error
 	for _, rule := range rules {
 		if !rule.IsEnabled || !rule.covers(user, asset) {
 			continue
 		}
 
+		// a broken rule might be the one that stops the command, so the check fails
+		// unless a working Block rule stops it anyway
+		if rule.Pattern == "" {
+			if brokenErr == nil {
+				brokenErr = fmt.Errorf("failed to evaluate command rules: empty pattern in command rule %s", rule.GetId())
+			}
+			continue
+		}
 		re, err := getPattern(rule.Pattern)
-		if err != nil || !re.MatchString(command) {
+		if err != nil {
+			if brokenErr == nil {
+				brokenErr = fmt.Errorf("failed to evaluate command rules: invalid pattern in command rule %s: %w", rule.GetId(), err)
+			}
+			continue
+		}
+		if !re.MatchString(command) {
 			continue
 		}
 
@@ -231,6 +250,9 @@ func MatchCommandRule(user *casdoorsdk.User, asset *Asset, command string) (*Com
 		if res == nil {
 			res = rule
 		}
+	}
+	if brokenErr != nil {
+		return nil, brokenErr
 	}
 	return res, nil
 }

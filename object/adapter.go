@@ -44,6 +44,14 @@ func InitAdapter() {
 	adapter = NewAdapter(conf.GetConfigString("driverName"), conf.GetConfigDataSourceName())
 }
 
+// SwapAdapter puts in another adapter, as tests of other packages do, and returns
+// the one it replaces.
+func SwapAdapter(a *Adapter) *Adapter {
+	previous := adapter
+	adapter = a
+	return previous
+}
+
 // Adapter represents the MySQL adapter for policy storage.
 type Adapter struct {
 	driverName     string
@@ -143,6 +151,17 @@ func (a *Adapter) openSqlite() {
 func (a *Adapter) close() {
 	a.engine.Close()
 	a.engine = nil
+}
+
+// Close closes the database of an adapter that is no longer used.
+func (a *Adapter) Close() error {
+	if a == nil || a.engine == nil {
+		return nil
+	}
+	runtime.SetFinalizer(a, nil)
+	err := a.engine.Close()
+	a.engine = nil
+	return err
 }
 
 func (a *Adapter) createTable() {

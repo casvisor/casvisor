@@ -60,6 +60,8 @@ type Options struct {
 type Recorder struct {
 	opts  Options
 	input chan []byte
+	// done is closed once the input goroutine has handled all the input
+	done chan struct{}
 
 	mu         sync.Mutex
 	vt         vt10x.Terminal
@@ -94,6 +96,7 @@ func NewRecorder(opts Options) *Recorder {
 	r := &Recorder{
 		opts:    opts,
 		input:   make(chan []byte, 256),
+		done:    make(chan struct{}),
 		vt:      vt10x.New(vt10x.WithSize(opts.Cols, opts.Rows)),
 		cols:    opts.Cols,
 		rows:    opts.Rows,
@@ -232,6 +235,7 @@ func (r *Recorder) Input(p []byte) {
 }
 
 func (r *Recorder) run() {
+	defer close(r.done)
 	for p := range r.input {
 		r.process(p)
 	}
@@ -320,10 +324,10 @@ func (r *Recorder) enter() {
 
 	rule, err := object.MatchCommandRule(r.opts.User, r.opts.Asset, command)
 	if err != nil {
-		logs.Error(fmt.Sprintf("Recorder.enter(): failed to match the command rules: %s", err.Error()))
-	}
-
-	if rule != nil && rule.Action == object.CommandActionBlock {
+		logs.Error(fmt.Sprintf("Recorder.enter(): %s", err.Error()))
+		r.notify(fmt.Sprintf("\r\n\x1b[1;31m[Casvisor] The command is blocked: %s\x1b[0m\r\n", err.Error()))
+		r.send([]byte{3})
+	} else if rule != nil && rule.Action == object.CommandActionBlock {
 		r.notify(fmt.Sprintf("\r\n\x1b[1;31m[Casvisor] The command is blocked by the rule: %s\x1b[0m\r\n", getRuleName(rule)))
 		// Ctrl+C clears the line instead of running it
 		r.send([]byte{3})
@@ -331,7 +335,7 @@ func (r *Recorder) enter() {
 		r.send([]byte{'\r'})
 	}
 
-	r.record(command, rule)
+	r.record(command, rule, err)
 }
 
 // waitForEcho waits for the asset to echo what was typed last, so that the screen
@@ -414,18 +418,27 @@ func (r *Recorder) notify(message string) {
 	r.Output(p)
 }
 
-func (r *Recorder) record(text string, rule *object.CommandRule) {
-	asset := r.opts.Asset
+// record saves a command with the rule it broke, or as blocked with the error
+// when its rules couldn't be checked.
+func (r *Recorder) record(text string, rule *object.CommandRule, ruleErr error) {
 	command := &object.Command{
-		Owner:    asset.Owner,
 		Session:  r.opts.SessionId,
-		Asset:    asset.GetId(),
-		User:     util.GetIdFromOwnerAndName(r.opts.User.Owner, r.opts.User.Name),
 		ClientIp: r.opts.ClientIp,
 		Text:     text,
-		Protocol: asset.Protocol,
 	}
-	if rule != nil {
+	// a check that failed for want of an asset or user is still recorded
+	if asset := r.opts.Asset; asset != nil {
+		command.Owner = asset.Owner
+		command.Asset = asset.GetId()
+		command.Protocol = asset.Protocol
+	}
+	if user := r.opts.User; user != nil {
+		command.User = util.GetIdFromOwnerAndName(user.Owner, user.Name)
+	}
+	if ruleErr != nil {
+		command.Action = object.CommandActionBlock
+		command.Error = ruleErr.Error()
+	} else if rule != nil {
 		command.Action = rule.Action
 		command.Rule = rule.GetId()
 	}
@@ -447,12 +460,11 @@ func getRuleName(rule *object.CommandRule) string {
 // "ssh <asset> <command>", records it, and returns the rule that blocks it.
 func CheckCommand(sessionId string, user *casdoorsdk.User, asset *object.Asset, clientIp string, text string) (*object.CommandRule, error) {
 	rule, err := object.MatchCommandRule(user, asset, text)
+	r := &Recorder{opts: Options{SessionId: sessionId, User: user, Asset: asset, ClientIp: clientIp}}
+	r.record(text, rule, err)
 	if err != nil {
 		return nil, err
 	}
-
-	r := &Recorder{opts: Options{SessionId: sessionId, User: user, Asset: asset, ClientIp: clientIp}}
-	r.record(text, rule)
 
 	if rule != nil && rule.Action == object.CommandActionBlock {
 		return rule, nil

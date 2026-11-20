@@ -18,6 +18,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"slices"
 	"sync"
@@ -89,26 +90,34 @@ func (s *databaseSession) getResult(id string) *object.SqlResult {
 }
 
 // record applies the command rules to a statement and saves it as a command of
-// the session; a blocked statement comes back with the rule in its result.
+// the session; a blocked statement, or one whose rules can't be checked, comes
+// back with the reason in its result.
 func (s *databaseSession) record(statement string) (*object.Command, *object.SqlResult) {
 	rule, err := object.MatchSqlRule(s.user, s.asset, statement)
-	if err != nil {
-		logs.Error(fmt.Sprintf("databaseSession.record(): failed to match the command rules: %s", err.Error()))
-	}
 
 	command := &object.Command{
-		Owner: s.asset.Owner,
 		// microseconds keep the statements of a batch in order
 		CreatedTime: time.Now().Format("2006-01-02T15:04:05.000000Z07:00"),
 		Session:     s.id,
-		Asset:       s.asset.GetId(),
-		User:        getUserId(s.user),
 		ClientIp:    s.clientIp,
 		Text:        statement,
-		Protocol:    s.asset.Protocol,
+	}
+	// a check that failed for want of an asset or user is still recorded
+	if s.asset != nil {
+		command.Owner = s.asset.Owner
+		command.Asset = s.asset.GetId()
+		command.Protocol = s.asset.Protocol
+	}
+	if s.user != nil {
+		command.User = getUserId(s.user)
 	}
 	var blocked *object.SqlResult
-	if rule != nil {
+	if err != nil {
+		logs.Error(fmt.Sprintf("databaseSession.record(): %s", err.Error()))
+		command.Action = object.CommandActionBlock
+		command.Error = err.Error()
+		blocked = &object.SqlResult{Statement: statement, Action: command.Action}
+	} else if rule != nil {
 		command.Action = rule.Action
 		command.Rule = rule.GetId()
 		if rule.Action == object.CommandActionBlock {
@@ -124,6 +133,10 @@ func (s *databaseSession) record(statement string) (*object.Command, *object.Sql
 	err = object.AddCommand(command)
 	if err != nil {
 		logs.Error(fmt.Sprintf("databaseSession.record(): %s", err.Error()))
+	}
+	if blocked != nil {
+		// the error as recorded, which AddCommand may have shortened
+		blocked.Error = command.Error
 	}
 	return command, blocked
 }
@@ -363,23 +376,34 @@ func (c *ApiController) ExportDatabaseResult() {
 	header.Set("Content-Type", "text/csv; charset=utf-8")
 	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename*=UTF-8''%s", url.PathEscape(fileName)))
 	c.Ctx.ResponseWriter.WriteHeader(200)
+	err = writeDatabaseResultCsv(c.Ctx.ResponseWriter, result)
+	if err != nil {
+		logs.Error(fmt.Sprintf("ExportDatabaseResult(): %s", err.Error()))
+	}
+}
 
-	// the byte order mark lets Excel read the file as UTF-8
-	_, _ = c.Ctx.ResponseWriter.Write([]byte("\xEF\xBB\xBF"))
-	writer := csv.NewWriter(c.Ctx.ResponseWriter)
+// writeDatabaseResultCsv writes a result as CSV, with a byte order mark that lets
+// Excel read the file as UTF-8, and with no cell a spreadsheet would run as a formula.
+func writeDatabaseResultCsv(w io.Writer, result *object.SqlResult) error {
+	_, err := w.Write([]byte("\xEF\xBB\xBF"))
+	if err != nil {
+		return err
+	}
+	writer := csv.NewWriter(w)
 	names := []string{}
 	for _, column := range result.Columns {
-		names = append(names, column.Name)
+		names = append(names, csvCell(column.Name))
 	}
 	_ = writer.Write(names)
 	for _, row := range result.Rows {
 		record := make([]string, len(row))
 		for i, value := range row {
 			if value != nil {
-				record[i] = *value
+				record[i] = csvCell(*value)
 			}
 		}
 		_ = writer.Write(record)
 	}
 	writer.Flush()
+	return writer.Error()
 }

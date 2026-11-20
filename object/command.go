@@ -72,6 +72,9 @@ func AddCommand(command *Command) error {
 	if command.CreatedTime == "" {
 		command.CreatedTime = util.GetCurrentTime()
 	}
+	if runes := []rune(command.Error); len(runes) > 1000 {
+		command.Error = string(runes[:1000])
+	}
 
 	_, err := adapter.engine.Insert(command)
 	if err != nil {

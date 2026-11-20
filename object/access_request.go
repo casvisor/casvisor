@@ -22,6 +22,7 @@ import (
 
 	"github.com/casvisor/casvisor/util"
 	"xorm.io/core"
+	"xorm.io/xorm"
 )
 
 const (
@@ -217,30 +218,62 @@ func AddAccessRequest(request *AccessRequest) (bool, error) {
 	return affected != 0, nil
 }
 
-func updateAccessRequestStatus(request *AccessRequest, cols ...string) error {
+// updateAccessRequestStatus saves the request only while it still has the status it
+// was read with, so that of two reviewers acting on it at once only one gets through.
+func updateAccessRequestStatus(session *xorm.Session, request *AccessRequest, from string, action string, cols ...string) error {
 	request.UpdatedTime = util.GetCurrentTime()
 	cols = append(cols, "status", "updated_time")
-	_, err := adapter.engine.ID(core.PK{request.Owner, request.Name}).Cols(cols...).Update(request)
-	return err
+	affected, err := session.Where("owner = ? and name = ? and status = ?", request.Owner, request.Name, from).Cols(cols...).Update(request)
+	if err != nil || affected != 0 {
+		return err
+	}
+
+	current := AccessRequest{Owner: request.Owner, Name: request.Name}
+	existed, err := session.Get(&current)
+	if err != nil {
+		return err
+	}
+	if !existed {
+		return fmt.Errorf("the access request: %s does not exist", request.GetId())
+	}
+	return fmt.Errorf("only %s requests can be %s, the request is %s", strings.ToLower(from), action, current.Status)
 }
 
 func CancelAccessRequest(request *AccessRequest) error {
 	if request.Status != AccessRequestPending {
 		return fmt.Errorf("only pending requests can be cancelled, the request is %s", request.Status)
 	}
-	request.Status = AccessRequestCancelled
-	return updateAccessRequestStatus(request)
+
+	updated := *request
+	updated.Status = AccessRequestCancelled
+	session := adapter.engine.NewSession()
+	defer session.Close()
+	err := updateAccessRequestStatus(session, &updated, AccessRequestPending, "cancelled")
+	if err != nil {
+		return err
+	}
+	*request = updated
+	return nil
 }
 
 func RejectAccessRequest(request *AccessRequest, reviewer string, comment string) error {
 	if request.Status != AccessRequestPending {
 		return fmt.Errorf("only pending requests can be rejected, the request is %s", request.Status)
 	}
-	request.Status = AccessRequestRejected
-	request.Reviewer = reviewer
-	request.ReviewedTime = util.GetCurrentTime()
-	request.ReviewComment = comment
-	return updateAccessRequestStatus(request, "reviewer", "reviewed_time", "review_comment")
+
+	updated := *request
+	updated.Status = AccessRequestRejected
+	updated.Reviewer = reviewer
+	updated.ReviewedTime = util.GetCurrentTime()
+	updated.ReviewComment = comment
+	session := adapter.engine.NewSession()
+	defer session.Close()
+	err := updateAccessRequestStatus(session, &updated, AccessRequestPending, "rejected", "reviewer", "reviewed_time", "review_comment")
+	if err != nil {
+		return err
+	}
+	*request = updated
+	return nil
 }
 
 // ApproveAccessRequest grants the request as a permission of its own, after the reviewer may have
@@ -249,16 +282,17 @@ func ApproveAccessRequest(request *AccessRequest, reviewer string, comment strin
 	if request.Status != AccessRequestPending {
 		return nil, fmt.Errorf("only pending requests can be approved, the request is %s", request.Status)
 	}
+	updated := *request
 	if len(actions) > 0 {
 		for _, action := range actions {
-			if !slices.Contains(request.Actions, action) {
+			if !slices.Contains(updated.Actions, action) {
 				return nil, fmt.Errorf("the action: %s was not requested, an approval can only take actions away", action)
 			}
 		}
-		request.Actions = actions
+		updated.Actions = actions
 	}
 	if endTime != "" {
-		requested, err := time.Parse(time.RFC3339, request.EndTime)
+		requested, err := time.Parse(time.RFC3339, updated.EndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -269,49 +303,67 @@ func ApproveAccessRequest(request *AccessRequest, reviewer string, comment strin
 		if approved.After(requested) {
 			return nil, fmt.Errorf("an approval can only end the access earlier than requested")
 		}
-		request.EndTime = endTime
+		updated.EndTime = endTime
 	}
-	err := request.check()
+	err := updated.check()
 	if err != nil {
 		return nil, err
 	}
 
-	accounts := request.Accounts
+	accounts := updated.Accounts
 	if len(accounts) == 0 {
 		accounts = []string{AccountDefault}
 	}
 	permission := &Permission{
-		Owner:       request.Owner,
-		Name:        "request_" + request.Name,
+		Owner:       updated.Owner,
+		Name:        "request_" + updated.Name,
 		CreatedTime: util.GetCurrentTime(),
 		UpdatedTime: util.GetCurrentTime(),
-		DisplayName: fmt.Sprintf("Access request of %s", request.User),
-		Description: truncate(fmt.Sprintf("Approved by %s: %s", reviewer, request.Reason), 500),
-		Users:       []string{request.User},
+		DisplayName: fmt.Sprintf("Access request of %s", updated.User),
+		Description: truncate(fmt.Sprintf("Approved by %s: %s", reviewer, updated.Reason), 500),
+		Users:       []string{updated.User},
 		Groups:      []string{},
-		Assets:      request.Assets,
+		Assets:      updated.Assets,
 		AssetTags:   []string{},
 		Accounts:    accounts,
-		Actions:     request.Actions,
+		Actions:     updated.Actions,
 		ClientIps:   []string{},
-		StartTime:   request.StartTime,
-		EndTime:     request.EndTime,
+		StartTime:   updated.StartTime,
+		EndTime:     updated.EndTime,
 		IsEnabled:   true,
 	}
-	_, err = AddPermission(permission)
+	err = permission.check()
 	if err != nil {
 		return nil, err
 	}
 
-	request.Status = AccessRequestApproved
-	request.Reviewer = reviewer
-	request.ReviewedTime = util.GetCurrentTime()
-	request.ReviewComment = comment
-	request.Permission = permission.Name
-	err = updateAccessRequestStatus(request, "reviewer", "reviewed_time", "review_comment", "permission", "actions", "end_time")
+	updated.Status = AccessRequestApproved
+	updated.Reviewer = reviewer
+	updated.ReviewedTime = util.GetCurrentTime()
+	updated.ReviewComment = comment
+	updated.Permission = permission.Name
+
+	// the request is claimed and its permission added in one transaction, so that
+	// approving it twice at once leaves one permission, and a failure leaves none
+	session := adapter.engine.NewSession()
+	defer session.Close()
+	err = session.Begin()
 	if err != nil {
 		return nil, err
 	}
+	err = updateAccessRequestStatus(session, &updated, AccessRequestPending, "approved", "reviewer", "reviewed_time", "review_comment", "permission", "actions", "end_time")
+	if err == nil {
+		_, err = session.Insert(permission)
+	}
+	if err != nil {
+		_ = session.Rollback()
+		return nil, err
+	}
+	err = session.Commit()
+	if err != nil {
+		return nil, err
+	}
+	*request = updated
 	return permission, nil
 }
 
@@ -321,20 +373,47 @@ func RevokeAccessRequest(request *AccessRequest, reviewer string, comment string
 		return fmt.Errorf("only approved requests can be revoked, the request is %s", request.Status)
 	}
 
-	if request.Permission != "" {
-		_, err := DeletePermission(&Permission{Owner: request.Owner, Name: request.Permission})
-		if err != nil {
-			return err
-		}
+	updated := *request
+	updated.Status = AccessRequestRevoked
+	updated.Reviewer = reviewer
+	updated.ReviewedTime = util.GetCurrentTime()
+	cols := []string{"reviewer", "reviewed_time"}
+	if comment != "" {
+		updated.ReviewComment = comment
+		cols = append(cols, "review_comment")
 	}
 
-	request.Status = AccessRequestRevoked
-	request.Reviewer = reviewer
-	request.ReviewedTime = util.GetCurrentTime()
-	if comment != "" {
-		request.ReviewComment = comment
+	session := adapter.engine.NewSession()
+	defer session.Close()
+	err := session.Begin()
+	if err != nil {
+		return err
 	}
-	return updateAccessRequestStatus(request, "reviewer", "reviewed_time", "review_comment")
+	err = updateAccessRequestStatus(session, &updated, AccessRequestApproved, "revoked", cols...)
+	if err != nil {
+		_ = session.Rollback()
+		return err
+	}
+
+	// the stored request names the permission, the caller's copy may be stale
+	stored := AccessRequest{Owner: updated.Owner, Name: updated.Name}
+	_, err = session.Get(&stored)
+	if err == nil && stored.Permission != "" {
+		_, err = session.ID(core.PK{stored.Owner, stored.Permission}).Delete(&Permission{})
+	}
+	if err != nil {
+		_ = session.Rollback()
+		return err
+	}
+	err = session.Commit()
+	if err != nil {
+		return err
+	}
+
+	updated.Permission = stored.Permission
+	updated.ReviewComment = stored.ReviewComment
+	*request = updated
+	return nil
 }
 
 func DeleteAccessRequest(request *AccessRequest) (bool, error) {

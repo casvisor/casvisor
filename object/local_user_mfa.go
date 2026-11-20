@@ -34,7 +34,11 @@ import (
 
 const totpPeriod = 30
 
-var totpEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
+var (
+	totpEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
+	// totpNow is the clock of the codes, which tests set
+	totpNow = time.Now
+)
 
 // MfaSetup is a new TOTP secret for the user to add to an authenticator app.
 type MfaSetup struct {
@@ -84,7 +88,7 @@ func checkTotpCode(secret string, code string, lastStep int64) (int64, bool) {
 		return 0, false
 	}
 
-	now := time.Now().Unix() / totpPeriod
+	now := totpNow().Unix() / totpPeriod
 	for _, step := range []int64{now - 1, now, now + 1} {
 		if step <= lastStep {
 			continue
@@ -156,9 +160,15 @@ func checkLocalUserMfa(user *LocalUser, code string) (bool, error) {
 		return false, nil
 	}
 
+	// the step only moves forward from the one the code was checked against, so of
+	// two sign-ins with the same code at once only one gets through
+	affected, err := adapter.engine.Where("owner = ? and name = ? and mfa_enabled = ? and totp_secret = ? and (totp_last_step is null or totp_last_step < ?)",
+		user.Owner, user.Name, true, user.TotpSecret, step).Cols("totp_last_step").Update(&LocalUser{TotpLastStep: step})
+	if err != nil || affected == 0 {
+		return false, err
+	}
 	user.TotpLastStep = step
-	_, err = adapter.engine.ID(core.PK{user.Owner, user.Name}).Cols("totp_last_step").Update(&LocalUser{TotpLastStep: step})
-	return true, err
+	return true, nil
 }
 
 func ResetLocalUserMfa(owner string, name string) error {
