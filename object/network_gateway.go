@@ -26,6 +26,9 @@ import (
 const (
 	NetworkGatewayTypeSsh   = "SSH"
 	NetworkGatewayTypeAgent = "Agent"
+	// NetworkGatewayTypeDesktop is a computer running Casvisor Desktop, which
+	// connects out like an agent and is controlled as a Desktop asset.
+	NetworkGatewayTypeDesktop = "Desktop"
 )
 
 // NetworkGateway is how Casvisor reaches its assets in another network, e.g. a data
@@ -258,8 +261,13 @@ func (gateway *NetworkGateway) GetId() string {
 	return util.GetIdFromOwnerAndName(gateway.Owner, gateway.Name)
 }
 
+// IsAgent reports whether the gateway connects out to Casvisor with a token.
 func (gateway *NetworkGateway) IsAgent() bool {
-	return gateway.Type == NetworkGatewayTypeAgent
+	return gateway.Type == NetworkGatewayTypeAgent || gateway.Type == NetworkGatewayTypeDesktop
+}
+
+func (gateway *NetworkGateway) IsDesktop() bool {
+	return gateway.Type == NetworkGatewayTypeDesktop
 }
 
 func (gateway *NetworkGateway) check() error {
@@ -286,6 +294,9 @@ func (gateway *NetworkGateway) check() error {
 		gateway.Password = ""
 		gateway.PrivateKey = ""
 		gateway.Fingerprint = ""
+		if gateway.IsDesktop() {
+			gateway.AllowedNetworks = []string{}
+		}
 		_, err := agent.ParseNetworks(gateway.AllowedNetworks)
 		return err
 	}

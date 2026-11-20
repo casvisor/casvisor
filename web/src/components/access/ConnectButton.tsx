@@ -21,6 +21,7 @@ import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/
 import {Input} from "@/components/ui/input";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import type {Asset} from "@/backend/types";
+import {DesktopProtocol} from "@/lib/asset";
 
 type Credentials = {username: string; password: string};
 
@@ -113,7 +114,7 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
   const [open, setOpen] = React.useState(false);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const hasCredentials = Boolean(asset.username && asset.password);
+  const hasCredentials = asset.protocol === DesktopProtocol || Boolean(asset.username && asset.password);
   const accounts = asset.accounts ?? [];
 
   const start = () => {

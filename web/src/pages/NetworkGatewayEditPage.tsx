@@ -62,7 +62,8 @@ export default function NetworkGatewayEditPage() {
     deps: [owner, name],
   });
 
-  const isAgent = gateway?.type === "Agent";
+  const isDesktop = gateway?.type === "Desktop";
+  const isAgent = gateway?.type === "Agent" || isDesktop;
 
   // Agents check Casvisor's SSH host key, whichever way they connect.
   React.useEffect(() => {
@@ -174,9 +175,11 @@ export default function NetworkGatewayEditPage() {
   return (
     <EditPageShell
       title={i18next.t(getModeTitleKey("networkGateway:Edit Network Gateway", mode))}
-      description={isAgent
-        ? i18next.t("networkGateway:An agent in the other network connects out to Casvisor over HTTPS and keeps the connection open, Casvisor reaches the assets that use the gateway through it")
-        : i18next.t("networkGateway:Casvisor connects to the gateway over SSH and reaches the assets that use it from there, the gateway needs AllowTcpForwarding")}
+      description={isDesktop
+        ? i18next.t("networkGateway:A computer running Casvisor Desktop connects out to Casvisor over HTTPS, a Desktop asset that uses it controls the computer")
+        : isAgent
+          ? i18next.t("networkGateway:An agent in the other network connects out to Casvisor over HTTPS and keeps the connection open, Casvisor reaches the assets that use the gateway through it")
+          : i18next.t("networkGateway:Casvisor connects to the gateway over SSH and reaches the assets that use it from there, the gateway needs AllowTcpForwarding")}
       mode={mode}
       backTo="/network-gateways"
       onSave={save}
@@ -207,6 +210,7 @@ export default function NetworkGatewayEditPage() {
           options={[
             {id: "SSH", name: i18next.t("networkGateway:SSH jump host")},
             {id: "Agent", name: i18next.t("networkGateway:Agent")},
+            {id: "Desktop", name: i18next.t("networkGateway:Casvisor Desktop device")},
           ]}
           onChange={(type) => updateField("type", type)}
         />
@@ -265,7 +269,7 @@ export default function NetworkGatewayEditPage() {
               </span>
             </div>
           </FormRow>
-          <FormRow label={i18next.t("networkGateway:Allowed networks")}>
+          {!isDesktop ? <FormRow label={i18next.t("networkGateway:Allowed networks")}>
             <div className="flex w-full flex-col gap-1">
               <Textarea
                 value={(gateway.allowedNetworks ?? []).join("\n")}
@@ -278,7 +282,7 @@ export default function NetworkGatewayEditPage() {
                 {i18next.t("networkGateway:One network (CIDR) or IP address per line, the agent refuses to connect anywhere else. Leave it empty to allow every address")}
               </span>
             </div>
-          </FormRow>
+          </FormRow> : null}
         </>
       ) : (
         <>
@@ -331,13 +335,28 @@ export default function NetworkGatewayEditPage() {
       <Dialog open={token !== ""} onOpenChange={(open) => !open && setToken("")}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{i18next.t("networkGateway:Start the agent")}</DialogTitle>
+            <DialogTitle>{i18next.t(isDesktop ? "networkGateway:Set up Casvisor Desktop" : "networkGateway:Start the agent")}</DialogTitle>
             <DialogDescription>
-              {i18next.t("networkGateway:The token is shown only this once. Run the command on a machine in the other network, with the casvisor binary of the same release")}
+              {isDesktop
+                ? i18next.t("networkGateway:The token is shown only this once. Enter these in the settings of Casvisor Desktop on the computer")
+                : i18next.t("networkGateway:The token is shown only this once. Run the command on a machine in the other network, with the casvisor binary of the same release")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <CommandLine command={agentCommand} />
+            {isDesktop ? (
+              <>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">{i18next.t("networkGateway:Casvisor address")}</div>
+                  <CommandLine command={window.location.origin} />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">{i18next.t("networkGateway:Host key fingerprint")}</div>
+                  <CommandLine command={hostKeyFingerprint} />
+                </div>
+              </>
+            ) : (
+              <CommandLine command={agentCommand} />
+            )}
             <div className="space-y-1">
               <div className="text-sm font-medium">{i18next.t("networkGateway:Token")}</div>
               <CommandLine command={token} />

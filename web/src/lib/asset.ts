@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export const Protocols = ["RDP", "VNC", "SSH", "Telnet", "MySQL", "PostgreSQL"];
+export const Protocols = ["RDP", "VNC", "SSH", "Telnet", "MySQL", "PostgreSQL", "Desktop"];
+
+/** A computer running Casvisor Desktop, reached through its device instead of a host and port. */
+export const DesktopProtocol = "Desktop";
 
 export const DatabaseProtocols = ["MySQL", "PostgreSQL"];
 
