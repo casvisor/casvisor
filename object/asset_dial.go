@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +26,108 @@ import (
 )
 
 const dialTimeout = 10 * time.Second
+
+type AssetTestResult struct {
+	LatencyMs   int64  `json:"latencyMs"`
+	Message     string `json:"message,omitempty"`
+	Fingerprint string `json:"fingerprint,omitempty"`
+}
+
+func TestAsset(asset *Asset) (*AssetTestResult, error) {
+	if asset == nil {
+		return nil, fmt.Errorf("asset is required")
+	}
+	target := *asset
+	if protocol, err := normalizeAssetProtocol(target.Protocol); err == nil {
+		target.Protocol = protocol
+	}
+	if target.Protocol == ProtocolDesktop {
+		if target.NetworkGateway == "" {
+			return nil, fmt.Errorf("a Desktop asset needs its Casvisor Desktop device as the network gateway")
+		}
+		gateway, err := target.getEnabledNetworkGateway()
+		if err != nil {
+			return nil, err
+		}
+		if !gateway.IsDesktop() {
+			return nil, fmt.Errorf("the network gateway: %s is not a Casvisor Desktop device", gateway.GetId())
+		}
+		start := time.Now()
+		version, err := PingAgent(gateway)
+		if err != nil {
+			return nil, err
+		}
+		return &AssetTestResult{LatencyMs: time.Since(start).Milliseconds(), Message: version}, nil
+	}
+	target.Host = strings.TrimSpace(target.Host)
+	if target.Host == "" {
+		return nil, fmt.Errorf("asset host is required")
+	}
+	if err := target.normalizeKubernetes(); err != nil {
+		return nil, err
+	}
+	if target.Port < 1 || target.Port > 65535 {
+		return nil, fmt.Errorf("invalid asset port: %d", target.Port)
+	}
+
+	if target.Password == "***" || target.PrivateKey == "***" {
+		stored, err := getAsset(target.Owner, target.Name)
+		if err != nil {
+			return nil, err
+		}
+		if stored == nil {
+			return nil, fmt.Errorf("the asset: %s does not exist", target.GetId())
+		}
+		if target.Password == "***" {
+			target.Password = stored.Password
+		}
+		if target.PrivateKey == "***" {
+			target.PrivateKey = stored.PrivateKey
+		}
+	}
+
+	start := time.Now()
+	switch target.Protocol {
+	case ProtocolKubernetes:
+		client, err := NewKubernetesClient(&target)
+		if err != nil {
+			return nil, err
+		}
+		client.readOnly = true
+		var version struct {
+			GitVersion string `json:"gitVersion"`
+		}
+		if _, err := client.get("/version", &version); err != nil {
+			return nil, err
+		}
+		return &AssetTestResult{LatencyMs: time.Since(start).Milliseconds(), Message: version.GitVersion, Fingerprint: target.Fingerprint}, nil
+	case "SSH":
+		client, err := dialSsh(&target, nil)
+		if err != nil {
+			return nil, err
+		}
+		version := strings.TrimSpace(string(client.ServerVersion()))
+		_ = client.Close()
+		return &AssetTestResult{LatencyMs: time.Since(start).Milliseconds(), Message: version, Fingerprint: target.Fingerprint}, nil
+	case "RDP", "VNC", "Telnet":
+		conn, err := DialAsset(&target)
+		if err != nil {
+			return nil, err
+		}
+		_ = conn.Close()
+		return &AssetTestResult{LatencyMs: time.Since(start).Milliseconds()}, nil
+	case ProtocolMysql, ProtocolPostgresql:
+		client, err := DialDatabase(&target)
+		if err != nil {
+			return nil, err
+		}
+		version := strings.TrimSpace(client.Version)
+		client.Close()
+		return &AssetTestResult{LatencyMs: time.Since(start).Milliseconds(), Message: version}, nil
+	default:
+		return nil, fmt.Errorf("unsupported protocol: %s", target.Protocol)
+	}
+}
 
 func (asset *Asset) getAddress() string {
 	if asset.Protocol == ProtocolKubernetes {
@@ -43,6 +146,17 @@ func DialAsset(asset *Asset) (net.Conn, error) {
 		return net.DialTimeout("tcp", address, dialTimeout)
 	}
 
+	gateway, err := asset.getEnabledNetworkGateway()
+	if err != nil {
+		return nil, err
+	}
+	if gateway.IsAgent() {
+		return gateway.dialAgent(address)
+	}
+	return gateway.Dial(address)
+}
+
+func (asset *Asset) getEnabledNetworkGateway() (*NetworkGateway, error) {
 	gateway, err := getNetworkGateway(asset.Owner, asset.NetworkGateway)
 	if err != nil {
 		return nil, err
@@ -53,11 +167,7 @@ func DialAsset(asset *Asset) (net.Conn, error) {
 	if !gateway.IsEnabled {
 		return nil, fmt.Errorf("the network gateway: %s of the asset: %s is disabled", asset.NetworkGateway, asset.GetId())
 	}
-
-	if gateway.IsAgent() {
-		return gateway.dialAgent(address)
-	}
-	return gateway.Dial(address)
+	return gateway, nil
 }
 
 // Dial opens a TCP connection to address from the gateway. The connection has

@@ -55,3 +55,7 @@ export function getKubernetesPods(assetId: string, account = "", namespace = "",
   }
   return post("/api/get-kubernetes-pods", query, password ? {password} : undefined);
 }
+
+export function testAsset(asset: any) {
+  return post("/api/test-asset", {}, asset);
+}

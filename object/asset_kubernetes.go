@@ -124,9 +124,10 @@ func getCertificateFingerprint(cert []byte) string {
 // public key of the API server is pinned in the fingerprint of the asset at the first
 // connection, as certificates of API servers are renewed often but keep their key.
 type KubernetesClient struct {
-	asset   *Asset
-	baseUrl *url.URL
-	token   string
+	asset    *Asset
+	baseUrl  *url.URL
+	token    string
+	readOnly bool // Capture the fingerprint without saving it when testing an asset.
 
 	mu          sync.Mutex
 	fingerprint string
@@ -194,6 +195,9 @@ func (c *KubernetesClient) pinFingerprint() error {
 		return nil
 	}
 	c.asset.Fingerprint = fingerprint
+	if c.readOnly {
+		return nil
+	}
 	return UpdateAssetFingerprint(c.asset.GetId(), fingerprint)
 }
 

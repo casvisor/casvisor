@@ -1804,6 +1804,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.PatchJob'
+  /test-asset:
+    post:
+      tags:
+      - Asset API
+      description: test connectivity to an asset
+      operationId: ApiController.TestAsset
+      parameters:
+      - in: body
+        name: body
+        description: The details of the asset
+        required: true
+        schema:
+          $ref: '#/definitions/object.Asset'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /test-network-gateway:
     post:
       tags:

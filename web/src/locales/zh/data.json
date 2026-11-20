@@ -125,6 +125,7 @@
     "Reconnecting...": "正在重新连接...",
     "Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed": "首次连接时自动记录，之后主机密钥或证书不一致会拒绝连接。服务器重装或证书更新后清空即可",
     "Rename": "重命名",
+    "Test connection": "测试连接",
     "The public key of the API server is recorded on the first connection, a different one is rejected afterwards. Clear it if the cluster was reinstalled": "首次连接时记录 API Server 的公钥，之后公钥不同会被拒绝。集群重装后请清空",
     "The remote computer is offline or can't be reached.": "远程电脑不在线或连不上。",
     "The remote computer is showing the lock screen or a UAC prompt, which can't be shown here": "远程电脑正在显示锁屏或 UAC 弹窗，这里暂时看不到",

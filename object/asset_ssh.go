@@ -23,6 +23,12 @@ import (
 )
 
 func DialSsh(asset *Asset) (*ssh.Client, error) {
+	return dialSsh(asset, func(fingerprint string) error {
+		return UpdateAssetFingerprint(asset.GetId(), fingerprint)
+	})
+}
+
+func dialSsh(asset *Asset, updateFingerprint func(fingerprint string) error) (*ssh.Client, error) {
 	if asset.Username == "" {
 		return nil, fmt.Errorf("the username of the asset: %s is empty", asset.GetId())
 	}
@@ -33,12 +39,10 @@ func DialSsh(asset *Asset) (*ssh.Client, error) {
 	}
 
 	config := &ssh.ClientConfig{
-		User: asset.Username,
-		Auth: auth,
-		HostKeyCallback: getHostKeyCallback("asset", asset.GetId(), &asset.Fingerprint, func(fingerprint string) error {
-			return UpdateAssetFingerprint(asset.GetId(), fingerprint)
-		}),
-		Timeout: dialTimeout,
+		User:            asset.Username,
+		Auth:            auth,
+		HostKeyCallback: getHostKeyCallback("asset", asset.GetId(), &asset.Fingerprint, updateFingerprint),
+		Timeout:         dialTimeout,
 	}
 
 	conn, err := DialAsset(asset)
@@ -94,7 +98,10 @@ func getHostKeyCallback(kind string, id string, pinned *string, update func(fing
 		fingerprint := ssh.FingerprintSHA256(key)
 		if *pinned == "" {
 			*pinned = fingerprint
-			return update(fingerprint)
+			if update != nil {
+				return update(fingerprint)
+			}
+			return nil
 		}
 		if *pinned != fingerprint {
 			return fmt.Errorf("the host key of the %s: %s has changed from %s to %s, clear the fingerprint of the %s if the change is expected", kind, id, *pinned, fingerprint, kind)

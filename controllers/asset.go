@@ -254,3 +254,28 @@ func (c *ApiController) DeleteAsset() {
 	c.Data["json"] = wrapActionResponse(affected, err)
 	c.ServeJSON()
 }
+
+// TestAsset
+// @Title TestAsset
+// @Tag Asset API
+// @Description test connectivity to an asset
+// @Param   body    body   object.Asset  true        "The details of the asset"
+// @Success 200 {object} controllers.Response The Response object
+// @router /test-asset [post]
+func (c *ApiController) TestAsset() {
+	var asset object.Asset
+	if err := json.Unmarshal(c.Ctx.Input.RequestBody, &asset); err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if user := c.GetSessionUser(); user != nil && user.Owner != "built-in" {
+		asset.Owner = user.Owner
+	}
+
+	res, err := object.TestAsset(&asset)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	c.ResponseOk(res)
+}
