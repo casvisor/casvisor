@@ -57,9 +57,16 @@ type Options struct {
 	Notify func(p []byte)
 }
 
+// inputChunk is keystrokes and who typed them: the session's user, or an administrator who
+// took part in the session from the monitor.
+type inputChunk struct {
+	data     []byte
+	operator *casdoorsdk.User
+}
+
 type Recorder struct {
 	opts  Options
-	input chan []byte
+	input chan inputChunk
 
 	mu         sync.Mutex
 	vt         vt10x.Terminal
@@ -74,6 +81,8 @@ type Recorder struct {
 	recStarted bool
 
 	// only touched by the input goroutine
+	operator    *casdoorsdk.User
+	lineUser    *casdoorsdk.User
 	lineStarted bool
 	promptRow   int
 	promptX     int
@@ -93,7 +102,7 @@ func NewRecorder(opts Options) *Recorder {
 
 	r := &Recorder{
 		opts:    opts,
-		input:   make(chan []byte, 256),
+		input:   make(chan inputChunk, 256),
 		vt:      vt10x.New(vt10x.WithSize(opts.Cols, opts.Rows)),
 		cols:    opts.Cols,
 		rows:    opts.Rows,
@@ -218,6 +227,12 @@ func (r *Recorder) Resize(cols, rows int) {
 // Input takes the user's keystrokes; they reach the asset through Send, in order,
 // with Enter held back until the line can be read and checked.
 func (r *Recorder) Input(p []byte) {
+	r.InputAs(nil, p)
+}
+
+// InputAs takes keystrokes typed by an administrator taking part in the session; the commands
+// they run are checked against the rules for them and recorded with them as the operator.
+func (r *Recorder) InputAs(operator *casdoorsdk.User, p []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.closed || len(p) == 0 {
@@ -225,16 +240,30 @@ func (r *Recorder) Input(p []byte) {
 	}
 
 	select {
-	case r.input <- append([]byte{}, p...):
+	case r.input <- inputChunk{data: append([]byte{}, p...), operator: operator}:
 	default:
 		// the asset is not reading, drop the keystrokes rather than block the session
 	}
 }
 
+// Announce shows a message from Casvisor to the user, to the viewers and in the recording.
+func (r *Recorder) Announce(message string) {
+	r.notify(fmt.Sprintf("\r\n\x1b[1;33m[Casvisor] %s\x1b[0m\r\n", message))
+}
+
 func (r *Recorder) run() {
-	for p := range r.input {
-		r.process(p)
+	for chunk := range r.input {
+		r.operator = chunk.operator
+		r.process(chunk.data)
 	}
+}
+
+// getLineUser returns who typed the line being run, for the command rules.
+func (r *Recorder) getLineUser() *casdoorsdk.User {
+	if r.lineUser != nil {
+		return r.lineUser
+	}
+	return r.opts.User
 }
 
 func (r *Recorder) send(p []byte) {
@@ -292,6 +321,7 @@ func (r *Recorder) startLine() {
 	r.promptX = min(cursor.X, cols)
 	r.promptText = string(r.rowCells(cursor.Y)[:r.promptX])
 	r.lineStarted = true
+	r.lineUser = r.operator
 }
 
 func (r *Recorder) isFullScreen() bool {
@@ -318,7 +348,7 @@ func (r *Recorder) enter() {
 		return
 	}
 
-	rule, err := object.MatchCommandRule(r.opts.User, r.opts.Asset, command)
+	rule, err := object.MatchCommandRule(r.getLineUser(), r.opts.Asset, command)
 	if err != nil {
 		// a command whose rules can't be read is blocked rather than run unchecked
 		logs.Error(fmt.Sprintf("Recorder.enter(): failed to match the command rules: %s", err.Error()))
@@ -430,6 +460,9 @@ func (r *Recorder) record(text string, rule *object.CommandRule, blockedError st
 		ClientIp: r.opts.ClientIp,
 		Text:     text,
 		Protocol: asset.Protocol,
+	}
+	if r.lineUser != nil {
+		command.Operator = util.GetIdFromOwnerAndName(r.lineUser.Owner, r.lineUser.Name)
 	}
 	if blockedError != "" {
 		command.Action = object.CommandActionBlock

@@ -29,6 +29,7 @@ type Command struct {
 	Session  string `xorm:"varchar(200) index" json:"session"`
 	Asset    string `xorm:"varchar(200) index" json:"asset"`
 	User     string `xorm:"varchar(200) index" json:"user"`
+	Operator string `xorm:"varchar(200)" json:"operator"`
 	ClientIp string `xorm:"varchar(100)" json:"clientIp"`
 	Text     string `xorm:"mediumtext" json:"text"`
 	Action   string `xorm:"varchar(20)" json:"action"`

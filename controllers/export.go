@@ -149,10 +149,10 @@ func (c *ApiController) ExportCommands() {
 		return
 	}
 
-	header := []string{"Time", "Command", "Action", "Rule", "User", "Asset", "Client IP", "Session"}
+	header := []string{"Time", "Command", "Action", "Rule", "User", "Operator", "Asset", "Client IP", "Session"}
 	c.exportCsv("commands", header, func(write func(row []string) error) error {
 		return object.IterateCommands(query.owner, query.field, query.value, query.sortField, query.sortOrder, func(command *object.Command) error {
-			return write([]string{command.CreatedTime, command.Text, command.Action, command.Rule, command.User, command.Asset, command.ClientIp, command.Session})
+			return write([]string{command.CreatedTime, command.Text, command.Action, command.Rule, command.User, command.Operator, command.Asset, command.ClientIp, command.Session})
 		})
 	})
 }

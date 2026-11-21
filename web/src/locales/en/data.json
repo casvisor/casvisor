@@ -187,6 +187,7 @@
     "Edit Command Rule": "Edit Command Rule",
     "In MySQL and PostgreSQL sessions the pattern is matched against each SQL statement, for example": "In MySQL and PostgreSQL sessions the pattern is matched against each SQL statement, for example",
     "New Command Rule": "New Command Rule",
+    "Operator": "Operator",
     "Pattern": "Pattern",
     "Pattern - Tooltip": "A regular expression, matched anywhere in the command, for example ^\\s*rm\\s+-rf\\s+/\\s*$; in database sessions it is matched against each SQL statement",
     "Rule": "Rule",
@@ -640,8 +641,10 @@
     "Online": "Online",
     "Pause": "Pause",
     "Play": "Play",
+    "Release control": "Release control",
     "Replay": "Replay",
-    "Skip idle time": "Skip idle time"
+    "Skip idle time": "Skip idle time",
+    "Take control": "Take control"
   },
   "sshKey": {
     "Add SSH key": "Add SSH key",

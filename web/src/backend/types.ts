@@ -302,6 +302,7 @@ export interface Command {
   session: string;
   asset: string;
   user: string;
+  operator?: string;
   clientIp: string;
   text: string;
   action: string;
