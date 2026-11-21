@@ -254,3 +254,38 @@ func (c *ApiController) DeleteAsset() {
 	c.Data["json"] = wrapActionResponse(affected, err)
 	c.ServeJSON()
 }
+
+// TestAsset
+// @Title TestAsset
+// @Tag Asset API
+// @Description connect to an asset as it is on the edit page without saving anything, returning the latency, the server version and a host key seen for the first time
+// @Param   id     query    string  false       "The id ( owner/name ) of the saved asset whose password and private key are used when masked"
+// @Param   body    body   object.Asset  true        "The details of the asset"
+// @Success 200 {object} object.AssetProbeResult The Response object
+// @router /test-asset [post]
+func (c *ApiController) TestAsset() {
+	var asset object.Asset
+	err := json.Unmarshal(c.Ctx.Input.RequestBody, &asset)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if !c.checkOwner(asset.Owner) {
+		return
+	}
+
+	id := c.Input().Get("id")
+	if id != "" {
+		owner, _ := util.GetOwnerAndNameFromIdNoCheck(id)
+		if !c.checkOwner(owner) {
+			return
+		}
+	}
+
+	res, err := object.ProbeAsset(id, &asset)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	c.ResponseOk(res)
+}
