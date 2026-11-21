@@ -236,6 +236,8 @@ func (c *ApiController) ChangePassword() {
 		return
 	}
 
+	// this session stays signed in, the others are signed out
+	c.setPasswordStamp(user)
 	c.ResponseOk()
 }
 

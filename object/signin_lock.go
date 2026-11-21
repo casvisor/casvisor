@@ -103,6 +103,20 @@ func pruneSigninFailures() {
 	}
 }
 
+// mfaFailureKey counts the wrong codes of a user from every client IP together: only
+// someone who knows the password gets to enter a code, so this cannot lock out a user from
+// elsewhere, while it keeps the six digits from being guessed from many IPs.
+const mfaFailureKey = "mfa"
+
+func getMfaLock(userId string) time.Time {
+	return getSigninLock(userId, mfaFailureKey)
+}
+
+func addMfaFailure(userId string, clientIp string) {
+	addSigninFailure(userId, clientIp)
+	addSigninFailure(userId, mfaFailureKey)
+}
+
 // checkPasswordWithLock checks the password of a signed-in user for a change to their
 // account, counting failures as a sign-in does.
 func checkPasswordWithLock(user *LocalUser, password string, clientIp string) error {

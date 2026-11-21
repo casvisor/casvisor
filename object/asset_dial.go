@@ -19,12 +19,36 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 )
 
 const dialTimeout = 10 * time.Second
+
+var metadataIp = net.ParseIP("100.100.100.200")
+
+// isMetadataAddress tells the link-local addresses, where cloud servers keep their metadata
+// and credentials (169.254.169.254, and 100.100.100.200 on Alibaba Cloud), and the unspecified address.
+func isMetadataAddress(ip net.IP) bool {
+	return ip == nil || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.Equal(metadataIp)
+}
+
+// refuseMetadataAddress checks the address a dial resolved to, so that no asset or gateway
+// can make Casvisor reach the metadata of the server it runs on.
+func refuseMetadataAddress(network string, address string, c syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	if isMetadataAddress(net.ParseIP(host)) {
+		return fmt.Errorf("the address: %s can't be connected to", host)
+	}
+	return nil
+}
+
+var assetDialer = &net.Dialer{Timeout: dialTimeout, Control: refuseMetadataAddress}
 
 func (asset *Asset) getAddress() string {
 	if asset.Protocol == ProtocolKubernetes {
@@ -40,7 +64,7 @@ func (asset *Asset) getAddress() string {
 func DialAsset(asset *Asset) (net.Conn, error) {
 	address := asset.getAddress()
 	if asset.NetworkGateway == "" {
-		return net.DialTimeout("tcp", address, dialTimeout)
+		return assetDialer.Dial("tcp", address)
 	}
 
 	gateway, err := getNetworkGateway(asset.Owner, asset.NetworkGateway)
@@ -93,7 +117,7 @@ func (gateway *NetworkGateway) DialSsh() (*ssh.Client, error) {
 	}
 
 	address := net.JoinHostPort(gateway.Host, strconv.Itoa(gateway.Port))
-	conn, err := net.DialTimeout("tcp", address, dialTimeout)
+	conn, err := assetDialer.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}

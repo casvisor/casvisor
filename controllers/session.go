@@ -104,6 +104,9 @@ func (c *ApiController) DeleteSession() {
 		c.ResponseError(err.Error())
 		return
 	}
+	if !c.checkOwner(session.Owner) {
+		return
+	}
 
 	old, err := object.GetConnSession(session.GetId())
 	if err != nil {
@@ -142,6 +145,11 @@ func (c *ApiController) UpdateSession() {
 		return
 	}
 
+	owner, _ := util.GetOwnerAndNameFromIdNoCheck(id)
+	if !c.checkOwner(owner) || !c.checkOwner(session.Owner) {
+		return
+	}
+
 	c.Data["json"] = wrapActionResponse(object.UpdateSession(id, &session))
 	c.ServeJSON()
 }
@@ -158,6 +166,9 @@ func (c *ApiController) AddSession() {
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &session)
 	if err != nil {
 		c.ResponseError(err.Error())
+		return
+	}
+	if !c.checkOwner(session.Owner) {
 		return
 	}
 	// recordings are only added by Casvisor itself while a session is live

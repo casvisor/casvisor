@@ -156,7 +156,7 @@ func IsAllowed(user *casdoorsdk.User, subOwner string, subName string, method st
 		}
 	}
 
-	if subOwner == "app" {
+	if user == nil && subOwner == "app" {
 		return true
 	}
 

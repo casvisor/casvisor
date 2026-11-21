@@ -151,6 +151,9 @@ func (c *ApiController) DeleteLocalUser() {
 		c.ResponseError(err.Error())
 		return
 	}
+	if !c.checkOwner(user.Owner) {
+		return
+	}
 
 	affected, err := object.DeleteLocalUser(&user)
 	if err == nil {

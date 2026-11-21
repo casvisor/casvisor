@@ -158,6 +158,9 @@ func (c *ApiController) DeletePermission() {
 		c.ResponseError(err.Error())
 		return
 	}
+	if !c.checkOwner(permission.Owner) {
+		return
+	}
 
 	affected, err := object.DeletePermission(&permission)
 	if err == nil {

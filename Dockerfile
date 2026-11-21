@@ -23,14 +23,9 @@ ARG TARGETARCH
 ENV BUILDX_ARCH="${TARGETOS:-linux}_${TARGETARCH:-amd64}"
 ENV sshGatewayPort=2222
 
-RUN sed -i 's/https/http/' /etc/apk/repositories
-RUN apk add --update sudo
-RUN apk add curl
-RUN apk add ca-certificates && update-ca-certificates
+RUN apk add --no-cache curl ca-certificates && update-ca-certificates
 
 RUN adduser -D $USER -u 1000 \
-    && echo "$USER ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USER \
-    && chmod 0440 /etc/sudoers.d/$USER \
     && mkdir logs db recordings \
     && chown -R $USER:$USER logs db recordings
 
@@ -55,7 +50,6 @@ ENV BUILDX_ARCH="${TARGETOS:-linux}_${TARGETARCH:-amd64}"
 ENV sshGatewayPort=2222
 # the all-in-one image keeps its own MySQL (MariaDB), as before
 ENV driverName=mysql
-ENV dataSourceName="root:123456@tcp(localhost:3306)/"
 ENV dbName=casvisor
 
 WORKDIR /

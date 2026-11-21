@@ -15,6 +15,7 @@
 package object
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -22,7 +23,12 @@ import (
 
 	"github.com/beego/beego/logs"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/casvisor/casvisor/util"
 )
+
+// casdoorUserCheckInterval is how often the Casdoor user of a connected session is read
+// again, so that a user deleted, forbidden or moved out of a group in Casdoor is cut off.
+const casdoorUserCheckInterval = 5 * time.Minute
 
 const PermissionRevokedCode = 802
 
@@ -38,6 +44,8 @@ type LiveSession struct {
 	// Operations are the file and clipboard operations the session was started with; a session
 	// without OnActions is ended when one of them is revoked, to start again with what is left
 	Operations []string
+
+	userCheckedTime time.Time
 }
 
 var liveSessions sync.Map
@@ -90,6 +98,21 @@ func (liveSession *LiveSession) check() (string, error) {
 			return fmt.Sprintf("The user: %s has been deleted or forbidden", liveSession.User.Name), nil
 		}
 		liveSession.User = user.ToCasdoorUser()
+	} else if time.Since(liveSession.userCheckedTime) >= casdoorUserCheckInterval {
+		userId := util.GetIdFromOwnerAndName(liveSession.User.Owner, liveSession.User.Name)
+		user, err := GetCasdoorUser(liveSession.User.Owner, liveSession.User.Name)
+		if err != nil {
+			if errors.Is(err, ErrUserNotAllowed) {
+				return fmt.Sprintf("The user: %s has been deleted or forbidden", liveSession.User.Name), nil
+			}
+			// Casdoor could not be reached: keep the session and try again at the next check
+			logs.Warning("failed to read the user: %s from Casdoor: %s", userId, err.Error())
+		} else if !IsUserAllowedToSignin(userId) {
+			return fmt.Sprintf("The user: %s is no longer allowed to sign in", liveSession.User.Name), nil
+		} else {
+			liveSession.User = user
+			liveSession.userCheckedTime = time.Now()
+		}
 	}
 
 	asset, err := GetAsset(liveSession.AssetId)

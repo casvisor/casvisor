@@ -246,6 +246,9 @@ func (c *ApiController) DeleteAsset() {
 		c.ResponseError(err.Error())
 		return
 	}
+	if !c.checkOwner(asset.Owner) {
+		return
+	}
 
 	affected, err := object.DeleteAsset(&asset)
 	if err == nil {

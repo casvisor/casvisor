@@ -114,6 +114,10 @@ func RefreshLocalUser(ctx *context.Context) {
 		ctx.Input.CruSession.Delete("user")
 		return
 	}
+	if stamp, _ := ctx.Input.Session(object.PasswordStampSessionKey).(string); stamp != user.GetPasswordStamp() {
+		ctx.Input.CruSession.Delete("user")
+		return
+	}
 
 	claims.User = *user.ToCasdoorUser()
 	ctx.Input.CruSession.Set("user", claims)

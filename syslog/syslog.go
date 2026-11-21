@@ -18,6 +18,7 @@ package syslog
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -80,7 +81,7 @@ var (
 	once     sync.Once
 )
 
-// Start forwards the events to syslogAddress, such as udp://10.0.0.5:514 or tcp://10.0.0.5:6514; an empty address turns it off.
+// Start forwards the events to syslogAddress, such as udp://10.0.0.5:514, tcp://10.0.0.5:514 or tls://siem.example.com:6514; an empty address turns it off.
 func Start(address string, format string) error {
 	var err error
 	once.Do(func() {
@@ -93,8 +94,8 @@ func Start(address string, format string) error {
 			network = strings.ToLower(address[:i])
 			address = address[i+3:]
 		}
-		if network != "udp" && network != "tcp" {
-			err = fmt.Errorf("invalid syslogAddress: the scheme should be udp:// or tcp://")
+		if network != "udp" && network != "tcp" && network != "tls" {
+			err = fmt.Errorf("invalid syslogAddress: the scheme should be udp://, tcp:// or tls://")
 			return
 		}
 		if _, _, splitErr := net.SplitHostPort(address); splitErr != nil {
@@ -168,7 +169,7 @@ func (s *sender) loop() {
 		for attempt := 0; ; attempt++ {
 			if conn == nil {
 				var err error
-				conn, err = net.DialTimeout(s.network, s.address, writeTimeout)
+				conn, err = s.dial()
 				if err != nil {
 					conn = nil
 					warn("failed to connect to %s://%s: %s, retrying", s.network, s.address, err.Error())
@@ -181,7 +182,7 @@ func (s *sender) loop() {
 			_ = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 			_, err := conn.Write(message)
 			if err == nil {
-				if failing && s.network == "tcp" {
+				if failing && s.network != "udp" {
 					logs.Info("syslog: connected to %s://%s again", s.network, s.address)
 				}
 				failing = false
@@ -200,6 +201,19 @@ func (s *sender) loop() {
 	}
 }
 
+func (s *sender) dial() (net.Conn, error) {
+	if s.network != "tls" {
+		return net.DialTimeout(s.network, s.address, writeTimeout)
+	}
+
+	host, _, err := net.SplitHostPort(s.address)
+	if err != nil {
+		return nil, err
+	}
+	dialer := &net.Dialer{Timeout: writeTimeout}
+	return tls.DialWithDialer(dialer, "tcp", s.address, &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12})
+}
+
 func (s *sender) encode(event Event) []byte {
 	var buf bytes.Buffer
 	pri := facility*8 + event.Severity
@@ -208,7 +222,7 @@ func (s *sender) encode(event Event) []byte {
 	} else {
 		fmt.Fprintf(&buf, "<%d>1 %s %s casvisor %d %s - %s", pri, event.Time.Format("2006-01-02T15:04:05.000Z07:00"), hostname, os.Getpid(), event.Type, formatJson(event))
 	}
-	if s.network == "tcp" {
+	if s.network != "udp" {
 		buf.WriteByte('\n')
 	}
 	return buf.Bytes()

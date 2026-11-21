@@ -20,6 +20,8 @@ import (
 
 	"github.com/beego/beego"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/util"
 )
 
 type ApiController struct {
@@ -66,6 +68,18 @@ func (c *ApiController) SetSessionClaims(claims *casdoorsdk.Claims) {
 
 	c.SetSession("user", *claims)
 	c.SetSession("userCheckedTime", time.Now().Unix())
+	c.setPasswordStamp(&claims.User)
+}
+
+func (c *ApiController) setPasswordStamp(user *casdoorsdk.User) {
+	if !object.IsLocalAuth() {
+		return
+	}
+
+	localUser, err := object.GetLocalUser(util.GetIdFromOwnerAndName(user.Owner, user.Name))
+	if err == nil && localUser != nil {
+		c.SetSession(object.PasswordStampSessionKey, localUser.GetPasswordStamp())
+	}
 }
 
 func (c *ApiController) GetSessionUser() *casdoorsdk.User {

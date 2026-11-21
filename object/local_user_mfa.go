@@ -105,6 +105,9 @@ func EnableLocalUserMfa(owner string, name string, secret string, code string) e
 	if user == nil {
 		return fmt.Errorf("the user: %s/%s does not exist", owner, name)
 	}
+	if user.MfaEnabled {
+		return fmt.Errorf("two-step verification is already on, turn it off with the password first")
+	}
 	if secret == "" {
 		return fmt.Errorf("set up the authenticator app first")
 	}
@@ -182,12 +185,15 @@ func CheckLocalUserMfaCode(owner string, name string, code string, clientIp stri
 	if lockedUntil := getSigninLock(userId, clientIp); !lockedUntil.IsZero() {
 		return true, false, fmt.Errorf("too many failed attempts, try again after %s", lockedUntil.Format("15:04:05"))
 	}
+	if lockedUntil := getMfaLock(userId); !lockedUntil.IsZero() {
+		return true, false, fmt.Errorf("too many wrong verification codes, try again after %s", lockedUntil.Format("15:04:05"))
+	}
 	ok, err = checkLocalUserMfa(user, code)
 	if err != nil {
 		return true, false, err
 	}
 	if !ok {
-		addSigninFailure(userId, clientIp)
+		addMfaFailure(userId, clientIp)
 	}
 	return true, ok, nil
 }

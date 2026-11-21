@@ -147,6 +147,9 @@ func (c *ApiController) DeleteCommandRule() {
 		c.ResponseError(err.Error())
 		return
 	}
+	if !c.checkOwner(rule.Owner) {
+		return
+	}
 
 	c.Data["json"] = wrapActionResponse(object.DeleteCommandRule(&rule))
 	c.ServeJSON()

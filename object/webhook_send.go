@@ -30,7 +30,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/beego/beego/logs"
@@ -171,17 +170,7 @@ var webhookTransport = &http.Transport{
 	Proxy: http.ProxyFromEnvironment,
 	DialContext: (&net.Dialer{
 		Timeout: webhookTimeout,
-		Control: func(network, address string, c syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				return err
-			}
-			ip := net.ParseIP(host)
-			if ip == nil || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.Equal(net.ParseIP("100.100.100.200")) {
-				return fmt.Errorf("webhooks can't be sent to the address: %s", host)
-			}
-			return nil
-		},
+		Control: refuseMetadataAddress,
 	}).DialContext,
 	TLSHandshakeTimeout: webhookTimeout,
 }

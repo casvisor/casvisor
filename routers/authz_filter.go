@@ -15,6 +15,7 @@
 package routers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -29,10 +30,37 @@ import (
 )
 
 type Object struct {
-	Owner        string `json:"owner"`
-	Name         string `json:"name"`
-	AccessKey    string `json:"accessKey"`
-	AccessSecret string `json:"accessSecret"`
+	Owner string `json:"owner"`
+	Name  string `json:"name"`
+}
+
+// getBodyOwners returns every value the JSON body gives for owner, matching keys without
+// regard to case like encoding/json does, so that a field of another type elsewhere in the
+// body cannot hide the owner. ok is false when the body is JSON that cannot be read this way.
+func getBodyOwners(body []byte) (owners []string, ok bool) {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 || (trimmed[0] != '{' && trimmed[0] != '[') {
+		return nil, true
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &fields); err != nil {
+		return nil, false
+	}
+
+	for key, value := range fields {
+		if !strings.EqualFold(key, "owner") {
+			continue
+		}
+		var owner *string
+		if err := json.Unmarshal(value, &owner); err != nil {
+			return nil, false
+		}
+		if owner != nil {
+			owners = append(owners, *owner)
+		}
+	}
+	return owners, true
 }
 
 func getSubject(ctx *context.Context) (string, string) {
@@ -77,13 +105,14 @@ func getObject(ctx *context.Context) (string, string) {
 			return ctx.Request.Form.Get("owner"), ctx.Request.Form.Get("name")
 		}
 
-		var obj Object
-		err := json.Unmarshal(body, &obj)
-		if err != nil {
+		owners, ok := getBodyOwners(body)
+		if !ok || len(owners) == 0 {
 			return "", ""
 		}
 
-		return obj.Owner, obj.Name
+		var obj Object
+		_ = json.Unmarshal(body, &obj)
+		return owners[len(owners)-1], obj.Name
 	}
 }
 
@@ -150,24 +179,39 @@ var mfaSetupApis = map[string]bool{
 	"/api/signin":        true,
 }
 
-// isInUserOrganization keeps users outside built-in to their own organization,
-// including ids without an owner and bodies naming another organization than the id.
+// isInUserOrganization keeps users outside built-in to their own organization: every id
+// and owner in the query, the form and the body must be of it, including ids without an owner.
 func isInUserOrganization(ctx *context.Context, user *casdoorsdk.User) bool {
 	if user == nil || user.Owner == "built-in" {
 		return true
 	}
 
-	if id := ctx.Input.Query("id"); id != "" {
+	_ = ctx.Input.Query("id")
+	for _, id := range ctx.Request.Form["id"] {
+		if id == "" {
+			continue
+		}
 		owner, _ := util.GetOwnerAndNameFromIdNoCheck(id)
 		if owner != user.Owner {
 			return false
 		}
 	}
 
-	if ctx.Request.Method != http.MethodGet && len(ctx.Input.RequestBody) != 0 {
-		var obj Object
-		if err := json.Unmarshal(ctx.Input.RequestBody, &obj); err == nil && obj.Owner != "" && obj.Owner != user.Owner {
+	for _, owner := range ctx.Request.Form["owner"] {
+		if owner != "" && owner != user.Owner {
 			return false
+		}
+	}
+
+	if ctx.Request.Method != http.MethodGet && len(ctx.Input.RequestBody) != 0 {
+		owners, ok := getBodyOwners(ctx.Input.RequestBody)
+		if !ok {
+			return false
+		}
+		for _, owner := range owners {
+			if owner != "" && owner != user.Owner {
+				return false
+			}
 		}
 	}
 

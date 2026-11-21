@@ -16,6 +16,8 @@ package object
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -66,6 +68,15 @@ var (
 	userNameRegex        = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$`)
 	dummyPasswordHash, _ = bcrypt.GenerateFromPassword([]byte("casvisor"), bcrypt.DefaultCost)
 )
+
+// PasswordStampSessionKey keeps in a session which password it was signed in with,
+// so that changing or resetting the password signs out the other sessions.
+const PasswordStampSessionKey = "passwordStamp"
+
+func (user *LocalUser) GetPasswordStamp() string {
+	sum := sha256.Sum256([]byte(user.PasswordHash))
+	return hex.EncodeToString(sum[:8])
+}
 
 // IsLocalAuth tells whether users sign in to Casvisor itself, which is the case
 // when no Casdoor is configured.
@@ -333,12 +344,15 @@ func SigninLocalUser(owner string, name string, password string, code string, cl
 		if strings.TrimSpace(code) == "" {
 			return nil, ErrMfaRequired
 		}
+		if lockedUntil := getMfaLock(userId); !lockedUntil.IsZero() {
+			return nil, fmt.Errorf("too many wrong verification codes, try again after %s", lockedUntil.Format("15:04:05"))
+		}
 		ok, err := checkLocalUserMfa(user, code)
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
-			addSigninFailure(userId, clientIp)
+			addMfaFailure(userId, clientIp)
 			return nil, fmt.Errorf("the verification code is wrong or has been used")
 		}
 	}
