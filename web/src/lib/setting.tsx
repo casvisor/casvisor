@@ -250,12 +250,17 @@ function getUrlWithLanguage(url: string) {
   return `${url}${url.includes("?") ? "&" : "?"}language=${getLanguage()}`;
 }
 
+// The backend rewrites the literals of Conf.AuthConfig in the served bundle, so they are read through
+// JSON at run time: compared directly, the bundler would decide at build time that the Casdoor
+// endpoint is never empty and drop the sign-in with Casvisor's own accounts.
+const authConfig: typeof Conf.AuthConfig = JSON.parse(JSON.stringify(Conf.AuthConfig));
+
 /**
  * Without a Casdoor endpoint in conf/app.conf, users sign in to Casvisor itself
  * with the accounts it keeps (the backend writes "" into Conf.AuthConfig.serverUrl).
  */
 export function isLocalAuth() {
-  return Conf.AuthConfig.serverUrl === "";
+  return authConfig.serverUrl === "";
 }
 
 export function getSigninUrl() {
