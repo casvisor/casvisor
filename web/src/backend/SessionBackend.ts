@@ -50,6 +50,9 @@ export function connect(sessionId: string) {
 export function disconnect(sessionId: string) {
   return post("/api/stop-session", {id: sessionId});
 }
+export const createSessionShare = (id: string, ttl = 3600) => post("/api/create-session-share", {id, ttl});
+export const revokeSessionShare = (token: string) => post("/api/revoke-session-share", {}, {token});
+export const getSessionShare = (token: string, code: string) => get("/api/get-session-share", {token, code});
 
 /** Downloads a recording of a session, reporting the bytes received so far. */
 export async function downloadRecording(sessionId: string, index: number, onProgress?: (loaded: number) => void): Promise<ArrayBuffer> {

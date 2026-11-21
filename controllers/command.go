@@ -15,10 +15,16 @@
 package controllers
 
 import (
+	"cmp"
+	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/beego/beego/utils/pagination"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/terminal"
@@ -70,6 +76,10 @@ func (c *ApiController) GetCommands() {
 // @Param   control     query    bool  false        "true to take part in the session"
 // @router /get-session-monitor [get]
 func (c *ApiController) GetSessionMonitor() {
+	c.serveSessionMonitor(c.Input().Get("id"), c.Input().Get("control") == "true", nil)
+}
+
+func (c *ApiController) serveSessionMonitor(sessionId string, isControl bool, ctx context.Context) {
 	c.EnableRender = false
 	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
 	if err != nil {
@@ -77,8 +87,12 @@ func (c *ApiController) GetSessionMonitor() {
 		return
 	}
 	stream := newWsStream(ws)
+	if ctx != nil {
+		defer context.AfterFunc(ctx, func() {
+			stream.Close(ForcedDisconnect, "The shared link has expired or been revoked")
+		})()
+	}
 
-	sessionId := c.Input().Get("id")
 	recorder := terminal.GetRecorder(sessionId)
 	if recorder == nil {
 		if rec := recording.Get(sessionId); rec != nil {
@@ -97,13 +111,13 @@ func (c *ApiController) GetSessionMonitor() {
 	defer recorder.Unwatch(viewer)
 
 	user := c.GetSessionUser()
-	isControl := c.Input().Get("control") == "true"
-	if isControl {
+	if isControl && user != nil {
 		c.auditMonitorAction(sessionId, "SSH", "session-control")
 		userId := util.GetIdFromOwnerAndName(user.Owner, user.Name)
 		recorder.Announce(fmt.Sprintf("The administrator %s has joined this session and can type in it", userId))
 		defer recorder.Announce(fmt.Sprintf("The administrator %s has left this session", userId))
 	} else {
+		isControl = false
 		c.auditMonitor(sessionId, "SSH")
 	}
 
@@ -149,6 +163,9 @@ func (c *ApiController) auditMonitor(sessionId string, method string) {
 
 func (c *ApiController) auditMonitorAction(sessionId string, method string, action string) {
 	user := c.GetSessionUser()
+	if user == nil {
+		return
+	}
 	object.AddAuditRecord(&object.AuditEvent{
 		Organization: user.Owner,
 		User:         user.Name,
@@ -158,4 +175,93 @@ func (c *ApiController) auditMonitorAction(sessionId string, method string, acti
 		Action:       action,
 		Detail:       sessionId,
 	})
+}
+
+func (c *ApiController) shareAuthErr(owner, creator string) string {
+	if user := c.GetSessionUser(); user != nil {
+		if user.Owner != "built-in" && user.Owner != owner {
+			return fmt.Sprintf("you cannot manage the resources of the organization: %s", owner)
+		}
+		if !c.isAdmin() && getUserId(user) != creator {
+			return "you have no permission to share this session"
+		}
+		return ""
+	}
+	id, sec, ok := c.Ctx.Request.BasicAuth()
+	wId, wSec := conf.GetConfigString("clientId"), conf.GetConfigString("clientSecret")
+	if ok && wId != "" && wSec != "" && subtle.ConstantTimeCompare([]byte(id), []byte(wId)) == 1 && subtle.ConstantTimeCompare([]byte(sec), []byte(wSec)) == 1 {
+		return ""
+	}
+	return "please sign in first"
+}
+
+func (c *ApiController) verifySharedViewer() (*object.SessionShare, context.Context, string) {
+	user := c.GetSessionUser()
+	if user == nil {
+		return nil, nil, "please sign in first"
+	}
+	share, ctx, err := object.VerifySessionShare(c.Input().Get("token"), c.Input().Get("code"), user.Owner)
+	if err != nil {
+		return nil, nil, err.Error()
+	}
+	if terminal.GetRecorder(share.SessionId) == nil && recording.Get(share.SessionId) == nil {
+		object.CloseSessionShareBySession(share.SessionId)
+		return nil, nil, "the session is not connected, or it is not an interactive session"
+	}
+	return share, ctx, ""
+}
+
+func (c *ApiController) CreateSessionShare() {
+	s, err := object.GetConnSession(c.Input().Get("id"))
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	if s == nil {
+		c.ResponseError("the session does not exist")
+		return
+	}
+	if msg := c.shareAuthErr(s.Owner, s.Creator); msg != "" {
+		c.ResponseError(msg)
+		return
+	}
+	if terminal.GetRecorder(s.GetId()) == nil && recording.Get(s.GetId()) == nil {
+		c.ResponseError("the session is not connected, or it is not an interactive session")
+		return
+	}
+	if share, err := object.CreateSessionShare(s, time.Duration(util.ParseInt(c.Input().Get("ttl")))*time.Second); err != nil {
+		c.ResponseError(err.Error())
+	} else {
+		c.ResponseOk(share)
+	}
+}
+
+func (c *ApiController) RevokeSessionShare() {
+	var req map[string]string
+	_ = json.Unmarshal(c.Ctx.Input.RequestBody, &req)
+	msg := "invalid or expired session share"
+	if object.RevokeSessionShare(cmp.Or(req["token"], c.Input().Get("token")), func(owner, creator string) bool {
+		msg = c.shareAuthErr(owner, creator)
+		return msg == ""
+	}) {
+		c.ResponseOk()
+	} else {
+		c.ResponseError(msg)
+	}
+}
+
+func (c *ApiController) GetSessionShare() {
+	if share, _, msg := c.verifySharedViewer(); msg != "" {
+		c.ResponseError(msg)
+	} else {
+		c.ResponseOk(share)
+	}
+}
+
+func (c *ApiController) WatchSharedSession() {
+	if share, ctx, msg := c.verifySharedViewer(); msg != "" {
+		http.Error(c.Ctx.ResponseWriter, msg, http.StatusForbidden)
+	} else {
+		c.serveSessionMonitor(share.SessionId, false, ctx)
+	}
 }

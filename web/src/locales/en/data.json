@@ -640,6 +640,8 @@
   "session": {
     "Download": "Download",
     "Ended": "Ended",
+    "Expires at": "Expires at",
+    "Generate link": "Generate link",
     "History": "History",
     "Jump to replay": "Jump to replay",
     "Live": "Live",
@@ -650,8 +652,10 @@
     "Play": "Play",
     "Release control": "Release control",
     "Replay": "Replay",
+    "Share": "Share",
     "Skip idle time": "Skip idle time",
-    "Take control": "Take control"
+    "Take control": "Take control",
+    "Verification code": "Verification code"
   },
   "sshKey": {
     "Add SSH key": "Add SSH key",

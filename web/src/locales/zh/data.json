@@ -640,6 +640,8 @@
   "session": {
     "Download": "下载",
     "Ended": "已结束",
+    "Expires at": "到期时间",
+    "Generate link": "生成链接",
     "History": "历史",
     "Jump to replay": "跳转到回放",
     "Live": "实时",
@@ -650,8 +652,10 @@
     "Play": "播放",
     "Release control": "退出接管",
     "Replay": "回放",
+    "Share": "分享",
     "Skip idle time": "跳过空闲",
-    "Take control": "接管操作"
+    "Take control": "接管操作",
+    "Verification code": "验证码"
   },
   "sshKey": {
     "Add SSH key": "添加 SSH 公钥",

@@ -242,6 +242,7 @@ func CreateSession(session *Session, assetId string, mode string, operations []s
 }
 
 func CloseDBSession(id string, code int, msg string) error {
+	CloseSessionShareBySession(id)
 	s, err := GetConnSession(id)
 	if err != nil {
 		return err

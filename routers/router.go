@@ -117,6 +117,10 @@ func initAPI() {
 	beego.Router("/api/start-session", &controllers.ApiController{}, "POST:StartSession")
 	beego.Router("/api/stop-session", &controllers.ApiController{}, "POST:StopSession")
 	beego.Router("/api/get-session-monitor", &controllers.ApiController{}, "GET:GetSessionMonitor")
+	beego.Router("/api/create-session-share", &controllers.ApiController{}, "POST:CreateSessionShare")
+	beego.Router("/api/revoke-session-share", &controllers.ApiController{}, "POST:RevokeSessionShare")
+	beego.Router("/api/get-session-share", &controllers.ApiController{}, "GET:GetSessionShare")
+	beego.Router("/api/watch-shared-session", &controllers.ApiController{}, "GET:WatchSharedSession")
 	beego.Router("/api/get-session-recording", &controllers.ApiController{}, "GET:GetSessionRecording")
 	beego.Router("/api/export-sessions", &controllers.ApiController{}, "GET:ExportSessions")
 

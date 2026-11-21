@@ -17,6 +17,7 @@ import i18next from "i18next";
 import {Link} from "react-router-dom";
 import * as SessionBackend from "@/backend/SessionBackend";
 import type {Session} from "@/backend/types";
+import {SessionShareDialog} from "@/components/common/SessionShareDialog";
 import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {CrudListPage} from "@/components/crud/CrudListPage";
 import {ExportCsvButton} from "@/components/crud/ExportCsvButton";
@@ -30,6 +31,7 @@ export default function SessionListPage() {
   const {account} = useAccount();
   const owner = Setting.getRequestOrganization(account);
   const [status, setStatus] = React.useState(SessionBackend.Connected);
+  const [shareSessionId, setShareSessionId] = React.useState<string | null>(null);
   const isOnline = status === SessionBackend.Connected;
 
   const fetchSessions = React.useCallback(
@@ -161,7 +163,7 @@ export default function SessionListPage() {
       deps={[owner, status]}
       tableId={`/sessions/${status}`}
       remove={isOnline ? undefined : SessionBackend.deleteSession}
-      actionColumnWidth={260}
+      actionColumnWidth={300}
       rowActions={(session, _index, {refresh}) => [
         isOnline && (session.mode === "native" || session.mode === "gateway")
           ? {
@@ -173,6 +175,9 @@ export default function SessionListPage() {
               window.open(`/sessions/${session.owner}/${session.name}/${page}`, "_blank");
             },
           }
+          : null,
+        isOnline && (session.mode === "native" || session.mode === "gateway") && !isDatabaseProtocol(session.protocol)
+          ? {key: "share", label: i18next.t("session:Share"), onSelect: () => setShareSessionId(Setting.getIdFromObject(session))}
           : null,
         (session.recordings?.length ?? 0) > 0 || (!isOnline && isDatabaseProtocol(session.protocol))
           ? {
@@ -202,6 +207,7 @@ export default function SessionListPage() {
             </TabsList>
           </Tabs>
           <ExportCsvButton path="/api/export-sessions" owner={owner} query={query} params={{status}} />
+          <SessionShareDialog sessionId={shareSessionId} onClose={() => setShareSessionId(null)} />
         </>
       )}
     />

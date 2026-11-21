@@ -587,6 +587,39 @@
                 }
             }
         },
+        "/create-session-share": {
+            "post": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "create a temporary read-only link for a connected session",
+                "operationId": "ApiController.CreateSessionShare",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "ttl",
+                        "description": "Share duration in seconds (300 to 86400, default 3600)",
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.SessionShare"
+                        }
+                    }
+                }
+            }
+        },
         "/delete-access-request": {
             "post": {
                 "tags": [
@@ -2361,6 +2394,39 @@
                 ]
             }
         },
+        "/get-session-share": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "verify and retrieve metadata for a shared live session",
+                "operationId": "ApiController.GetSessionShare",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "token",
+                        "description": "The share token",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "description": "The 6-character verification code",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.SessionShare"
+                        }
+                    }
+                }
+            }
+        },
         "/get-sessions": {
             "get": {
                 "tags": [
@@ -2784,6 +2850,34 @@
                         "description": "The id ( owner/name ) of the network gateway",
                         "required": true,
                         "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/revoke-session-share": {
+            "post": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "revoke a temporary read-only session share link",
+                "operationId": "ApiController.RevokeSessionShare",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The share token object",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
                     }
                 ],
                 "responses": {
@@ -3379,6 +3473,31 @@
                         }
                     }
                 }
+            }
+        },
+        "/watch-shared-session": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "watch a shared live session over a websocket, read only",
+                "operationId": "ApiController.WatchSharedSession",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "token",
+                        "description": "The share token",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "description": "The 6-character verification code",
+                        "required": true,
+                        "type": "string"
+                    }
+                ]
             }
         }
     },
@@ -4834,6 +4953,39 @@
                 "width": {
                     "type": "integer",
                     "format": "int64"
+                }
+            }
+        },
+        "object.SessionShare": {
+            "title": "SessionShare",
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "creator": {
+                    "type": "string"
+                },
+                "expiresAt": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "revoked": {
+                    "type": "boolean"
+                },
+                "sessionId": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
                 }
             }
         },

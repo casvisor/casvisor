@@ -78,6 +78,10 @@ var userApis = map[string]bool{
 	"/api/get-asset-desktop":       true,
 	"/api/get-asset-telnet":        true,
 	"/api/start-session":           true,
+	"/api/create-session-share":    true,
+	"/api/revoke-session-share":    true,
+	"/api/get-session-share":       true,
+	"/api/watch-shared-session":    true,
 
 	"/api/get-asset-database":     true,
 	"/api/export-database-result": true,
