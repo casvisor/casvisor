@@ -27,12 +27,16 @@ import (
 )
 
 // StartRetention deletes the recordings older than recordingRetentionDays once
-// an hour; 0 or empty keeps them forever.
+// an hour, 0 or empty keeping them forever, and retries the uploads to the bucket
+// every 5 minutes.
 func StartRetention() {
 	go func() {
-		for {
-			deleteExpired()
-			time.Sleep(time.Hour)
+		for i := 0; ; i++ {
+			if i%12 == 0 {
+				deleteExpired()
+			}
+			uploadPending()
+			time.Sleep(5 * time.Minute)
 		}
 	}()
 }
@@ -45,6 +49,8 @@ func deleteExpired() {
 	}
 
 	deadline := time.Now().AddDate(0, 0, -days)
+	deleteExpiredFromBucket(deadline)
+
 	root := getRoot()
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".cvr") {

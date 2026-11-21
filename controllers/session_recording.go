@@ -59,12 +59,7 @@ func (c *ApiController) GetSessionRecording() {
 		return
 	}
 
-	path, err := recording.GetPath(session.Recordings[index])
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
-	file, err := os.Open(path)
+	file, modTime, err := recording.Open(session.Recordings[index])
 	if err != nil {
 		if os.IsNotExist(err) {
 			c.ResponseError("the recording has been deleted")
@@ -111,15 +106,10 @@ func (c *ApiController) GetSessionRecording() {
 		return
 	}
 
-	info, err := file.Stat()
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
 	c.Ctx.Output.Header("Content-Type", "application/octet-stream")
 	c.Ctx.Output.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName+".cvr"))
 	c.Ctx.Output.Header("Cache-Control", "no-store")
-	http.ServeContent(c.Ctx.ResponseWriter, c.Ctx.Request, fileName+".cvr", info.ModTime(), file)
+	http.ServeContent(c.Ctx.ResponseWriter, c.Ctx.Request, fileName+".cvr", modTime, file)
 }
 
 // writeAsciicast converts a terminal recording to asciicast v2, which asciinema plays.

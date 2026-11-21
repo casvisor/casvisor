@@ -161,6 +161,7 @@ func Start(header Header) (*Recording, error) {
 	n2, _ := r.w.Write(append(headerJson, '\n'))
 	r.size = int64(n1 + n2)
 
+	activeFiles.Store(r.Name, true)
 	recordings.Store(header.Session, r)
 	return r, nil
 }
@@ -254,15 +255,18 @@ func (r *Recording) closeLocked() {
 		viewer.close()
 	}
 	r.viewers = map[*Viewer]struct{}{}
+	activeFiles.Delete(r.Name)
+	uploadInBackground(r.Name)
 }
 
-// Delete removes the recording files of a session.
+// Delete removes the recording files of a session, locally and in the bucket.
 func Delete(names []string) {
 	for _, name := range names {
 		path, err := GetPath(name)
 		if err != nil {
 			continue
 		}
+		deleteFromBucket(name)
 		err = os.Remove(path)
 		if err != nil && !os.IsNotExist(err) {
 			logs.Error(fmt.Sprintf("recording.Delete(): %s", err.Error()))

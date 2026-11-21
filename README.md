@@ -157,7 +157,19 @@ casdoorApplication = <application>
 
 When `casdoorEndpoint` is empty, Casvisor uses its own accounts.
 
-**Recordings.** Sessions are recorded to `recordings/` under the working directory (`/recordings` in Docker). `recordingPath` moves them, `recordingRetentionDays` deletes the ones older than that many days, and `disableRecording = true` turns recording off.
+**Recordings.** Sessions are recorded to `recordings/` under the working directory (`/recordings` in Docker). `recordingPath` moves them, `recordingRetentionDays` deletes the ones older than that many days, and `disableRecording = true` turns recording off. To keep them in an S3-compatible bucket instead, set:
+
+```ini
+recordingStorage = s3
+recordingS3Endpoint = s3.us-east-1.amazonaws.com
+recordingS3Region = us-east-1
+recordingS3Bucket = <bucket>
+recordingS3Prefix = casvisor
+recordingS3AccessKey = <access key>
+recordingS3SecretKey = <secret key>
+```
+
+Recordings are still written to the disk first, so a session never waits for the bucket; when the session ends the recording is uploaded and the local copy deleted (`recordingKeepLocal = true` keeps it). If the bucket can't be reached, the upload is retried every 5 minutes. `recordingS3PathStyle = true` is for MinIO and others that need path-style URLs.
 
 Guide: [Configuration](https://casvisor.org/docs/operations/configuration) &middot; [Sign in with Casdoor](https://casvisor.org/docs/getting-started/casdoor) &middot; [Behind a reverse proxy](https://casvisor.org/docs/operations/reverse-proxy)
 
@@ -196,7 +208,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 
 **🔍 Audit**
 
-- **Session recording and playback** — SSH, Telnet, VNC and RDP, replayed in the browser with the same code that drew them live; SSH and Telnet recordings download as asciicast
+- **Session recording and playback** — SSH, Telnet, VNC and RDP, replayed in the browser with the same code that drew them live; SSH and Telnet recordings download as asciicast. Recordings are kept on disk or moved to an S3-compatible bucket (AWS S3, Alibaba Cloud OSS, Tencent COS, Cloudflare R2, MinIO) when the session ends
 - **Live monitoring** — watch online sessions and stop any of them; an administrator can take part in a terminal session and type in it, the user is told who joined, and the commands are logged with the administrator as the operator
 - **Command records** — SSH and Telnet commands are read off a virtual screen, so tab completion, history and line edits are captured as they ran; SQL statements are logged too
 - **Operation log** — file transfers and every change made through the API
