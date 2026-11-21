@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, Users, type LucideIcon} from "lucide-react";
+import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -127,6 +127,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         label: i18next.t("general:Records"),
         icon: ScrollText,
         description: i18next.t("general:Audit logs"),
+      },
+      {
+        key: "/webhooks",
+        label: i18next.t("general:Webhooks"),
+        icon: Webhook,
+        description: i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests and sign-ins waiting for review"),
       },
     );
   }

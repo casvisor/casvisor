@@ -88,6 +88,7 @@ func AddLoginReview(user *casdoorsdk.User, decision *LoginDecision, clientIp str
 	if err != nil {
 		return nil, err
 	}
+	notifyLoginReview(review, true)
 	return review, nil
 }
 
@@ -197,6 +198,7 @@ func ReviewLogin(id string, reviewer *casdoorsdk.User, approve bool, comment str
 	}
 
 	review.Status, review.Reviewer, review.ReviewedTime, review.Comment = update.Status, update.Reviewer, update.ReviewedTime, update.Comment
+	notifyLoginReview(review, false)
 	return review, nil
 }
 
