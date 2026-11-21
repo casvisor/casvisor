@@ -173,6 +173,8 @@ Recordings are still written to the disk first, so a session never waits for the
 
 **SSH certificates.** To let users sign in to the SSH gateway with OpenSSH certificates instead of registering public keys, set `sshGatewayTrustedUserCaKeys` to the CA public keys (one per line or separated by `;`) or to a file of them, like sshd's `TrustedUserCAKeys`. The certificate's principal is the Casvisor user, `<user>` or `<organization>/<user>`; validity, `source-address` and the login rules are checked.
 
+**Metrics.** Set `metricsToken` and point Prometheus at `/metrics` with `authorization: {credentials: <token>}`. It is off while `metricsToken` is empty.
+
 Guide: [Configuration](https://casvisor.org/docs/operations/configuration) &middot; [Sign in with Casdoor](https://casvisor.org/docs/getting-started/casdoor) &middot; [Behind a reverse proxy](https://casvisor.org/docs/operations/reverse-proxy)
 
 ## 👉 After you sign in
@@ -221,6 +223,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **Jobs** — run a command, a Bash or PowerShell script, or a file copy on many SSH assets at once, with concurrency, timeouts and per-asset output and exit codes
 - **Patch management** — scan SSH assets for pending system updates, install them and restart, on Windows (Windows Update) and Linux (apt, dnf, yum)
 - **REST API** — every console action is also an API call, with [Swagger docs](swagger)
+- **Prometheus metrics** — `/metrics` reports connected sessions, sessions, commands, assets, access requests and network agents, behind the bearer token in `metricsToken`
 - **Web console** — in 9 languages, built with React, Vite and shadcn/ui
 
 ## 🌐 Network gateways
