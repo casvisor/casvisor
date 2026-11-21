@@ -82,6 +82,7 @@ func main() {
 		}))
 	}
 
+	beego.InsertFilter("*", beego.BeforeStatic, routers.RejectEncodedBody)
 	beego.SetStaticPath("/swagger", "swagger")
 	beego.InsertFilter("/metrics", beego.BeforeRouter, routers.MetricsFilter)
 	// https://studygolang.com/articles/2303
@@ -96,11 +97,13 @@ func main() {
 	if beego.AppConfig.String("redisEndpoint") == "" {
 		beego.BConfig.WebConfig.Session.SessionProvider = "file"
 		beego.BConfig.WebConfig.Session.SessionProviderConfig = "./tmp"
+		routers.StartSessionFileCleaner("./tmp")
 	} else {
 		beego.BConfig.WebConfig.Session.SessionProvider = "redis"
 		beego.BConfig.WebConfig.Session.SessionProviderConfig = beego.AppConfig.String("redisEndpoint")
 	}
-	beego.BConfig.WebConfig.Session.SessionGCMaxLifetime = 3600 * 24 * 365
+	// sessions slide on use, so this signs out only the users idle for 30 days
+	beego.BConfig.WebConfig.Session.SessionGCMaxLifetime = 3600 * 24 * 30
 	beego.BConfig.WebConfig.Session.SessionCookieSameSite = http.SameSiteLaxMode
 
 	task.NewTicker().SetupTicker()

@@ -43,6 +43,22 @@ var nativeUpgrader = websocket.Upgrader{
 	Subprotocols: []string{"binary"},
 }
 
+// wsMaxMessage bounds what one WebSocket message from a browser may take in memory;
+// RDP and desktop sessions carry clipboard images and files of up to 64 MB, encoded.
+const (
+	wsMaxMessage    = 16 << 20
+	wsMaxRdpMessage = 100 << 20
+)
+
+func (c *ApiController) upgradeWebSocket(maxMessage int64) (*websocket.Conn, error) {
+	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	if err != nil {
+		return nil, err
+	}
+	ws.SetReadLimit(maxMessage)
+	return ws, nil
+}
+
 type wsStream struct {
 	ws      *websocket.Conn
 	reader  io.Reader

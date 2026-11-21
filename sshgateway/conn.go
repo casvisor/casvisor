@@ -131,7 +131,7 @@ func (g *gatewayConn) findAsset(name string) (*object.Asset, error) {
 	}
 	if strings.Contains(name, "/") {
 		owner, assetName := util.GetOwnerAndNameFromIdNoCheck(name)
-		if owner == "" || assetName == "" {
+		if owner == "" || assetName == "" || strings.Contains(assetName, "/") {
 			return nil, nil
 		}
 		return object.GetAsset(name)
@@ -226,6 +226,10 @@ func (g *gatewayConn) selectAsset(asset *object.Asset, account string, isNamed b
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	// the channels of a connection share its client, which must keep the asset and actions it was opened with
+	if g.client != nil {
+		return fmt.Errorf("this connection is already connected to the asset: %s, open a new connection for another asset", g.asset.Name)
+	}
 	g.asset = asset
 	g.account = account
 	g.actions = actions

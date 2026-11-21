@@ -274,7 +274,7 @@ func (c *ApiController) RevokeNetworkGatewayToken() {
 // @router /connect-agent [get]
 func (c *ApiController) ConnectAgent() {
 	c.EnableRender = false
-	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	ws, err := c.upgradeWebSocket(wsMaxMessage)
 	if err != nil {
 		return
 	}

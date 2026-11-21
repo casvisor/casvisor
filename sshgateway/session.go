@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"path"
 	"strings"
 	"sync"
 
@@ -59,6 +58,7 @@ type sessionChannel struct {
 }
 
 func (g *gatewayConn) handleSession(newChannel ssh.NewChannel) {
+	defer recoverPanic("a session channel")
 	down, reqs, err := newChannel.Accept()
 	if err != nil {
 		return
@@ -328,7 +328,9 @@ func getTransferAction(command string) string {
 		return ""
 	}
 
-	switch path.Base(fields[0]) {
+	// only the scp and rsync on the PATH, as their clients ask for them: a program of the
+	// same name uploaded somewhere else must not run as a file transfer
+	switch fields[0] {
 	case "scp":
 		// scp sends when -f is given anywhere, even after -t.
 		flags := ""
@@ -360,6 +362,7 @@ func getTransferAction(command string) string {
 // handleForward passes a port forwarding channel ("ssh -L", VS Code Remote) through to
 // the asset, so the connection is opened from the asset, as with a direct SSH login.
 func (g *gatewayConn) handleForward(newChannel ssh.NewChannel) {
+	defer recoverPanic("a forwarding channel")
 	if g.conn.Permissions != nil && g.conn.Permissions.Extensions[certNoForwardExtension] != "" {
 		_ = newChannel.Reject(ssh.Prohibited, "the certificate does not permit port forwarding")
 		return
@@ -489,7 +492,8 @@ func (w recordedWriter) Write(p []byte) (int, error) {
 
 // isPlainCommand tells whether the shell on the asset runs a command line as a
 // single command: no separators, pipes, redirections or substitutions outside
-// single quotes, which is how scp quotes file names.
+// single quotes, which is how scp quotes file names. cmd.exe on Windows does not
+// take single quotes as quotes, so what it treats specially is refused inside them too.
 func isPlainCommand(command string) bool {
 	quoted := false
 	for _, r := range command {
@@ -498,6 +502,9 @@ func isPlainCommand(command string) bool {
 			continue
 		}
 		if quoted {
+			if strings.ContainsRune("&|<>^%!\"\n\r", r) {
+				return false
+			}
 			continue
 		}
 		if strings.ContainsRune(";&|<>()$`\\\"\n\r", r) {

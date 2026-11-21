@@ -272,7 +272,7 @@ func (a *telnetAutoLogin) answer(output []byte) string {
 
 func (c *ApiController) GetAssetTelnet() {
 	c.EnableRender = false
-	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	ws, err := c.upgradeWebSocket(wsMaxMessage)
 	if err != nil {
 		c.ResponseError("WebSocket upgrade failed:", err)
 		return

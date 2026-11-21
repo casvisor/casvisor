@@ -109,6 +109,12 @@ type Recorder struct {
 
 var recorders sync.Map
 
+// maxCols and maxRows bound the virtual screen, whose memory grows with its size.
+const (
+	maxCols = 1000
+	maxRows = 500
+)
+
 func NewRecorder(opts Options) *Recorder {
 	if opts.Cols <= 0 {
 		opts.Cols = 80
@@ -116,6 +122,7 @@ func NewRecorder(opts Options) *Recorder {
 	if opts.Rows <= 0 {
 		opts.Rows = 24
 	}
+	opts.Cols, opts.Rows = min(opts.Cols, maxCols), min(opts.Rows, maxRows)
 
 	r := &Recorder{
 		opts:    opts,
@@ -155,6 +162,33 @@ func (r *Recorder) Close() {
 	r.viewers = map[*Viewer]struct{}{}
 }
 
+// writeVt feeds the virtual screen. vt10x panics on some escape sequences, such as a
+// negative count; the screen then starts over instead of the whole server going down,
+// and the commands are read from the keystrokes until a prompt shows again. The caller holds r.mu.
+func (r *Recorder) writeVt(data []byte) (n int) {
+	defer func() {
+		if err := recover(); err != nil {
+			logs.Warning("terminal: the virtual screen of session: %s failed and is reset: %v", r.opts.SessionId, err)
+			r.vt = vt10x.New(vt10x.WithSize(r.cols, r.rows))
+			n = len(data)
+		}
+	}()
+
+	n, _ = r.vt.Write(data)
+	return n
+}
+
+func (r *Recorder) resizeVt(cols int, rows int) {
+	defer func() {
+		if err := recover(); err != nil {
+			logs.Warning("terminal: the virtual screen of session: %s failed and is reset: %v", r.opts.SessionId, err)
+			r.vt = vt10x.New(vt10x.WithSize(cols, rows))
+		}
+	}()
+
+	r.vt.Resize(cols, rows)
+}
+
 // Output takes what the asset sent to the user's terminal.
 func (r *Recorder) Output(p []byte) {
 	if len(p) == 0 {
@@ -165,7 +199,7 @@ func (r *Recorder) Output(p []byte) {
 	defer r.mu.Unlock()
 
 	data := append(r.partial, p...)
-	n, _ := r.vt.Write(data)
+	n := r.writeVt(data)
 	if n < len(data) {
 		r.partial = append([]byte{}, data[n:]...)
 	} else {
@@ -247,11 +281,12 @@ func (r *Recorder) Resize(cols, rows int) {
 	if cols <= 0 || rows <= 0 {
 		return
 	}
+	cols, rows = min(cols, maxCols), min(rows, maxRows)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.vt.Resize(cols, rows)
+	r.resizeVt(cols, rows)
 	r.cols, r.rows = cols, rows
 	r.rec.WriteJson(recording.KindResize, map[string]int{"cols": cols, "rows": rows})
 	for viewer := range r.viewers {

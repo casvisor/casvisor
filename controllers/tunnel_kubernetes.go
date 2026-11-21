@@ -173,7 +173,7 @@ func openKubernetesShell(client *object.KubernetesClient, namespace string, pod 
 // @router /get-asset-kubernetes [get]
 func (c *ApiController) GetAssetKubernetes() {
 	c.EnableRender = false
-	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	ws, err := c.upgradeWebSocket(wsMaxMessage)
 	if err != nil {
 		c.ResponseError("WebSocket upgrade failed:", err)
 		return

@@ -120,7 +120,7 @@ func getDesktopPermissions(session *object.Session) []string {
 // input and the clipboard are checked against the session's permissions.
 func (c *ApiController) GetAssetDesktop() {
 	c.EnableRender = false
-	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	ws, err := c.upgradeWebSocket(wsMaxRdpMessage)
 	if err != nil {
 		c.ResponseError("WebSocket upgrade failed:", err)
 		return

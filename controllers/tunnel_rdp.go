@@ -48,7 +48,7 @@ import (
 // and keyboard input.
 func (c *ApiController) GetAssetRdp() {
 	c.EnableRender = false
-	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	ws, err := c.upgradeWebSocket(wsMaxRdpMessage)
 	if err != nil {
 		c.ResponseError("WebSocket upgrade failed:", err)
 		return

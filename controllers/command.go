@@ -71,7 +71,7 @@ func (c *ApiController) GetCommands() {
 // @router /get-session-monitor [get]
 func (c *ApiController) GetSessionMonitor() {
 	c.EnableRender = false
-	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	ws, err := c.upgradeWebSocket(wsMaxMessage)
 	if err != nil {
 		c.ResponseError("WebSocket upgrade failed:", err)
 		return

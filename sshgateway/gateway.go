@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -156,7 +157,15 @@ func checkPublicKey(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions,
 	return checkLoginRules(meta, user, &ssh.Permissions{Extensions: map[string]string{sshKeyExtension: sshKey.GetId()}})
 }
 
+// recoverPanic keeps a panic in one connection from taking the whole server down.
+func recoverPanic(where string) {
+	if err := recover(); err != nil {
+		logs.Error("SSH gateway: %s panicked: %v %s", where, err, debug.Stack())
+	}
+}
+
 func handleConn(conn net.Conn, config *ssh.ServerConfig) {
+	defer recoverPanic("a connection")
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
 	handshakeConns.Store(conn.RemoteAddr().String(), conn)
 	serverConn, chans, reqs, err := ssh.NewServerConn(conn, config)

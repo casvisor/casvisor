@@ -213,7 +213,7 @@ func (s *databaseSession) handle(stream *wsStream, request *databaseRequest) {
 // @router /get-asset-database [get]
 func (c *ApiController) GetAssetDatabase() {
 	c.EnableRender = false
-	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	ws, err := c.upgradeWebSocket(wsMaxMessage)
 	if err != nil {
 		c.ResponseError("WebSocket upgrade failed:", err)
 		return

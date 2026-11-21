@@ -35,7 +35,7 @@ type terminalMessage struct {
 
 func (c *ApiController) GetAssetSsh() {
 	c.EnableRender = false
-	ws, err := nativeUpgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+	ws, err := c.upgradeWebSocket(wsMaxMessage)
 	if err != nil {
 		c.ResponseError("WebSocket upgrade failed:", err)
 		return

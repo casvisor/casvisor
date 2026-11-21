@@ -183,26 +183,44 @@ func (record *Record) getId() string {
 
 var maskedRecordFields = []string{"password", "privateKey", "oldPassword", "newPassword", "code", "secret", "csv", "url", "token", "accessKey", "accessSecret", "clientSecret"}
 
+// maxRecordObjectLength keeps one request from filling the record table.
+const maxRecordObjectLength = 10000
+
+func isMaskedRecordField(key string) bool {
+	for _, field := range maskedRecordFields {
+		if strings.EqualFold(key, field) {
+			return true
+		}
+	}
+	return false
+}
+
 func maskRecordObject(body []byte) string {
 	var m map[string]interface{}
 	if json.Unmarshal(body, &m) != nil {
-		return string(body)
+		// a body that is not a JSON object may still hold a password, so only its size is kept
+		return fmt.Sprintf("(%d bytes that are not a JSON object)", len(body))
 	}
 
 	masked := false
-	for _, field := range maskedRecordFields {
-		if value, ok := m[field].(string); ok && value != "" {
-			m[field] = "***"
+	for key, value := range m {
+		if s, ok := value.(string); ok && s != "" && isMaskedRecordField(key) {
+			m[key] = "***"
 			masked = true
 		}
 	}
-	if !masked {
-		return string(body)
+
+	res := string(body)
+	if masked {
+		b, err := json.Marshal(m)
+		if err != nil {
+			return ""
+		}
+		res = string(b)
 	}
 
-	res, err := json.Marshal(m)
-	if err != nil {
-		return ""
+	if len(res) > maxRecordObjectLength {
+		res = strings.ToValidUTF8(res[:maxRecordObjectLength], "") + "..."
 	}
-	return string(res)
+	return res
 }
