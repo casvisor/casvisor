@@ -65,6 +65,7 @@ export class ReplayPlayer {
     }
     this.position = position;
     this.drawUntil(position);
+    this.last = performance.now();
     this.onUpdate();
   }
 
