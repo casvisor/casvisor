@@ -15,7 +15,7 @@
 import * as React from "react";
 import i18next from "i18next";
 import {useParams} from "react-router-dom";
-import {Eye} from "lucide-react";
+import {Eye, Keyboard} from "lucide-react";
 import {Terminal} from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import * as SessionBackend from "@/backend/SessionBackend";
@@ -23,8 +23,9 @@ import {Button} from "@/components/ui/button";
 import {createScreen, type ReplayScreen} from "@/components/replay/screens";
 import * as Setting from "@/lib/setting";
 
-/** Watches a connected session live, read only: a terminal at the size the
- *  user's has, or a VNC or RDP screen drawn from the session's recording. */
+/** Watches a connected session live: a terminal at the size the user's has, or a
+ *  VNC or RDP screen drawn from the session's recording. An administrator can take
+ *  part in a terminal session and type in it; the user is told who joined. */
 export default function SessionMonitorPage() {
   const {owner = "", name = ""} = useParams();
   const sessionId = `${owner}/${name}`;
@@ -33,6 +34,7 @@ export default function SessionMonitorPage() {
   const [message, setMessage] = React.useState("");
   const [asset, setAsset] = React.useState("");
   const [isScreen, setIsScreen] = React.useState(false);
+  const [control, setControl] = React.useState(false);
 
   React.useEffect(() => {
     SessionBackend.getSession(owner, name).then((res) => {
@@ -50,18 +52,27 @@ export default function SessionMonitorPage() {
     const getTerminal = () => {
       if (!terminal) {
         terminal = new Terminal({
-          disableStdin: true,
-          cursorBlink: false,
+          disableStdin: !control,
+          cursorBlink: control,
           fontSize: 14,
           fontFamily: "Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
           theme: {background: "#1b1b1b"},
         });
         terminal.open(container);
+        if (control) {
+          terminal.onData((data) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({type: "data", data}));
+            }
+          });
+          terminal.focus();
+        }
       }
       return terminal;
     };
 
-    const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-session-monitor?id=${encodeURIComponent(sessionId)}`));
+    const query = control ? "&control=true" : "";
+    const ws = new WebSocket(Setting.getWebSocketUrl(`/api/get-session-monitor?id=${encodeURIComponent(sessionId)}${query}`));
     ws.binaryType = "arraybuffer";
     ws.onmessage = (event) => {
       if (typeof event.data !== "string") {
@@ -98,7 +109,7 @@ export default function SessionMonitorPage() {
       terminal?.dispose();
       screen?.dispose();
     };
-  }, [sessionId, name]);
+  }, [sessionId, name, control]);
 
   return (
     <div className="flex h-screen w-screen flex-col bg-[#1b1b1b] text-neutral-200">
@@ -110,6 +121,12 @@ export default function SessionMonitorPage() {
           <span className={status === "watching" ? "h-2 w-2 rounded-full bg-red-500" : "h-2 w-2 rounded-full bg-neutral-500"} />
           {status === "watching" ? i18next.t("session:Live") : status === "ended" ? i18next.t("session:Ended") : i18next.t("asset:Connecting...")}
         </span>
+        {status === "watching" && !isScreen ? (
+          <Button size="sm" variant={control ? "destructive" : "secondary"} onClick={() => setControl(!control)}>
+            <Keyboard className="mr-1 h-4 w-4" />
+            {control ? i18next.t("session:Release control") : i18next.t("session:Take control")}
+          </Button>
+        ) : null}
         {status === "ended" ? (
           <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>{i18next.t("asset:Reconnect")}</Button>
         ) : null}

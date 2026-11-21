@@ -197,7 +197,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 **🔍 Audit**
 
 - **Session recording and playback** — SSH, Telnet, VNC and RDP, replayed in the browser with the same code that drew them live; SSH and Telnet recordings download as asciicast
-- **Live monitoring** — watch online sessions and stop any of them
+- **Live monitoring** — watch online sessions and stop any of them; an administrator can take part in a terminal session and type in it, the user is told who joined, and the commands are logged with the administrator as the operator
 - **Command records** — SSH and Telnet commands are read off a virtual screen, so tab completion, history and line edits are captured as they ran; SQL statements are logged too
 - **Operation log** — file transfers and every change made through the API
 - **Export and syslog** — session, command and operation logs export to CSV and can be forwarded to a syslog server as RFC 5424 JSON or CEF

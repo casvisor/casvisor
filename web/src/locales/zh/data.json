@@ -187,6 +187,7 @@
     "Edit Command Rule": "编辑命令规则",
     "In MySQL and PostgreSQL sessions the pattern is matched against each SQL statement, for example": "在 MySQL 和 PostgreSQL 会话里，按每条 SQL 语句匹配，例如",
     "New Command Rule": "新建命令规则",
+    "Operator": "操作人",
     "Pattern": "匹配规则",
     "Pattern - Tooltip": "正则表达式，命令里任何位置匹配上就算，例如 ^\\s*rm\\s+-rf\\s+/\\s*$；数据库会话里按每条 SQL 语句匹配",
     "Rule": "规则",
@@ -640,8 +641,10 @@
     "Online": "在线",
     "Pause": "暂停",
     "Play": "播放",
+    "Release control": "退出接管",
     "Replay": "回放",
-    "Skip idle time": "跳过空闲"
+    "Skip idle time": "跳过空闲",
+    "Take control": "接管操作"
   },
   "sshKey": {
     "Add SSH key": "添加 SSH 公钥",

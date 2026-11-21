@@ -77,6 +77,7 @@ export default function CommandListPage() {
       },
     },
     textColumn<Command>({dataIndex: "user", title: i18next.t("general:User"), width: 150, searchable: true}),
+    textColumn<Command>({dataIndex: "operator", title: i18next.t("command:Operator"), width: 150, searchable: true}),
     {
       dataIndex: "asset",
       title: i18next.t("general:Asset"),

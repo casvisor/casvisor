@@ -15,11 +15,15 @@
 package controllers
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/beego/beego/utils/pagination"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/terminal"
 	"github.com/casvisor/casvisor/util"
+	"github.com/gorilla/websocket"
 )
 
 // GetCommands
@@ -61,8 +65,9 @@ func (c *ApiController) GetCommands() {
 // GetSessionMonitor
 // @Title GetSessionMonitor
 // @Tag Session API
-// @Description watch a connected session live over a websocket, read only
+// @Description watch a connected session live over a websocket; with control, also type into an SSH, Telnet or Kubernetes terminal
 // @Param   id     query    string  true        "The id of the session"
+// @Param   control     query    bool  false        "true to take part in the session"
 // @router /get-session-monitor [get]
 func (c *ApiController) GetSessionMonitor() {
 	c.EnableRender = false
@@ -91,13 +96,31 @@ func (c *ApiController) GetSessionMonitor() {
 	history, cols, rows, viewer := recorder.Watch()
 	defer recorder.Unwatch(viewer)
 
-	c.auditMonitor(sessionId, "SSH")
+	user := c.GetSessionUser()
+	isControl := c.Input().Get("control") == "true"
+	if isControl {
+		c.auditMonitorAction(sessionId, "SSH", "session-control")
+		userId := util.GetIdFromOwnerAndName(user.Owner, user.Name)
+		recorder.Announce(fmt.Sprintf("The administrator %s has joined this session and can type in it", userId))
+		defer recorder.Announce(fmt.Sprintf("The administrator %s has left this session", userId))
+	} else {
+		c.auditMonitor(sessionId, "SSH")
+	}
 
 	go func() {
 		for {
-			if _, _, err := ws.ReadMessage(); err != nil {
+			messageType, data, err := ws.ReadMessage()
+			if err != nil {
 				recorder.Unwatch(viewer)
 				return
+			}
+			if !isControl || messageType != websocket.TextMessage {
+				continue
+			}
+
+			var message terminalMessage
+			if json.Unmarshal(data, &message) == nil && message.Type == "data" {
+				recorder.InputAs(user, []byte(message.Data))
 			}
 		}
 	}()
@@ -121,6 +144,10 @@ func (c *ApiController) GetSessionMonitor() {
 }
 
 func (c *ApiController) auditMonitor(sessionId string, method string) {
+	c.auditMonitorAction(sessionId, method, "session-monitor")
+}
+
+func (c *ApiController) auditMonitorAction(sessionId string, method string, action string) {
 	user := c.GetSessionUser()
 	object.AddAuditRecord(&object.AuditEvent{
 		Organization: user.Owner,
@@ -128,7 +155,7 @@ func (c *ApiController) auditMonitor(sessionId string, method string) {
 		ClientIp:     c.getClientIp(),
 		UserAgent:    c.getUserAgent(),
 		Method:       method,
-		Action:       "session-monitor",
+		Action:       action,
 		Detail:       sessionId,
 	})
 }
