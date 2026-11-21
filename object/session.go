@@ -79,7 +79,7 @@ func GetSessionCount(owner, status, field, value string) (int64, error) {
 
 func GetSessions(owner string) ([]*Session, error) {
 	sessions := []*Session{}
-	err := adapter.engine.Desc("connected_time").Find(&sessions, &Session{Owner: owner})
+	err := adapter.engine.Desc("created_time").Find(&sessions, &Session{Owner: owner})
 	if err != nil {
 		return sessions, err
 	}
