@@ -244,6 +244,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /add-webhook:
+    post:
+      tags:
+      - Webhook API
+      description: add a webhook
+      operationId: ApiController.AddWebhook
+      parameters:
+      - in: body
+        name: body
+        description: The details of the webhook
+        required: true
+        schema:
+          $ref: '#/definitions/object.Webhook'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /approve-access-request:
     post:
       tags:
@@ -592,6 +610,24 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.SshKey'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /delete-webhook:
+    post:
+      tags:
+      - Webhook API
+      description: delete a webhook
+      operationId: ApiController.DeleteWebhook
+      parameters:
+      - in: body
+        name: body
+        description: The webhook
+        required: true
+        schema:
+          $ref: '#/definitions/object.Webhook'
       responses:
         "200":
           description: The Response object
@@ -1562,6 +1598,42 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Principal'
+  /get-webhook:
+    get:
+      tags:
+      - Webhook API
+      description: get a webhook, with its secret masked
+      operationId: ApiController.GetWebhook
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the webhook
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.Webhook'
+  /get-webhooks:
+    get:
+      tags:
+      - Webhook API
+      description: get the webhooks, with their secrets masked
+      operationId: ApiController.GetWebhooks
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the webhooks
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/object.Webhook'
   /import-assets:
     post:
       tags:
@@ -1808,6 +1880,28 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.PatchJob'
+  /test-asset:
+    post:
+      tags:
+      - Asset API
+      description: connect to an asset as it is on the edit page without saving anything, returning the latency, the server version and a host key seen for the first time
+      operationId: ApiController.TestAsset
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the saved asset whose password and private key are used when masked
+        type: string
+      - in: body
+        name: body
+        description: The details of the asset
+        required: true
+        schema:
+          $ref: '#/definitions/object.Asset'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.AssetProbeResult'
   /test-network-gateway:
     post:
       tags:
@@ -1820,6 +1914,28 @@ paths:
         description: The id ( owner/name ) of the network gateway
         required: true
         type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /test-webhook:
+    post:
+      tags:
+      - Webhook API
+      description: send a test message with the webhook as it is in the form, without saving it
+      operationId: ApiController.TestWebhook
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the saved webhook whose secret is used when masked
+        type: string
+      - in: body
+        name: body
+        description: The details of the webhook
+        required: true
+        schema:
+          $ref: '#/definitions/object.Webhook'
       responses:
         "200":
           description: The Response object
@@ -2032,6 +2148,29 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/Response'
+  /update-webhook:
+    post:
+      tags:
+      - Webhook API
+      description: update a webhook, keeping its secret when it is sent masked
+      operationId: ApiController.UpdateWebhook
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the webhook
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The details of the webhook
+        required: true
+        schema:
+          $ref: '#/definitions/object.Webhook'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /upload-job-file:
     post:
       tags:
@@ -2390,6 +2529,17 @@ definitions:
       parent:
         type: string
       updatedTime:
+        type: string
+  object.AssetProbeResult:
+    title: AssetProbeResult
+    type: object
+    properties:
+      fingerprint:
+        type: string
+      latency:
+        type: integer
+        format: int64
+      version:
         type: string
   object.Command:
     title: Command
@@ -2922,6 +3072,8 @@ definitions:
         type: array
         items:
           type: string
+      watermark:
+        type: boolean
       weekdays:
         type: array
         items:
@@ -3033,6 +3185,8 @@ definitions:
         type: string
       userAgentDesc:
         type: string
+      watermark:
+        type: string
       width:
         type: integer
         format: int64
@@ -3063,4 +3217,32 @@ definitions:
       password:
         type: string
       username:
+        type: string
+  object.Webhook:
+    title: Webhook
+    type: object
+    properties:
+      createdTime:
+        type: string
+      description:
+        type: string
+      displayName:
+        type: string
+      events:
+        type: array
+        items:
+          type: string
+      isEnabled:
+        type: boolean
+      name:
+        type: string
+      owner:
+        type: string
+      secret:
+        type: string
+      type:
+        type: string
+      updatedTime:
+        type: string
+      url:
         type: string
