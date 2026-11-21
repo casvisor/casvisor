@@ -43,15 +43,16 @@ func TransparentStatic(ctx *context.Context) {
 		return
 	}
 
-	path := "web/build"
-	if urlPath == "/" {
-		path += "/index.html"
-	} else {
-		path += urlPath
-	}
-
-	if !util.FileExist(path) {
-		path = "web/build/index.html"
+	path := "web/build/index.html"
+	if urlPath != "/" {
+		root, err := filepath.Abs("web/build")
+		if err != nil {
+			panic(err)
+		}
+		name := filepath.Join(root, urlPath)
+		if strings.HasPrefix(name, root+string(filepath.Separator)) && util.FileExist(name) {
+			path = name
+		}
 	}
 
 	serveFileWithReplace(ctx.ResponseWriter, ctx.Request, path)
