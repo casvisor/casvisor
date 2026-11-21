@@ -171,6 +171,8 @@ recordingS3SecretKey = <secret key>
 
 Recordings are still written to the disk first, so a session never waits for the bucket; when the session ends the recording is uploaded and the local copy deleted (`recordingKeepLocal = true` keeps it). If the bucket can't be reached, the upload is retried every 5 minutes. `recordingS3PathStyle = true` is for MinIO and others that need path-style URLs.
 
+**SSH certificates.** To let users sign in to the SSH gateway with OpenSSH certificates instead of registering public keys, set `sshGatewayTrustedUserCaKeys` to the CA public keys (one per line or separated by `;`) or to a file of them, like sshd's `TrustedUserCAKeys`. The certificate's principal is the Casvisor user, `<user>` or `<organization>/<user>`; validity, `source-address` and the login rules are checked.
+
 Guide: [Configuration](https://casvisor.org/docs/operations/configuration) &middot; [Sign in with Casdoor](https://casvisor.org/docs/getting-started/casdoor) &middot; [Behind a reverse proxy](https://casvisor.org/docs/operations/reverse-proxy)
 
 ## 👉 After you sign in
@@ -192,7 +194,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **VNC** — noVNC in the browser; Casvisor does the VNC authentication itself, so the password stays on the server
 - **Telnet** — for network gear and old systems, logging in with the asset's account
 - **MySQL and PostgreSQL** — a browser SQL console with the databases, tables and columns on the left, one tab per result, and CSV export
-- **SSH gateway** — `ssh -p 2222 web-01@casvisor.example.com`, `scp`, `sftp`, `rsync`, Xshell and VS Code Remote, signed in with the user's public key and under the same permissions as the browser
+- **SSH gateway** — `ssh -p 2222 web-01@casvisor.example.com`, `scp`, `sftp`, `rsync`, Xshell and VS Code Remote, signed in with the user's public key, or an OpenSSH certificate from a CA you trust (Vault, step-ca, `ssh-keygen -s`), and under the same permissions as the browser; `-L` also forwards Unix sockets such as `/var/run/docker.sock`
 - **Port forwarding to any asset** — `ssh -p 2222 -N -L 13389:win-01:3389 alice@casvisor.example.com`, then mstsc, a VNC viewer or a database client connects to `localhost:13389`
 - **Network gateways** — reach assets in another data center or behind NAT, through an SSH jump host or an agent that connects out over HTTPS
 - **Stored credentials** — passwords and private keys are encrypted in the database and filled in by Casvisor; SSH host keys and RDP certificates are pinned on first use
