@@ -36,6 +36,21 @@ export interface Asset {
   accounts?: AccountInfo[];
 }
 
+/** Posts the events of its organization it subscribes to, as JSON or as a chat bot message. */
+export interface Webhook {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  type: string;
+  url: string;
+  secret: string;
+  events: string[] | null;
+  isEnabled: boolean;
+}
+
 /** Decides what happens when the users it covers sign in; the first rule by priority that matches wins. */
 export interface LoginRule {
   owner: string;

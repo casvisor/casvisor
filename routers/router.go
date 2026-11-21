@@ -71,6 +71,13 @@ func initAPI() {
 	beego.Router("/api/get-login-review-status", &controllers.ApiController{}, "GET:GetLoginReviewStatus")
 	beego.Router("/api/cancel-login-review", &controllers.ApiController{}, "POST:CancelLoginReview")
 
+	beego.Router("/api/get-webhooks", &controllers.ApiController{}, "GET:GetWebhooks")
+	beego.Router("/api/get-webhook", &controllers.ApiController{}, "GET:GetWebhook")
+	beego.Router("/api/update-webhook", &controllers.ApiController{}, "POST:UpdateWebhook")
+	beego.Router("/api/add-webhook", &controllers.ApiController{}, "POST:AddWebhook")
+	beego.Router("/api/delete-webhook", &controllers.ApiController{}, "POST:DeleteWebhook")
+	beego.Router("/api/test-webhook", &controllers.ApiController{}, "POST:TestWebhook")
+
 	beego.Router("/api/get-asset-nodes", &controllers.ApiController{}, "GET:GetAssetNodes")
 	beego.Router("/api/get-asset-node", &controllers.ApiController{}, "GET:GetAssetNode")
 	beego.Router("/api/add-asset-node", &controllers.ApiController{}, "POST:AddAssetNode")
