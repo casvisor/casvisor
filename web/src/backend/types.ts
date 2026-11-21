@@ -199,6 +199,10 @@ export interface Permission {
   clientIps: string[] | null;
   startTime: string;
   endTime: string;
+  weekdays?: number[] | null;
+  dailyStartTime?: string;
+  dailyEndTime?: string;
+  timeZone?: string;
   isEnabled: boolean;
 }
 
