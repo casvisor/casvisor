@@ -254,6 +254,19 @@ func (c *DatabaseClient) isMysql() bool {
 	return c.Asset.Protocol == ProtocolMysql
 }
 
+func (c *DatabaseClient) exec(statement string) error {
+	ctx, cancel := context.WithTimeout(c.ctx, 2*dialTimeout)
+	defer cancel()
+
+	if c.isMysql() {
+		_, err := c.conn.ExecContext(ctx, statement)
+		return err
+	}
+	rr := c.pg.PgConn().ExecParams(ctx, statement, nil, nil, nil, nil)
+	_, err := rr.Close()
+	return err
+}
+
 // queryStrings runs a query of the client itself, not of the user, and returns its rows as strings.
 func (c *DatabaseClient) queryStrings(query string, args ...interface{}) ([][]string, error) {
 	res := [][]string{}

@@ -24,7 +24,7 @@
     "Ask for a code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password after the password": "Ask for a code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password after the password",
     "At least 8 characters": "At least 8 characters",
     "Auto rotate": "Auto rotate",
-    "Auto rotate - Tooltip": "Casvisor changes the password on the asset to a new random one on schedule, through the asset's own account, which must be root, able to sudo without a password, or a Windows administrator. Only accounts with a password and no private key are rotated",
+    "Auto rotate - Tooltip": "Casvisor changes the password on the asset to a new random one on schedule, through the asset's own account, which must be root, able to sudo without a password, a Windows administrator, or a database administrator. Only accounts with a password and no private key are rotated",
     "Casvisor creates this account on the asset if it does not exist and sets the saved password there": "Casvisor creates this account on the asset if it does not exist and sets the saved password there",
     "Casvisor sets a new random password for this account on the asset and keeps it. Connected sessions are not affected": "Casvisor sets a new random password for this account on the asset and keeps it. Connected sessions are not affected",
     "Change password": "Change password",

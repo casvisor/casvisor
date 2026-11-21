@@ -27,6 +27,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
 import {ConfirmButton} from "@/components/common/ConfirmButton";
 import {PasswordInput} from "@/components/common/PasswordInput";
+import {isDatabaseProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 function newAccount(owner: string, asset: string): AssetAccount {
@@ -71,15 +72,15 @@ function RotateStatus({account}: {account: AssetAccount}) {
 
 /**
  * The system accounts of an asset besides its own account. Users connect as them
- * without seeing their passwords, and Casvisor can change those passwords on SSH
- * assets through the asset's own account.
+ * without seeing their passwords, and Casvisor can change those passwords on SSH,
+ * MySQL and PostgreSQL assets through the asset's own account.
  */
 export function AssetAccountsPanel({owner, asset, protocol, ownUsername}: {owner: string; asset: string; protocol: string; ownUsername: string}) {
   const [accounts, setAccounts] = React.useState<AssetAccount[]>([]);
   const [editing, setEditing] = React.useState<AssetAccount | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [busy, setBusy] = React.useState("");
-  const canRotate = protocol === "SSH";
+  const canRotate = protocol === "SSH" || isDatabaseProtocol(protocol);
 
   const load = React.useCallback(() => {
     AssetAccountBackend.getAssetAccounts(owner, asset).then((res) => {

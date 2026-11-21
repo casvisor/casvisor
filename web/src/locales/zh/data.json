@@ -24,7 +24,7 @@
     "Ask for a code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password after the password": "登录时在口令之后再输入身份验证器（如 Google Authenticator、Microsoft Authenticator、1Password）里的动态码",
     "At least 8 characters": "至少 8 个字符",
     "Auto rotate": "自动改密",
-    "Auto rotate - Tooltip": "Casvisor 按周期把资产上这个账号的口令改成新的随机口令，经资产自己的账号操作，该账号要是 root、能免密 sudo，或者是 Windows 管理员。只改有口令、没有私钥的账号",
+    "Auto rotate - Tooltip": "Casvisor 按周期把资产上这个账号的口令改成新的随机口令，经资产自己的账号操作，该账号要是 root、能免密 sudo、Windows 管理员，或者是数据库管理员。只改有口令、没有私钥的账号",
     "Casvisor creates this account on the asset if it does not exist and sets the saved password there": "资产上没有这个账号就先创建，再把这里保存的口令设到资产上",
     "Casvisor sets a new random password for this account on the asset and keeps it. Connected sessions are not affected": "Casvisor 在资产上给这个账号设一个新的随机口令并保存下来，已连接的会话不受影响",
     "Change password": "修改口令",

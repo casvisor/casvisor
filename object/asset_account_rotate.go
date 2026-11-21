@@ -25,11 +25,144 @@ import (
 	"time"
 
 	"github.com/beego/beego/logs"
+	"github.com/jackc/pgx/v5"
 )
 
 const accountPasswordChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!#%+-=_."
 
-var rotatingAccounts sync.Map
+var (
+	rotatingAccounts          sync.Map
+	setAccountPasswordFunc    = setAccountPassword
+	verifyAccountPasswordFunc = verifyAccountPassword
+	sqlBackslashQuoteReplacer = strings.NewReplacer(`\`, `\\`, `'`, `''`)
+)
+
+type databaseRotator interface {
+	queryStrings(query string, args ...interface{}) ([][]string, error)
+	exec(statement string) error
+}
+
+func canRotateAccountProtocol(protocol string) bool {
+	return strings.EqualFold(protocol, "SSH") || IsDatabaseProtocol(protocol)
+}
+
+func checkRotatableAsset(asset *Asset) error {
+	if !canRotateAccountProtocol(asset.Protocol) {
+		return fmt.Errorf("the passwords of accounts can only be changed on SSH, MySQL and PostgreSQL assets, the asset: %s uses %s", asset.Name, asset.Protocol)
+	}
+	return nil
+}
+
+func validateDatabaseValue(name string, value string, allowEmpty bool) error {
+	if !allowEmpty && value == "" {
+		return fmt.Errorf("the %s cannot be empty", name)
+	}
+	if strings.ContainsAny(value, "\x00\r\n") {
+		return fmt.Errorf("the %s cannot contain null bytes or line breaks", name)
+	}
+	return nil
+}
+
+func quoteMysqlString(value string, noBackslashEscapes bool) string {
+	if noBackslashEscapes {
+		return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+	}
+	return "'" + sqlBackslashQuoteReplacer.Replace(value) + "'"
+}
+
+func quotePostgresqlString(value string) string {
+	if strings.Contains(value, `\`) {
+		return "E'" + sqlBackslashQuoteReplacer.Replace(value) + "'"
+	}
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
+
+func buildMysqlAccountPasswordSql(username string, host string, password string, create bool, noBackslashEscapes bool) (string, error) {
+	if err := validateDatabaseValue("username", username, false); err != nil {
+		return "", err
+	}
+	if err := validateDatabaseValue("host", host, true); err != nil {
+		return "", err
+	}
+	if err := validateDatabaseValue("password", password, false); err != nil {
+		return "", err
+	}
+	verb := "ALTER USER"
+	if create {
+		verb = "CREATE USER"
+	}
+	return fmt.Sprintf("%s %s@%s IDENTIFIED BY %s", verb, quoteMysqlString(username, noBackslashEscapes), quoteMysqlString(host, noBackslashEscapes), quoteMysqlString(password, noBackslashEscapes)), nil
+}
+
+func buildPostgresqlAccountPasswordSql(username string, password string, create bool) (string, error) {
+	if err := validateDatabaseValue("username", username, false); err != nil {
+		return "", err
+	}
+	if err := validateDatabaseValue("password", password, false); err != nil {
+		return "", err
+	}
+	ident := pgx.Identifier{username}.Sanitize()
+	literal := quotePostgresqlString(password)
+	if create {
+		return fmt.Sprintf("CREATE ROLE %s WITH LOGIN PASSWORD %s", ident, literal), nil
+	}
+	return fmt.Sprintf("ALTER ROLE %s WITH PASSWORD %s", ident, literal), nil
+}
+
+func sanitizeRotateError(err error, password string) error {
+	if err == nil || password == "" || !strings.Contains(err.Error(), password) {
+		return err
+	}
+	return fmt.Errorf("%s", strings.ReplaceAll(err.Error(), password, "***"))
+}
+
+func setMysqlAccountPassword(db databaseRotator, username string, password string, create bool) error {
+	rows, err := db.queryStrings("SELECT user, host FROM mysql.user WHERE user = ? ORDER BY host", username)
+	if err != nil {
+		return err
+	}
+	noBackslashEscapes := false
+	if modeRows, modeErr := db.queryStrings("SELECT @@sql_mode"); modeErr == nil && len(modeRows) > 0 && len(modeRows[0]) > 0 {
+		noBackslashEscapes = strings.Contains(strings.ToUpper(modeRows[0][0]), "NO_BACKSLASH_ESCAPES")
+	}
+	if len(rows) == 0 {
+		if !create {
+			return fmt.Errorf("the MySQL account: %s does not exist", username)
+		}
+		rows = [][]string{{username, "%"}}
+	} else {
+		create = false
+	}
+	for _, row := range rows {
+		if len(row) < 2 {
+			return fmt.Errorf("invalid MySQL account entry for %s", username)
+		}
+		stmt, err := buildMysqlAccountPasswordSql(row[0], row[1], password, create, noBackslashEscapes)
+		if err != nil {
+			return err
+		}
+		if err = db.exec(stmt); err != nil {
+			return sanitizeRotateError(err, password)
+		}
+	}
+	return nil
+}
+
+func setPostgresqlAccountPassword(db databaseRotator, username string, password string, create bool) error {
+	rows, err := db.queryStrings("SELECT 1 FROM pg_roles WHERE rolname = $1", username)
+	if err != nil {
+		return err
+	}
+	exists := len(rows) > 0
+	if !exists && !create {
+		return fmt.Errorf("the PostgreSQL role: %s does not exist", username)
+	}
+	stmt, err := buildPostgresqlAccountPasswordSql(username, password, !exists)
+	if err != nil {
+		return err
+	}
+	return sanitizeRotateError(db.exec(stmt), password)
+}
 
 func generateAccountPassword() (string, error) {
 	groups := []string{"ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!#%+-=_."}
@@ -64,13 +197,28 @@ func quotePowerShell(value string) string {
 }
 
 // setAccountPassword sets the password of the account on the asset through the asset's own
-// account, which must be root, able to sudo without a password, or a Windows administrator.
+// account, which must be root, able to sudo without a password, a Windows administrator,
+// or a database administrator.
 func setAccountPassword(asset *Asset, username string, password string, create bool) error {
-	if !strings.EqualFold(asset.Protocol, "SSH") {
-		return fmt.Errorf("the passwords of accounts can only be changed on SSH assets, the asset: %s uses %s", asset.Name, asset.Protocol)
+	if err := checkRotatableAsset(asset); err != nil {
+		return err
 	}
-	if strings.ContainsAny(password, "\r\n") {
-		return fmt.Errorf("the password cannot contain line breaks")
+	if err := validateDatabaseValue("password", password, false); err != nil {
+		return err
+	}
+	if IsDatabaseProtocol(asset.Protocol) {
+		if err := validateDatabaseValue("username", username, false); err != nil {
+			return err
+		}
+		client, err := DialDatabase(asset)
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+		if asset.Protocol == ProtocolMysql {
+			return setMysqlAccountPassword(client, username, password, create)
+		}
+		return setPostgresqlAccountPassword(client, username, password, create)
 	}
 
 	host, err := connectPatchHost(asset)
@@ -120,10 +268,21 @@ func setAccountPassword(asset *Asset, username string, password string, create b
 }
 
 func verifyAccountPassword(asset *Asset, username string, password string) error {
+	if err := checkRotatableAsset(asset); err != nil {
+		return err
+	}
 	target := *asset
 	target.Username = username
 	target.Password = password
 	target.PrivateKey = ""
+	if IsDatabaseProtocol(asset.Protocol) {
+		client, err := DialDatabase(&target)
+		if err != nil {
+			return err
+		}
+		client.Close()
+		return nil
+	}
 	client, err := DialSsh(&target)
 	if err != nil {
 		return err
@@ -154,6 +313,9 @@ func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
 	if asset == nil {
 		return nil, fmt.Errorf("the asset: %s does not exist", account.Asset)
 	}
+	if err = checkRotatableAsset(asset); err != nil {
+		return nil, err
+	}
 
 	password := account.Password
 	if !isPush {
@@ -170,16 +332,18 @@ func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
 		return nil, err
 	}
 
-	err = setAccountPassword(asset, account.Username, password, isPush)
+	err = setAccountPasswordFunc(asset, account.Username, password, isPush)
 	if err != nil {
+		err = sanitizeRotateError(err, password)
 		_ = updateAssetAccountRotation(account, "", AccountRotateFailed, truncate(err.Error(), 1000))
 		return nil, err
 	}
 
 	status := AccountRotateSucceeded
 	message := ""
-	err = verifyAccountPassword(asset, account.Username, password)
+	err = verifyAccountPasswordFunc(asset, account.Username, password)
 	if err != nil {
+		err = sanitizeRotateError(err, password)
 		status = AccountRotateFailed
 		message = truncate(fmt.Sprintf("the password was changed, but signing in with it failed: %s", err.Error()), 1000)
 	}
