@@ -48,31 +48,27 @@ type gatewayConn struct {
 }
 
 func (g *gatewayConn) signIn() error {
-	sshKey, err := object.GetSshKey(g.conn.Permissions.Extensions[sshKeyExtension])
-	if err != nil {
-		return err
-	}
-	if sshKey == nil {
-		return fmt.Errorf("the public key has been removed")
-	}
-
-	if !object.IsUserAllowedToSignin(sshKey.GetUserId()) {
-		return fmt.Errorf("the user: %s is not allowed to sign in", sshKey.GetUserId())
-	}
-
-	g.user, err = object.GetCasdoorUser(sshKey.Owner, sshKey.User)
+	userId, err := g.getSignedInUserId()
 	if err != nil {
 		return err
 	}
 
-	err = object.UpdateSshKeyLastUsedTime(sshKey)
+	if !object.IsUserAllowedToSignin(userId) {
+		return fmt.Errorf("the user: %s is not allowed to sign in", userId)
+	}
+
+	owner, name := util.GetOwnerAndNameFromId(userId)
+	g.user, err = object.GetCasdoorUser(owner, name)
 	if err != nil {
-		logs.Error(fmt.Sprintf("SSH gateway: failed to update the last used time of the key: %s: %s", sshKey.GetId(), err.Error()))
+		return err
+	}
+	if certId := g.conn.Permissions.Extensions[certIdExtension]; certId != "" {
+		g.audit("ssh-certificate", certId)
 	}
 
 	userName, accountName, assetName := parseUsername(g.conn.User())
-	if userName != "" && userName != g.user.Name && userName != sshKey.GetUserId() {
-		return fmt.Errorf("the public key belongs to the user: %s, not %s", sshKey.GetUserId(), userName)
+	if userName != "" && userName != g.user.Name && userName != userId {
+		return fmt.Errorf("the credential belongs to the user: %s, not %s", userId, userName)
 	}
 
 	asset, err := g.findAsset(assetName)
@@ -89,6 +85,29 @@ func (g *gatewayConn) signIn() error {
 	}
 
 	return g.selectAsset(asset, accountName, accountName != "")
+}
+
+// getSignedInUserId returns the user of the registered public key, or of the certificate
+// principal, that the client signed in with.
+func (g *gatewayConn) getSignedInUserId() (string, error) {
+	extensions := g.conn.Permissions.Extensions
+	if userId := extensions[certUserExtension]; userId != "" {
+		return userId, nil
+	}
+
+	sshKey, err := object.GetSshKey(extensions[sshKeyExtension])
+	if err != nil {
+		return "", err
+	}
+	if sshKey == nil {
+		return "", fmt.Errorf("the public key has been removed")
+	}
+
+	err = object.UpdateSshKeyLastUsedTime(sshKey)
+	if err != nil {
+		logs.Error(fmt.Sprintf("SSH gateway: failed to update the last used time of the key: %s: %s", sshKey.GetId(), err.Error()))
+	}
+	return sshKey.GetUserId(), nil
 }
 
 // parseUsername splits "<user>@<account>@<asset>", "<user>@<asset>" or just "<asset>"; ssh itself

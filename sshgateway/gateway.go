@@ -132,6 +132,9 @@ func checkPublicKey(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions,
 	if meta.User() == agent.Username {
 		return checkAgentKey(meta, key)
 	}
+	if cert, ok := key.(*ssh.Certificate); ok {
+		return checkCertificate(meta, cert)
+	}
 
 	sshKey, err := object.GetSshKeyByFingerprint(ssh.FingerprintSHA256(key))
 	if err != nil {
@@ -146,7 +149,11 @@ func checkPublicKey(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions,
 		return nil, fmt.Errorf("unknown public key")
 	}
 
-	return checkLoginRules(meta, sshKey, &ssh.Permissions{Extensions: map[string]string{sshKeyExtension: sshKey.GetId()}})
+	user, err := object.GetCasdoorUser(sshKey.Owner, sshKey.User)
+	if err != nil {
+		return nil, err
+	}
+	return checkLoginRules(meta, user, &ssh.Permissions{Extensions: map[string]string{sshKeyExtension: sshKey.GetId()}})
 }
 
 func handleConn(conn net.Conn, config *ssh.ServerConfig) {

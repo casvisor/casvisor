@@ -36,15 +36,10 @@ func extendHandshake(meta ssh.ConnMetadata, d time.Duration) {
 	}
 }
 
-// checkLoginRules applies the login rules once the public key is known. A rule that rejects the
+// checkLoginRules applies the login rules once the public key or certificate is known. A rule that rejects the
 // sign-in, holds it for review or asks for a verification code goes on with keyboard-interactive,
 // which ssh clients show, after the client has proven that it has the private key.
-func checkLoginRules(meta ssh.ConnMetadata, sshKey *object.SshKey, perms *ssh.Permissions) (*ssh.Permissions, error) {
-	user, err := object.GetCasdoorUser(sshKey.Owner, sshKey.User)
-	if err != nil {
-		return nil, err
-	}
-
+func checkLoginRules(meta ssh.ConnMetadata, user *casdoorsdk.User, perms *ssh.Permissions) (*ssh.Permissions, error) {
 	clientIp := getHost(meta.RemoteAddr())
 	decision, err := object.CheckLoginRules(user, clientIp, object.LoginMethodSsh, time.Now())
 	if err != nil {
