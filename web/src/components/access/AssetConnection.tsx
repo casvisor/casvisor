@@ -15,6 +15,8 @@
 import * as React from "react";
 import i18next from "i18next";
 import * as AssetBackend from "@/backend/AssetBackend";
+import type {Session} from "@/backend/types";
+import {Watermark} from "@/components/access/Watermark";
 import {Loading} from "@/components/common/Loading";
 import type {ConnectionProps} from "@/components/access/util";
 import {isDatabaseProtocol, KubernetesProtocol} from "@/lib/asset";
@@ -31,6 +33,7 @@ const KubernetesView = React.lazy(() => import("@/components/access/KubernetesVi
 /** Looks the asset up and opens it with the client its protocol needs. */
 export function AssetConnection(props: ConnectionProps) {
   const [protocol, setProtocol] = React.useState("");
+  const [watermark, setWatermark] = React.useState("");
 
   React.useEffect(() => {
     const [owner, name] = props.assetId.split("/");
@@ -48,21 +51,25 @@ export function AssetConnection(props: ConnectionProps) {
     return fallback;
   }
 
+  const connectionProps = {...props, onSession: (session: Session) => setWatermark(session.watermark ?? "")};
   return (
-    <React.Suspense fallback={fallback}>
-      {protocol === "VNC" ? (
-        <VncView {...props} />
-      ) : protocol === "RDP" ? (
-        <RdpView {...props} />
-      ) : protocol === "Desktop" ? (
-        <DesktopView {...props} />
-      ) : isDatabaseProtocol(protocol) ? (
-        <DatabaseView {...props} />
-      ) : protocol === KubernetesProtocol ? (
-        <KubernetesView {...props} />
-      ) : (
-        <SshView {...props} protocol={protocol} />
-      )}
-    </React.Suspense>
+    <div className="relative h-full w-full">
+      <React.Suspense fallback={fallback}>
+        {protocol === "VNC" ? (
+          <VncView {...connectionProps} />
+        ) : protocol === "RDP" ? (
+          <RdpView {...connectionProps} />
+        ) : protocol === "Desktop" ? (
+          <DesktopView {...connectionProps} />
+        ) : isDatabaseProtocol(protocol) ? (
+          <DatabaseView {...connectionProps} />
+        ) : protocol === KubernetesProtocol ? (
+          <KubernetesView {...connectionProps} />
+        ) : (
+          <SshView {...connectionProps} protocol={protocol} />
+        )}
+      </React.Suspense>
+      {watermark ? <Watermark text={watermark} /> : null}
+    </div>
   );
 }

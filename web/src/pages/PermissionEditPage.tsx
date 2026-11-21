@@ -237,6 +237,9 @@ export default function PermissionEditPage() {
       <FormRow label={i18next.t("loginRule:Time zone")} tooltip={i18next.t("loginRule:Time zone - Tooltip")}>
         <Input value={permission.timeZone ?? ""} placeholder="Asia/Shanghai" onChange={(e) => updateField("timeZone", e.target.value.trim())} />
       </FormRow>
+      <FormRow label={i18next.t("permission:Watermark")} tooltip={i18next.t("permission:Watermark - Tooltip")}>
+        <Switch checked={permission.watermark ?? false} onCheckedChange={(checked) => updateField("watermark", checked)} />
+      </FormRow>
       <FormRow labelKey="permission:Is enabled">
         <Switch checked={permission.isEnabled} onCheckedChange={(checked) => updateField("isEnabled", checked)} />
       </FormRow>

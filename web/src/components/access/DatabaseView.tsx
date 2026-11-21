@@ -165,6 +165,7 @@ export default function DatabaseView(props: ConnectionProps) {
       }
 
       const session = res.data;
+      props.onSession?.(session);
       const id = `${session.owner}/${session.name}`;
       const params: Record<string, any> = {sessionId: id};
 

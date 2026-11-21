@@ -61,6 +61,7 @@ type Session struct {
 
 	Mode       string   `xorm:"varchar(10)" json:"mode"`
 	Operations []string `xorm:"json varchar(1000)" json:"operations"`
+	Watermark  string   `xorm:"varchar(300)" json:"watermark"`
 
 	Reviewed     bool     `json:"reviewed"`
 	CommandCount int64    `json:"commandCount"`
@@ -235,6 +236,7 @@ func CreateSession(session *Session, assetId string, mode string, operations []s
 		Name:       session.Name,
 		Protocol:   asset.Protocol,
 		Operations: session.Operations,
+		Watermark:  session.Watermark,
 	}
 	return respSession, nil
 }

@@ -141,7 +141,14 @@ func (c *ApiController) AddAssetTunnel() {
 	if account == asset.Username {
 		account = ""
 	}
+	watermark, err := object.GetSessionWatermark(user, asset, account, c.getAuthzClientIp())
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
 	session := &object.Session{
+		Watermark:     watermark,
 		Account:       account,
 		Creator:       getUserId(user),
 		ClientIp:      c.getClientIp(),
