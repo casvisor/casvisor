@@ -108,6 +108,7 @@ func main() {
 	beego.InsertFilter("*", beego.BeforeRouter, newCorsFilter(conf.GetAllowedOrigins()))
 
 	beego.SetStaticPath("/swagger", "swagger")
+	beego.InsertFilter("/metrics", beego.BeforeRouter, routers.MetricsFilter)
 	// https://studygolang.com/articles/2303
 	beego.InsertFilter("/", beego.BeforeRouter, routers.TransparentStatic) // must has this for default page
 	beego.InsertFilter("/*", beego.BeforeRouter, routers.TransparentStatic)
