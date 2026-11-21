@@ -127,6 +127,8 @@ type KubernetesClient struct {
 	asset   *Asset
 	baseUrl *url.URL
 	token   string
+	// noSave keeps the pinned fingerprint in the asset only, for testing an asset before it is saved
+	noSave bool
 
 	mu          sync.Mutex
 	fingerprint string
@@ -194,6 +196,9 @@ func (c *KubernetesClient) pinFingerprint() error {
 		return nil
 	}
 	c.asset.Fingerprint = fingerprint
+	if c.noSave {
+		return nil
+	}
 	return UpdateAssetFingerprint(c.asset.GetId(), fingerprint)
 }
 

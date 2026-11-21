@@ -23,6 +23,13 @@ import (
 )
 
 func DialSsh(asset *Asset) (*ssh.Client, error) {
+	return dialSsh(asset, func(fingerprint string) error {
+		return UpdateAssetFingerprint(asset.GetId(), fingerprint)
+	})
+}
+
+// dialSsh connects to the asset, calling savePin with the host key on the first connection.
+func dialSsh(asset *Asset, savePin func(fingerprint string) error) (*ssh.Client, error) {
 	if asset.Username == "" {
 		return nil, fmt.Errorf("the username of the asset: %s is empty", asset.GetId())
 	}
@@ -33,12 +40,10 @@ func DialSsh(asset *Asset) (*ssh.Client, error) {
 	}
 
 	config := &ssh.ClientConfig{
-		User: asset.Username,
-		Auth: auth,
-		HostKeyCallback: getHostKeyCallback("asset", asset.GetId(), &asset.Fingerprint, func(fingerprint string) error {
-			return UpdateAssetFingerprint(asset.GetId(), fingerprint)
-		}),
-		Timeout: dialTimeout,
+		User:            asset.Username,
+		Auth:            auth,
+		HostKeyCallback: getHostKeyCallback("asset", asset.GetId(), &asset.Fingerprint, savePin),
+		Timeout:         dialTimeout,
 	}
 
 	conn, err := DialAsset(asset)

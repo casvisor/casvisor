@@ -20,6 +20,7 @@ import * as AssetNodeBackend from "@/backend/AssetNodeBackend";
 import * as NetworkGatewayBackend from "@/backend/NetworkGatewayBackend";
 import type {Asset, AssetNode, NetworkGateway} from "@/backend/types";
 import {MultiSelect} from "@/components/common/MultiSelect";
+import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import {Textarea} from "@/components/ui/textarea";
 import {Loading} from "@/components/common/Loading";
@@ -42,6 +43,7 @@ export default function AssetEditPage() {
   const {owner = "", name = ""} = useParams();
   const navigate = useNavigate();
   const [saving, setSaving] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
 
   const {record: asset, updateField, updateFields, loading, notFound, denied, mode} = useEditRecord<Asset>({
     fetch: () => AssetBackend.getAsset(owner, name),
@@ -93,6 +95,27 @@ export default function AssetEditPage() {
 
   const isKubernetes = asset.protocol === KubernetesProtocol;
 
+  // The test connects with what is in the form without saving it; a host key seen for the first time goes into the form.
+  const test = async() => {
+    setTesting(true);
+    try {
+      const res = await AssetBackend.testAsset(mode === "add" ? "" : `${owner}/${name}`, asset);
+      if (res.status === "ok") {
+        if (res.data.fingerprint) {
+          updateField("fingerprint", res.data.fingerprint);
+        }
+        const version = res.data.version ? `, ${res.data.version}` : "";
+        Setting.showMessage("success", `${i18next.t("asset:Connection successful")}: ${res.data.latency} ms${version}`);
+      } else {
+        Setting.showMessage("error", `${i18next.t("asset:Failed to connect")}: ${res.msg}`);
+      }
+    } catch (error: any) {
+      Setting.showMessage("error", `${i18next.t("general:Failed to connect to server")}: ${error}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <EditPageShell
       title={i18next.t(getModeTitleKey("asset:Edit Asset", mode))}
@@ -101,6 +124,11 @@ export default function AssetEditPage() {
       onSave={save}
       saving={saving}
       remove={() => AssetBackend.deleteAsset(asset)}
+      extraActions={mode !== "view" ? (
+        <Button variant="outline" disabled={testing || saving} onClick={test}>
+          {i18next.t("asset:Test connection")}
+        </Button>
+      ) : null}
       grid
     >
       <FormRow labelKey="general:Organization">

@@ -40,6 +40,11 @@ export function addAsset(asset: any) {
   return post("/api/add-asset", {}, asset);
 }
 
+/** Connects to the asset as it is in the form; id is the saved asset, whose masked secrets are used. */
+export function testAsset(id: string, asset: any) {
+  return post("/api/test-asset", id ? {id} : {}, asset);
+}
+
 export function deleteAsset(asset: any) {
   return post("/api/delete-asset", {}, asset);
 }
