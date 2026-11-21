@@ -83,14 +83,11 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: false
 
-      # gen a dummy config file
-      - run: touch dummy.yml
-
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9.2.0
         with:
-          version: latest
-          args: --disable-all -c dummy.yml -E=gofumpt --max-same-issues=0 --timeout 5m --modules-download-mode=mod
+          version: v2.11.4
+          args: --config .golangci.yml ./...
 
   github-release:
     name: GitHub Release
