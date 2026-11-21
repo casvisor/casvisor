@@ -15,6 +15,7 @@
 import * as React from "react";
 import i18next from "i18next";
 import dayjs from "dayjs";
+import {useSearchParams} from "react-router-dom";
 import {Database} from "lucide-react";
 import * as CommandBackend from "@/backend/CommandBackend";
 import * as SessionBackend from "@/backend/SessionBackend";
@@ -27,9 +28,12 @@ const refreshInterval = 3000;
 /** The statements of a database session in the order they ran, with how each
  *  turned out; a connected session is followed as it goes. */
 export function SqlSessionLog({session: initialSession}: {session: Session}) {
+  const [searchParams] = useSearchParams();
+  const atParam = searchParams.get("at");
   const [session, setSession] = React.useState(initialSession);
   const [commands, setCommands] = React.useState<Command[]>([]);
   const [total, setTotal] = React.useState(0);
+  const scrolledAt = React.useRef<string | null>(null);
   const sessionId = `${session.owner}/${session.name}`;
   const live = session.status === SessionBackend.Connected;
 
@@ -68,6 +72,24 @@ export function SqlSessionLog({session: initialSession}: {session: Session}) {
     };
   }, [session.owner, session.name, sessionId, live]);
 
+  const targetName = React.useMemo(() => {
+    if (!atParam) {
+      return "";
+    }
+    const target = dayjs(atParam);
+    return (
+      commands.find((c) => c.createdTime === atParam) ??
+      (target.isValid() ? commands.find((c) => Math.abs(dayjs(c.createdTime).diff(target)) <= 1000) : undefined)
+    )?.name ?? "";
+  }, [commands, atParam]);
+
+  const targetRowRef = React.useCallback((el: HTMLTableRowElement | null) => {
+    if (el && scrolledAt.current !== atParam) {
+      scrolledAt.current = atParam;
+      el.scrollIntoView({block: "center"});
+    }
+  }, [atParam]);
+
   return (
     <div className="flex h-screen w-screen flex-col bg-[#1b1b1b] text-neutral-200">
       <div className="flex flex-wrap items-center gap-3 border-b border-neutral-700 px-4 py-2 text-sm">
@@ -96,7 +118,11 @@ export function SqlSessionLog({session: initialSession}: {session: Session}) {
           </thead>
           <tbody>
             {commands.map((command) => (
-              <tr key={command.name} className="border-b border-neutral-800 align-top hover:bg-neutral-800/60">
+              <tr
+                key={command.name}
+                ref={command.name === targetName ? targetRowRef : undefined}
+                className={`border-b border-neutral-800 align-top hover:bg-neutral-800/60 ${command.name === targetName ? "bg-neutral-800" : ""}`}
+              >
                 <td className="whitespace-nowrap px-4 py-1.5 tabular-nums text-neutral-500" title={command.createdTime}>
                   {dayjs(command.createdTime).format("HH:mm:ss")}
                 </td>

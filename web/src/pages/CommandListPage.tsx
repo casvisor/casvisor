@@ -15,6 +15,7 @@
 import * as React from "react";
 import i18next from "i18next";
 import {Link, useSearchParams} from "react-router-dom";
+import {Play} from "lucide-react";
 import * as CommandBackend from "@/backend/CommandBackend";
 import type {Command} from "@/backend/types";
 import {CrudListPage} from "@/components/crud/CrudListPage";
@@ -25,6 +26,11 @@ import {useAccount} from "@/hooks/use-account";
 import {isDatabaseProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 import {CommandActionBadge} from "@/pages/CommandRuleListPage";
+
+function getReplayUrl(command: Command) {
+  const [owner, name] = command.session.split("/");
+  return `/sessions/${owner}/${name}/replay?at=${encodeURIComponent(command.createdTime)}`;
+}
 
 /** The commands run in SSH sessions and the statements run in database sessions;
  *  /commands?session=<owner>/<name> shows one session's. */
@@ -101,7 +107,18 @@ export default function CommandListPage() {
       title: i18next.t("general:Session"),
       width: 120,
       searchable: true,
-      render: (value) => <span className="font-mono text-xs text-muted-foreground">{Setting.getShortName(value).slice(0, 8)}</span>,
+      render: (value, command) => {
+        const label = Setting.getShortName(value).slice(0, 8);
+        const replayUrl = value?.includes("/") ? getReplayUrl(command) : "";
+        return replayUrl ? (
+          <Link to={replayUrl} target="_blank" rel="noreferrer" title={i18next.t("session:Jump to replay")} className="inline-flex items-center gap-1 font-mono text-xs text-primary underline-offset-4 hover:underline">
+            <Play className="h-3 w-3 shrink-0" />
+            {label}
+          </Link>
+        ) : (
+          <span className="font-mono text-xs text-muted-foreground">{label}</span>
+        );
+      },
     },
   ];
 

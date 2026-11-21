@@ -33,8 +33,17 @@ const Speeds = [1, 2, 4, 8, 16];
 
 interface CommandMark {
   time: number;
+  createdTime: string;
   text: string;
   action: string;
+}
+
+/** The playback position of ?at=<time a command ran>, a second before it so that its typing shows. */
+function getSeekPosition(at: string | null, startTime: string, duration: number): number | null {
+  if (!at || !startTime || !dayjs(at).isValid()) {
+    return null;
+  }
+  return Math.max(0, Math.min(dayjs(at).diff(dayjs(startTime)) - 1000, duration));
 }
 
 /** Replays a recorded session, or lists the statements of a database session. */
@@ -54,20 +63,21 @@ export default function SessionReplayPage() {
   if (session && isDatabaseProtocol(session.protocol)) {
     return <SqlSessionLog session={session} />;
   }
-  return <RecordingReplay />;
+  return <RecordingReplay session={session} />;
 }
 
 /** Replays a recorded session in the window, with the commands of a terminal
  *  session beside it to jump to. */
-function RecordingReplay() {
+function RecordingReplay({session}: {session: Session | null}) {
   const {owner = "", name = ""} = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const index = Number(searchParams.get("index") ?? 0) || 0;
+  const atParam = searchParams.get("at");
   const sessionId = `${owner}/${name}`;
+  const recordings = session?.recordings ?? [];
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const playerRef = React.useRef<ReplayPlayer | null>(null);
-  const [recordings, setRecordings] = React.useState<string[]>([]);
   const [recording, setRecording] = React.useState<Recording | null>(null);
   const [progress, setProgress] = React.useState(0);
   const [error, setError] = React.useState("");
@@ -76,12 +86,7 @@ function RecordingReplay() {
 
   React.useEffect(() => {
     document.title = `${i18next.t("session:Replay")} | ${name}`;
-    SessionBackend.getSession(owner, name).then((res) => {
-      if (res.status === "ok" && res.data) {
-        setRecordings(res.data.recordings ?? []);
-      }
-    });
-  }, [owner, name]);
+  }, [name]);
 
   React.useEffect(() => {
     let active = true;
@@ -116,6 +121,17 @@ function RecordingReplay() {
   }, [recording]);
 
   React.useEffect(() => {
+    const player = playerRef.current;
+    if (!recording || !player) {
+      return;
+    }
+    const position = getSeekPosition(atParam, recording.header.startTime, recording.duration);
+    if (position !== null) {
+      player.seek(position);
+    }
+  }, [recording, atParam]);
+
+  React.useEffect(() => {
     if (!recording || !isTerminalProtocol(recording.header.protocol)) {
       setCommands([]);
       return;
@@ -128,7 +144,7 @@ function RecordingReplay() {
       setCommands((res.data ?? [])
         .filter((command: any) => command.session === sessionId)
         // command times are in whole seconds, the recording starts at a millisecond
-        .map((command: any) => ({time: Math.max(0, dayjs(command.createdTime).diff(start)), text: command.text, action: command.action}))
+        .map((command: any) => ({time: Math.max(0, dayjs(command.createdTime).diff(start)), createdTime: command.createdTime, text: command.text, action: command.action}))
         .filter((command: CommandMark) => command.time <= recording.duration + 1000));
     });
   }, [recording, owner, sessionId]);
@@ -190,7 +206,7 @@ function RecordingReplay() {
               <button
                 key={i}
                 type="button"
-                className="flex w-full gap-2 px-3 py-1.5 text-left hover:bg-neutral-800"
+                className={`flex w-full gap-2 px-3 py-1.5 text-left hover:bg-neutral-800 ${atParam && command.createdTime === atParam ? "bg-neutral-800" : ""}`}
                 onClick={() => player?.seek(Math.max(0, command.time - 1000))}
               >
                 <span className="shrink-0 tabular-nums text-neutral-500">{formatDuration(command.time)}</span>
