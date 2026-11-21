@@ -2255,7 +2255,7 @@
                 "tags": [
                     "Session API"
                 ],
-                "description": "watch a connected session live over a websocket, read only",
+                "description": "watch a connected session live over a websocket; with control, also type into an SSH, Telnet or Kubernetes terminal",
                 "operationId": "ApiController.GetSessionMonitor",
                 "parameters": [
                     {
@@ -2264,6 +2264,12 @@
                         "description": "The id of the session",
                         "required": true,
                         "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "control",
+                        "description": "true to take part in the session",
+                        "type": "boolean"
                     }
                 ]
             }
@@ -3664,6 +3670,9 @@
                 "name": {
                     "type": "string"
                 },
+                "operator": {
+                    "type": "string"
+                },
                 "owner": {
                     "type": "string"
                 },
@@ -4371,6 +4380,12 @@
                 "createdTime": {
                     "type": "string"
                 },
+                "dailyEndTime": {
+                    "type": "string"
+                },
+                "dailyStartTime": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -4404,6 +4419,9 @@
                 "startTime": {
                     "type": "string"
                 },
+                "timeZone": {
+                    "type": "string"
+                },
                 "updatedTime": {
                     "type": "string"
                 },
@@ -4411,6 +4429,13 @@
                     "type": "array",
                     "items": {
                         "type": "string"
+                    }
+                },
+                "weekdays": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int64"
                     }
                 }
             }

@@ -1474,7 +1474,7 @@ paths:
     get:
       tags:
       - Session API
-      description: watch a connected session live over a websocket, read only
+      description: watch a connected session live over a websocket; with control, also type into an SSH, Telnet or Kubernetes terminal
       operationId: ApiController.GetSessionMonitor
       parameters:
       - in: query
@@ -1482,6 +1482,10 @@ paths:
         description: The id of the session
         required: true
         type: string
+      - in: query
+        name: control
+        description: true to take part in the session
+        type: boolean
   /get-session-recording:
     get:
       tags:
@@ -2406,6 +2410,8 @@ definitions:
         type: string
       name:
         type: string
+      operator:
+        type: string
       owner:
         type: string
       protocol:
@@ -2882,6 +2888,10 @@ definitions:
           type: string
       createdTime:
         type: string
+      dailyEndTime:
+        type: string
+      dailyStartTime:
+        type: string
       description:
         type: string
       displayName:
@@ -2904,12 +2914,19 @@ definitions:
         type: string
       startTime:
         type: string
+      timeZone:
+        type: string
       updatedTime:
         type: string
       users:
         type: array
         items:
           type: string
+      weekdays:
+        type: array
+        items:
+          type: integer
+          format: int64
   object.Record:
     title: Record
     type: object
