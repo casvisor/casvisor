@@ -203,6 +203,7 @@ export interface Permission {
   dailyStartTime?: string;
   dailyEndTime?: string;
   timeZone?: string;
+  watermark?: boolean;
   isEnabled: boolean;
 }
 
@@ -225,6 +226,7 @@ export interface Session {
   status: string;
   mode: string;
   operations: string[] | null;
+  watermark?: string;
   recordings: string[] | null;
   [key: string]: any;
 }

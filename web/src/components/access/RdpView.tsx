@@ -277,6 +277,7 @@ export default function RdpView(props: ConnectionProps) {
       }
 
       const session = res.data;
+      props.onSession?.(session);
       operationsRef.current = session.operations ?? [];
       lastClipboardRef.current = "";
       const canvas = canvasRef.current!;

@@ -66,6 +66,9 @@ type Permission struct {
 	DailyEndTime   string `xorm:"varchar(10)" json:"dailyEndTime"`
 	TimeZone       string `xorm:"varchar(100)" json:"timeZone"`
 
+	// Watermark shows a watermark over the sessions the permission covers, also with no actions,
+	// in which case the permission only adds the watermark to what other permissions grant
+	Watermark bool `json:"watermark"`
 	IsEnabled bool `json:"isEnabled"`
 }
 

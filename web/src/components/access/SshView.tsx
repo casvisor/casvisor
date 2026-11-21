@@ -73,6 +73,7 @@ export default function SshView(props: ConnectionProps & {protocol: string; kube
       }
 
       const session = res.data;
+      props.onSession?.(session);
       fitAddonRef.current?.fit();
 
       const params: Record<string, any> = {

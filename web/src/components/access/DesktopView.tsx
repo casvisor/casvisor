@@ -100,6 +100,7 @@ export default function DesktopView(props: ConnectionProps) {
       }
 
       const session = res.data;
+      props.onSession?.(session);
       const sessionId = `${session.owner}/${session.name}`;
       operationsRef.current = session.operations ?? [];
       lastClipboardRef.current = "";

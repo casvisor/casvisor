@@ -625,6 +625,8 @@
     "Users": "Users",
     "Users - Tooltip": "Users - Tooltip",
     "View Permission": "View Permission",
+    "Watermark": "Watermark",
+    "Watermark - Tooltip": "Show the user, client IP and time over the browser sessions the permission covers. A permission with no actions and the watermark on only adds the watermark to what other permissions grant, so one covering all users and all assets watermarks every session, administrators included",
     "Weekdays - Tooltip": "Days of the week the permission applies on, empty for every day; sessions are disconnected when the window ends"
   },
   "record": {

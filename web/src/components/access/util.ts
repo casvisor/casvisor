@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import type {Session} from "@/backend/types";
 import {keepCredentialsInTab} from "@/components/access/ConnectButton";
 
 export function debounce<T extends (...args: any[]) => void>(fn: T, delay = 500) {
@@ -48,6 +49,8 @@ export interface ConnectionProps {
   addClient?: (client: {disconnect: () => void}) => void;
   /** closes the workbench tab, or the window when the view has it to itself */
   onClose?: () => void;
+  /** tells the session the view has started, for the watermark over it */
+  onSession?: (session: Session) => void;
 }
 
 /** Holds a Web Lock until the returned function is called. Chrome freezes a

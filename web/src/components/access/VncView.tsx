@@ -63,6 +63,7 @@ export default function VncView(props: ConnectionProps) {
       }
 
       const session = res.data;
+      props.onSession?.(session);
       operationsRef.current = session.operations ?? [];
 
       const params: Record<string, any> = {sessionId: `${session.owner}/${session.name}`};

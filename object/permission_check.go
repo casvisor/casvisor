@@ -15,6 +15,7 @@
 package object
 
 import (
+	"fmt"
 	"net"
 	"slices"
 	"strings"
@@ -145,9 +146,14 @@ func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enfo
 			accounts = []string{AccountDefault}
 		}
 
+		actions := permission.Actions
+		if permission.Watermark {
+			actions = append(slices.Clone(actions), actionWatermark)
+		}
+
 		for _, sub := range subjects {
 			for _, obj := range objects {
-				for _, act := range permission.Actions {
+				for _, act := range actions {
 					for _, clientIp := range clientIps {
 						for _, account := range accounts {
 							policies[[5]string{sub, obj, act, clientIp, account}] = true
@@ -211,6 +217,32 @@ func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enfo
 	}
 
 	return enforcer, nil
+}
+
+// actionWatermark is granted along with the actions of a permission that shows a watermark.
+const actionWatermark = "Watermark"
+
+// GetSessionWatermark returns the text of the watermark over a session of the user on the asset as
+// the account, or an empty string when no permission covering the session shows a watermark.
+func GetSessionWatermark(user *casdoorsdk.User, asset *Asset, account string, clientIp string) (string, error) {
+	if user == nil || asset == nil || user.Owner != asset.Owner {
+		return "", nil
+	}
+
+	enforcer, err := newPermissionEnforcer(user, []*Asset{asset})
+	if err != nil {
+		return "", err
+	}
+	ok, err := enforcer.Enforce("user:"+user.Name, "asset:"+asset.Name, actionWatermark, clientIp, getAccountKey(asset, account))
+	if err != nil || !ok {
+		return "", err
+	}
+
+	name := user.Owner + "/" + user.Name
+	if user.DisplayName != "" && user.DisplayName != user.Name {
+		name = fmt.Sprintf("%s (%s)", user.DisplayName, name)
+	}
+	return fmt.Sprintf("%s  %s", name, clientIp), nil
 }
 
 func getGroupName(group string) string {
