@@ -617,10 +617,12 @@
     "Start time - Tooltip": "Start time - Tooltip",
     "The account named like the user": "The account named like the user",
     "The asset's own account": "The asset's own account",
+    "Time of day - Tooltip": "Hours of the day the permission applies in, empty for the whole day. An end before the start, such as 22:00 to 06:00, goes over midnight",
     "Upload": "Upload",
     "Users": "Users",
     "Users - Tooltip": "Users - Tooltip",
-    "View Permission": "View Permission"
+    "View Permission": "View Permission",
+    "Weekdays - Tooltip": "Days of the week the permission applies on, empty for every day; sessions are disconnected when the window ends"
   },
   "record": {
     "New Record": "New Record",

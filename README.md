@@ -187,7 +187,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 
 **🛡️ Control**
 
-- **Permissions** — on users, groups, assets and asset tags, with the actions `Connect`, `Copy`, `Paste`, `Upload`, `Download` and `Forward`, client IP ranges and a time window
+- **Permissions** — on users, groups, assets and asset tags, with the actions `Connect`, `Copy`, `Paste`, `Upload`, `Download` and `Forward`, client IP ranges, a start and end date, and weekly hours such as Monday to Friday 09:00–18:00; open sessions are disconnected when the hours end
 - **System accounts** — several accounts per asset, such as `root`, `deploy` and `readonly`; permissions decide which one a user may connect with, and passwords can be changed by hand or on a schedule
 - **Access requests** — users ask for an asset with a reason and an end time, an administrator approves, and withdrawing it disconnects open sessions
 - **Two-step verification** — for local accounts, with any TOTP authenticator app

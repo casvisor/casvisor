@@ -617,10 +617,12 @@
     "Start time - Tooltip": "从这个时间起授权才生效，留空表示立即生效",
     "The account named like the user": "与用户同名的账号",
     "The asset's own account": "资产自己的账号",
+    "Time of day - Tooltip": "授权在一天中的哪个时间段生效，留空表示全天。结束早于开始（例如 22:00 到 06:00）表示跨午夜",
     "Upload": "上传",
     "Users": "用户",
     "Users - Tooltip": "Casdoor 用户名，选“所有”表示本组织的所有用户",
-    "View Permission": "查看权限"
+    "View Permission": "查看权限",
+    "Weekdays - Tooltip": "授权在星期几生效，留空表示每天；时段结束时已连着的会话会被断开"
   },
   "record": {
     "New Record": "新建日志",

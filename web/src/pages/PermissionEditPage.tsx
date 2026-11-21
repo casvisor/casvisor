@@ -33,6 +33,7 @@ import {useEditRecord} from "@/hooks/use-edit-record";
 import {PermissionActions} from "@/lib/asset";
 import {getNodeOptions} from "@/lib/assetNode";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
+import {getWeekdayNames} from "@/lib/loginRule";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 /** "*" grants every user, group or asset, the way the antd page offered it first. */
@@ -217,6 +218,24 @@ export default function PermissionEditPage() {
       </FormRow>
       <FormRow labelKey="permission:End time">
         <TimeInput value={permission.endTime} onChange={(value) => updateField("endTime", value)} />
+      </FormRow>
+      <FormRow label={i18next.t("loginRule:Weekdays")} tooltip={i18next.t("permission:Weekdays - Tooltip")}>
+        <MultiSelect
+          value={(permission.weekdays ?? []).map(String)}
+          options={[1, 2, 3, 4, 5, 6, 0].map((day) => ({value: String(day), label: getWeekdayNames()[day]}))}
+          placeholder={i18next.t("loginRule:Every day")}
+          onChange={(value) => updateField("weekdays", value.map(Number).sort())}
+        />
+      </FormRow>
+      <FormRow label={i18next.t("loginRule:Time of day")} tooltip={i18next.t("permission:Time of day - Tooltip")}>
+        <div className="flex w-full items-center gap-2">
+          <Input type="time" value={permission.dailyStartTime ?? ""} onChange={(e) => updateField("dailyStartTime", e.target.value)} />
+          <span className="text-muted-foreground">-</span>
+          <Input type="time" value={permission.dailyEndTime ?? ""} onChange={(e) => updateField("dailyEndTime", e.target.value)} />
+        </div>
+      </FormRow>
+      <FormRow label={i18next.t("loginRule:Time zone")} tooltip={i18next.t("loginRule:Time zone - Tooltip")}>
+        <Input value={permission.timeZone ?? ""} placeholder="Asia/Shanghai" onChange={(e) => updateField("timeZone", e.target.value.trim())} />
       </FormRow>
       <FormRow labelKey="permission:Is enabled">
         <Switch checked={permission.isEnabled} onCheckedChange={(checked) => updateField("isEnabled", checked)} />

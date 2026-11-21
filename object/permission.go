@@ -60,7 +60,13 @@ type Permission struct {
 
 	StartTime string `xorm:"varchar(100)" json:"startTime"`
 	EndTime   string `xorm:"varchar(100)" json:"endTime"`
-	IsEnabled bool   `json:"isEnabled"`
+
+	Weekdays       []int  `xorm:"varchar(100)" json:"weekdays"`
+	DailyStartTime string `xorm:"varchar(10)" json:"dailyStartTime"`
+	DailyEndTime   string `xorm:"varchar(10)" json:"dailyEndTime"`
+	TimeZone       string `xorm:"varchar(100)" json:"timeZone"`
+
+	IsEnabled bool `json:"isEnabled"`
 }
 
 func GetPermissionCount(owner, field, value string) (int64, error) {
@@ -193,7 +199,11 @@ func (permission *Permission) check() error {
 		}
 	}
 
-	return nil
+	return permission.getTimeWindow().check()
+}
+
+func (permission *Permission) getTimeWindow() TimeWindow {
+	return TimeWindow{Weekdays: permission.Weekdays, StartTime: permission.DailyStartTime, EndTime: permission.DailyEndTime, TimeZone: permission.TimeZone}
 }
 
 func (permission *Permission) isActive(now time.Time) bool {
@@ -215,5 +225,5 @@ func (permission *Permission) isActive(now time.Time) bool {
 		}
 	}
 
-	return true
+	return permission.getTimeWindow().match(now)
 }

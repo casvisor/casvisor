@@ -162,14 +162,6 @@ func (rule *LoginRule) GetId() string {
 	return fmt.Sprintf("%s/%s", rule.Owner, rule.Name)
 }
 
-func parseClockTime(s string) (int, error) {
-	t, err := time.Parse("15:04", s)
-	if err != nil {
-		return 0, fmt.Errorf("invalid time: %s, it should be like 09:00", s)
-	}
-	return t.Hour()*60 + t.Minute(), nil
-}
-
 func (rule *LoginRule) check() error {
 	if !slices.Contains(loginActions, rule.Action) {
 		return fmt.Errorf("invalid action: %s, it should be one of: %s", rule.Action, strings.Join(loginActions, ", "))
@@ -184,28 +176,8 @@ func (rule *LoginRule) check() error {
 		}
 	}
 
-	for _, weekday := range rule.Weekdays {
-		if weekday < 0 || weekday > 6 {
-			return fmt.Errorf("invalid weekday: %d, it should be from 0 (Sunday) to 6 (Saturday)", weekday)
-		}
-	}
-
-	if (rule.StartTime == "") != (rule.EndTime == "") {
-		return fmt.Errorf("the start time and the end time should be both set or both empty")
-	}
-	for _, t := range []string{rule.StartTime, rule.EndTime} {
-		if t == "" {
-			continue
-		}
-		if _, err := parseClockTime(t); err != nil {
-			return err
-		}
-	}
-
-	if rule.TimeZone != "" {
-		if _, err := time.LoadLocation(rule.TimeZone); err != nil {
-			return fmt.Errorf("invalid time zone: %s", rule.TimeZone)
-		}
+	if err := rule.getTimeWindow().check(); err != nil {
+		return err
 	}
 
 	for _, method := range rule.Methods {
@@ -248,38 +220,12 @@ func (rule *LoginRule) matchClientIp(clientIp string) bool {
 	return false
 }
 
+func (rule *LoginRule) getTimeWindow() TimeWindow {
+	return TimeWindow{Weekdays: rule.Weekdays, StartTime: rule.StartTime, EndTime: rule.EndTime, TimeZone: rule.TimeZone}
+}
+
 func (rule *LoginRule) matchTime(now time.Time) bool {
-	if rule.TimeZone != "" {
-		if location, err := time.LoadLocation(rule.TimeZone); err == nil {
-			now = now.In(location)
-		}
-	}
-
-	minute := now.Hour()*60 + now.Minute()
-	weekday := int(now.Weekday())
-	if rule.StartTime != "" && rule.EndTime != "" {
-		start, err1 := parseClockTime(rule.StartTime)
-		end, err2 := parseClockTime(rule.EndTime)
-		if err1 != nil || err2 != nil {
-			return false
-		}
-		switch {
-		case start < end:
-			if minute < start || minute >= end {
-				return false
-			}
-		case start > end:
-			// a window over midnight, such as 22:00 to 06:00, belongs to the day it starts on
-			if minute < start && minute >= end {
-				return false
-			}
-			if minute < end {
-				weekday = (weekday + 6) % 7
-			}
-		}
-	}
-
-	return len(rule.Weekdays) == 0 || slices.Contains(rule.Weekdays, weekday)
+	return rule.getTimeWindow().match(now)
 }
 
 // LoginDecision is what the login rules say about a sign-in; a nil Rule means no rule matched.
