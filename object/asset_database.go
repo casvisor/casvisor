@@ -100,6 +100,10 @@ type DatabaseClient struct {
 	conn     *sql.Conn
 	pg       *pgx.Conn
 	mysqlKey string
+
+	// noSave keeps the pinned fingerprint in the asset only, for testing an asset before it is saved
+	noSave      bool
+	fingerprint string
 }
 
 var (
@@ -126,8 +130,12 @@ func (c *DatabaseClient) dial() (net.Conn, error) {
 }
 
 func DialDatabase(asset *Asset) (*DatabaseClient, error) {
+	return dialDatabase(asset, false)
+}
+
+func dialDatabase(asset *Asset, noSave bool) (*DatabaseClient, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &DatabaseClient{Asset: asset, Database: asset.Database, ctx: ctx, cancel: cancel}
+	c := &DatabaseClient{Asset: asset, Database: asset.Database, ctx: ctx, cancel: cancel, noSave: noSave}
 
 	var err error
 	switch asset.Protocol {
@@ -148,7 +156,68 @@ func DialDatabase(asset *Asset) (*DatabaseClient, error) {
 		c.Close()
 		return nil, err
 	}
+
+	err = c.pinFingerprint()
+	if err != nil {
+		c.Close()
+		return nil, err
+	}
 	return c, nil
+}
+
+// getTlsConfig checks the server by the public key pinned in the fingerprint of the asset at
+// the first TLS connection, as database servers mostly have self-signed certificates.
+func (c *DatabaseClient) getTlsConfig() *tls.Config {
+	serverName := c.Asset.Host
+	if net.ParseIP(serverName) != nil {
+		serverName = ""
+	}
+	return &tls.Config{
+		ServerName:         serverName,
+		InsecureSkipVerify: true,
+		VerifyConnection:   c.verifyConnection,
+	}
+}
+
+func (c *DatabaseClient) verifyConnection(state tls.ConnectionState) error {
+	if len(state.PeerCertificates) == 0 {
+		return fmt.Errorf("the database server of the asset: %s sent no certificate", c.Asset.GetId())
+	}
+
+	fingerprint := getCertificateFingerprint(state.PeerCertificates[0].RawSubjectPublicKeyInfo)
+	pinned := c.getPinnedFingerprint()
+	if pinned == "" {
+		c.mu.Lock()
+		c.fingerprint = fingerprint
+		c.mu.Unlock()
+		return nil
+	}
+	if pinned != fingerprint {
+		return fmt.Errorf("the public key of the database server of the asset: %s has changed from %s to %s, clear the fingerprint of the asset if the change is expected", c.Asset.GetId(), pinned, fingerprint)
+	}
+	return nil
+}
+
+func (c *DatabaseClient) getPinnedFingerprint() string {
+	return strings.ToLower(strings.ReplaceAll(strings.TrimSpace(c.Asset.Fingerprint), ":", ""))
+}
+
+// pinFingerprint saves the public key of the database server, once the password has been
+// accepted; from then on the connection must use TLS, so it can't be downgraded to plain text.
+func (c *DatabaseClient) pinFingerprint() error {
+	c.mu.Lock()
+	fingerprint := c.fingerprint
+	c.fingerprint = ""
+	c.mu.Unlock()
+
+	if fingerprint == "" || c.Asset.Fingerprint != "" {
+		return nil
+	}
+	c.Asset.Fingerprint = fingerprint
+	if c.noSave {
+		return nil
+	}
+	return UpdateAssetFingerprint(c.Asset.GetId(), fingerprint)
 }
 
 func (c *DatabaseClient) connectMysql() error {
@@ -171,7 +240,9 @@ func (c *DatabaseClient) connectMysql() error {
 	cfg.User = c.Asset.Username
 	cfg.Passwd = c.Asset.Password
 	cfg.DBName = c.Asset.Database
-	cfg.TLSConfig = "preferred"
+	cfg.TLS = c.getTlsConfig()
+	// plain text only for a server that never had TLS
+	cfg.AllowFallbackToPlaintext = c.getPinnedFingerprint() == ""
 	cfg.Timeout = dialTimeout
 
 	connector, err := mysql.NewConnector(cfg)
@@ -201,9 +272,12 @@ func (c *DatabaseClient) connectPostgresql(database string) (*pgx.Conn, error) {
 	config.Database = database
 	config.ConnectTimeout = 2 * dialTimeout
 	config.RuntimeParams = map[string]string{"application_name": "casvisor"}
-	// sslmode=prefer: TLS when the server has it, plain otherwise
-	config.TLSConfig = &tls.Config{InsecureSkipVerify: true, ServerName: asset.Host}
-	config.Fallbacks = []*pgconn.FallbackConfig{{Host: asset.Host, Port: uint16(asset.Port)}}
+	// TLS when the server has it, plain otherwise until a public key is pinned
+	config.TLSConfig = c.getTlsConfig()
+	config.Fallbacks = nil
+	if c.getPinnedFingerprint() == "" {
+		config.Fallbacks = []*pgconn.FallbackConfig{{Host: asset.Host, Port: uint16(asset.Port)}}
+	}
 	config.LookupFunc = func(ctx context.Context, host string) ([]string, error) {
 		return []string{host}, nil
 	}

@@ -107,9 +107,9 @@ func GetRecord(id string) (*Record, error) {
 }
 
 func NewRecord(ctx *context.Context) (*Record, error) {
-	ip := strings.Replace(util.GetIPFromRequest(ctx.Request), ": ", "", -1)
+	ip := util.GetClientIp(ctx.Request)
 	action := strings.Replace(ctx.Request.URL.Path, "/api/", "", -1)
-	requestUri := util.FilterQuery(ctx.Request.RequestURI, []string{"accessToken"})
+	requestUri := util.FilterQuery(ctx.Request.RequestURI, []string{"accessToken", "clientSecret", "code"})
 	if len(requestUri) > 1000 {
 		requestUri = requestUri[0:1000]
 	}
@@ -181,7 +181,7 @@ func (record *Record) getId() string {
 	return fmt.Sprintf("%s/%s", record.Owner, record.Name)
 }
 
-var maskedRecordFields = []string{"password", "privateKey", "oldPassword", "newPassword", "code", "secret", "csv"}
+var maskedRecordFields = []string{"password", "privateKey", "oldPassword", "newPassword", "code", "secret", "csv", "url", "token", "accessKey", "accessSecret", "clientSecret"}
 
 func maskRecordObject(body []byte) string {
 	var m map[string]interface{}

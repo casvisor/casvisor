@@ -15,9 +15,12 @@
 package routers
 
 import (
+	"crypto/subtle"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/beego/beego/context"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
@@ -79,7 +82,11 @@ func getUsernameByClientIdSecret(ctx *context.Context) (string, error) {
 	}
 
 	applicationName := conf.GetConfigString("casdoorApplication")
-	if clientSecret != conf.GetConfigString("clientSecret") {
+	expectedId := conf.GetConfigString("clientId")
+	expectedSecret := conf.GetConfigString("clientSecret")
+	if expectedId == "" || expectedSecret == "" ||
+		subtle.ConstantTimeCompare([]byte(clientId), []byte(expectedId)) != 1 ||
+		subtle.ConstantTimeCompare([]byte(clientSecret), []byte(expectedSecret)) != 1 {
 		return "", fmt.Errorf("Incorrect client secret for application: %s", applicationName)
 	}
 
@@ -110,4 +117,42 @@ func RefreshLocalUser(ctx *context.Context) {
 
 	claims.User = *user.ToCasdoorUser()
 	ctx.Input.CruSession.Set("user", claims)
+}
+
+// casdoorUserCheckInterval is how often a signed-in Casdoor user is read again, so that a
+// user deleted, forbidden or no longer an administrator in Casdoor loses access soon.
+const casdoorUserCheckInterval = 5 * time.Minute
+
+func RefreshCasdoorUser(ctx *context.Context) {
+	if object.IsLocalAuth() || !strings.HasPrefix(ctx.Request.URL.Path, "/api/") {
+		return
+	}
+
+	s := ctx.Input.Session("user")
+	if s == nil {
+		return
+	}
+	claims := s.(casdoorsdk.Claims)
+
+	checkedTime, _ := ctx.Input.Session("userCheckedTime").(int64)
+	if time.Since(time.Unix(checkedTime, 0)) < casdoorUserCheckInterval {
+		return
+	}
+
+	userId := util.GetIdFromOwnerAndName(claims.User.Owner, claims.User.Name)
+	user, err := object.GetCasdoorUser(claims.User.Owner, claims.User.Name)
+	if err != nil {
+		if errors.Is(err, object.ErrUserNotAllowed) {
+			ctx.Input.CruSession.Delete("user")
+		}
+		return
+	}
+	if !object.IsUserAllowedToSignin(userId) {
+		ctx.Input.CruSession.Delete("user")
+		return
+	}
+
+	claims.User = *user
+	ctx.Input.CruSession.Set("user", claims)
+	ctx.Input.CruSession.Set("userCheckedTime", time.Now().Unix())
 }

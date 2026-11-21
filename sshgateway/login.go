@@ -63,7 +63,15 @@ func checkLoginRules(meta ssh.ConnMetadata, user *casdoorsdk.User, perms *ssh.Pe
 		}}
 	case object.LoginActionMfa:
 		if !object.IsLocalAuth() {
-			return perms, nil
+			// the web sign-in leaves the second step to Casdoor, which the SSH gateway
+			// doesn't go through, so a key alone is not enough
+			return nil, &ssh.PartialSuccessError{Next: ssh.ServerAuthCallbacks{
+				KeyboardInteractiveCallback: func(meta ssh.ConnMetadata, challenge ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {
+					addLoginAudit(meta, user, "login-reject", fmt.Sprintf("SSH sign-in rejected: the login rule %s requires two-step verification, which the SSH gateway only has for Casvisor's own accounts", decision.RuleName()))
+					_, _ = challenge("", fmt.Sprintf("casvisor: the login rule %s requires two-step verification, which the SSH gateway can't do for Casdoor accounts, connect from the web instead", decision.RuleName()), nil, nil)
+					return nil, fmt.Errorf("two-step verification required by the login rule: %s", decision.RuleName())
+				},
+			}}
 		}
 		return nil, &ssh.PartialSuccessError{Next: ssh.ServerAuthCallbacks{
 			KeyboardInteractiveCallback: func(meta ssh.ConnMetadata, challenge ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {

@@ -15,14 +15,26 @@
 package object
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type signinFailure struct {
 	count       int
 	lockedUntil time.Time
+	lastTime    time.Time
+}
+
+// maxSigninFailureEntries bounds the failures kept in memory; older ones are dropped.
+const maxSigninFailureEntries = 100000
+
+// getSigninKey ignores the case of the user name, as the database does when it looks it up.
+func getSigninKey(userId string, clientIp string) string {
+	return strings.ToLower(userId) + "|" + clientIp
 }
 
 var (
@@ -34,7 +46,7 @@ func getSigninLock(userId string, clientIp string) time.Time {
 	signinFailureMux.Lock()
 	defer signinFailureMux.Unlock()
 
-	failure, ok := signinFailures[userId+"|"+clientIp]
+	failure, ok := signinFailures[getSigninKey(userId, clientIp)]
 	if !ok || time.Now().After(failure.lockedUntil) {
 		return time.Time{}
 	}
@@ -45,14 +57,18 @@ func addSigninFailure(userId string, clientIp string) {
 	signinFailureMux.Lock()
 	defer signinFailureMux.Unlock()
 
-	key := userId + "|" + clientIp
+	key := getSigninKey(userId, clientIp)
 	failure, ok := signinFailures[key]
 	if !ok || (!failure.lockedUntil.IsZero() && time.Now().After(failure.lockedUntil)) {
+		if len(signinFailures) >= maxSigninFailureEntries {
+			pruneSigninFailures()
+		}
 		failure = &signinFailure{}
 		signinFailures[key] = failure
 	}
 
 	failure.count++
+	failure.lastTime = time.Now()
 	if failure.count >= maxSigninFailures {
 		failure.lockedUntil = time.Now().Add(signinLockTime)
 	}
@@ -62,9 +78,41 @@ func clearSigninFailures(userId string) {
 	signinFailureMux.Lock()
 	defer signinFailureMux.Unlock()
 
+	prefix := strings.ToLower(userId) + "|"
 	for key := range signinFailures {
-		if strings.HasPrefix(key, userId+"|") {
+		if strings.HasPrefix(key, prefix) {
 			delete(signinFailures, key)
 		}
 	}
+}
+
+// pruneSigninFailures drops the failures that no longer lock anyone; the caller holds the lock.
+func pruneSigninFailures() {
+	now := time.Now()
+	for key, failure := range signinFailures {
+		if now.After(failure.lockedUntil) && now.Sub(failure.lastTime) > signinLockTime {
+			delete(signinFailures, key)
+		}
+	}
+	if len(signinFailures) >= maxSigninFailureEntries {
+		for key, failure := range signinFailures {
+			if now.After(failure.lockedUntil) {
+				delete(signinFailures, key)
+			}
+		}
+	}
+}
+
+// checkPasswordWithLock checks the password of a signed-in user for a change to their
+// account, counting failures as a sign-in does.
+func checkPasswordWithLock(user *LocalUser, password string, clientIp string) error {
+	userId := user.GetId()
+	if lockedUntil := getSigninLock(userId, clientIp); !lockedUntil.IsZero() {
+		return fmt.Errorf("too many failed attempts, try again after %s", lockedUntil.Format("15:04:05"))
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+		addSigninFailure(userId, clientIp)
+		return fmt.Errorf("the password is wrong")
+	}
+	return nil
 }

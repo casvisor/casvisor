@@ -101,13 +101,18 @@ func (c *ApiController) AddRecord() {
 		return
 	}
 
-	if user := c.GetSessionUser(); user != nil && user.Owner != "built-in" {
-		record.Owner = user.Owner
-		record.Organization = user.Owner
-	}
 	record.Id = 0
-	if record.Name == "" {
-		record.Name = util.GenerateId()
+	record.Name = util.GenerateId()
+	if user := c.GetSessionUser(); user != nil {
+		// a signed-in user can only add records of what they do themselves
+		if user.Owner != "built-in" {
+			record.Owner = user.Owner
+		}
+		record.Organization = user.Owner
+		record.User = user.Name
+		record.CreatedTime = util.GetCurrentTime()
+		record.ClientIp = c.getClientIp()
+		record.UserAgent = c.getUserAgent()
 	}
 	if record.CreatedTime == "" {
 		record.CreatedTime = util.GetCurrentTime()

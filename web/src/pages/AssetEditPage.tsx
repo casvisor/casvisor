@@ -199,7 +199,7 @@ export default function AssetEditPage() {
           />
         </FormRow>
       ) : null}
-      {asset.protocol === "SSH" || asset.protocol === "RDP" || isKubernetes ? (
+      {asset.protocol === "SSH" || asset.protocol === "RDP" || asset.protocol === "MySQL" || asset.protocol === "PostgreSQL" || isKubernetes ? (
         <FormRow labelKey="asset:Fingerprint">
           <div className="flex w-full flex-col gap-1">
             <Input

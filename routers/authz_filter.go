@@ -18,10 +18,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/beego/beego/context"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/casvisor/casvisor/authz"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/util"
 )
@@ -97,6 +99,12 @@ func getUrlPath(urlPath string) string {
 }
 
 func ApiFilter(ctx *context.Context) {
+	if strings.HasPrefix(ctx.Request.URL.Path, "/api/") && ctx.Request.Method != http.MethodGet && ctx.Request.Method != http.MethodHead && ctx.Request.Method != http.MethodOptions &&
+		!util.IsAllowedOrigin(ctx.Request, conf.GetConfigAllowedOrigins()) {
+		requestDeny(ctx)
+		return
+	}
+
 	subOwner, subName := getSubject(ctx)
 	method := ctx.Request.Method
 	urlPath := getUrlPath(ctx.Request.URL.Path)

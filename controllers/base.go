@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"encoding/gob"
+	"time"
 
 	"github.com/beego/beego"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
@@ -64,6 +65,7 @@ func (c *ApiController) SetSessionClaims(claims *casdoorsdk.Claims) {
 	}
 
 	c.SetSession("user", *claims)
+	c.SetSession("userCheckedTime", time.Now().Unix())
 }
 
 func (c *ApiController) GetSessionUser() *casdoorsdk.User {

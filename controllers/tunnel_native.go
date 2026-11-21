@@ -38,7 +38,7 @@ var nativeUpgrader = websocket.Upgrader{
 	ReadBufferSize:  32 * 1024,
 	WriteBufferSize: 32 * 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		return util.IsAllowedOrigin(r, conf.GetConfigAllowedOrigins())
 	},
 	Subprotocols: []string{"binary"},
 }
@@ -251,6 +251,17 @@ func (c *ApiController) getTunnelSessionAndAsset(sessionId string) (*object.Sess
 		return nil, nil, PermissionDenied, fmt.Errorf("you have no permission to connect to the asset: %s", session.Asset)
 	}
 
+	claimed, err := object.ClaimSession(sessionId)
+	if err != nil {
+		return nil, nil, SessionNotFound, err
+	}
+	if !claimed {
+		return nil, nil, PermissionDenied, fmt.Errorf("the session: %s has already been connected, start a new one", sessionId)
+	}
+	session.Status = object.Connecting
+	// what the user may do now, not when the session was created
+	session.Operations = object.GetSessionOperations(actions)
+
 	username, password := takeTunnelCredential(session.GetId())
 	if session.Account != "" {
 		asset, err = asset.WithAccount(session.Account)
@@ -294,15 +305,18 @@ func setSessionConnected(sessionId string, session *object.Session, width int, h
 // addLiveSession lets the session be disconnected once the user loses the permission to the asset.
 func (c *ApiController) addLiveSession(sessionId string, asset *object.Asset) {
 	account := ""
+	var operations []string
 	session, err := object.GetConnSession(sessionId)
 	if err == nil && session != nil {
 		account = session.Account
+		operations = session.Operations
 	}
 	object.AddLiveSession(sessionId, &object.LiveSession{
-		User:     c.GetSessionUser(),
-		AssetId:  asset.GetId(),
-		Account:  account,
-		ClientIp: c.getAuthzClientIp(),
+		User:       c.GetSessionUser(),
+		AssetId:    asset.GetId(),
+		Account:    account,
+		ClientIp:   c.getAuthzClientIp(),
+		Operations: operations,
 	})
 }
 

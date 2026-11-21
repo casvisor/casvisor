@@ -69,15 +69,18 @@ func main() {
 	}
 	authz.InitAuthz()
 	util.InitIpDb()
+	util.InitTrustedProxies(conf.GetConfigString("trustedProxies"))
 	util.InitParser()
 
-	beego.InsertFilter("*", beego.BeforeRouter, cors.Allow(&cors.Options{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "X-Requested-With", "Content-Type", "Accept"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-	}))
+	if allowedOrigins := conf.GetConfigAllowedOrigins(); len(allowedOrigins) != 0 {
+		beego.InsertFilter("*", beego.BeforeRouter, cors.Allow(&cors.Options{
+			AllowOrigins:     allowedOrigins,
+			AllowMethods:     []string{"GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"},
+			AllowHeaders:     []string{"Origin", "X-Requested-With", "Content-Type", "Accept"},
+			ExposeHeaders:    []string{"Content-Length"},
+			AllowCredentials: true,
+		}))
+	}
 
 	beego.SetStaticPath("/swagger", "swagger")
 	beego.InsertFilter("/metrics", beego.BeforeRouter, routers.MetricsFilter)
@@ -85,6 +88,7 @@ func main() {
 	beego.InsertFilter("/", beego.BeforeRouter, routers.TransparentStatic) // must has this for default page
 	beego.InsertFilter("/*", beego.BeforeRouter, routers.TransparentStatic)
 	beego.InsertFilter("*", beego.BeforeRouter, routers.RefreshLocalUser)
+	beego.InsertFilter("*", beego.BeforeRouter, routers.RefreshCasdoorUser)
 	beego.InsertFilter("*", beego.BeforeRouter, routers.ApiFilter)
 	beego.InsertFilter("*", beego.BeforeRouter, routers.RecordMessage)
 	beego.InsertFilter("*", beego.AfterExec, routers.AfterRecordMessage, false)
@@ -97,6 +101,7 @@ func main() {
 		beego.BConfig.WebConfig.Session.SessionProviderConfig = beego.AppConfig.String("redisEndpoint")
 	}
 	beego.BConfig.WebConfig.Session.SessionGCMaxLifetime = 3600 * 24 * 365
+	beego.BConfig.WebConfig.Session.SessionCookieSameSite = http.SameSiteLaxMode
 
 	task.NewTicker().SetupTicker()
 	demo.StartDemoTargets()

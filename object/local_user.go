@@ -307,6 +307,10 @@ func SigninLocalUser(owner string, name string, password string, code string, cl
 	if err != nil {
 		return nil, err
 	}
+	if user != nil && !strings.EqualFold(user.Name, name) {
+		// a collation that ignores accents must not give the same user more names to guess under
+		user = nil
+	}
 
 	wrongPassword := fmt.Errorf("wrong user name or password")
 	if user == nil {
@@ -349,7 +353,7 @@ func SigninLocalUser(owner string, name string, password string, code string, cl
 }
 
 // ChangeLocalUserPassword lets users change their own password.
-func ChangeLocalUserPassword(owner string, name string, oldPassword string, newPassword string) error {
+func ChangeLocalUserPassword(owner string, name string, oldPassword string, newPassword string, clientIp string) error {
 	user, err := getLocalUser(owner, name)
 	if err != nil {
 		return err
@@ -358,7 +362,7 @@ func ChangeLocalUserPassword(owner string, name string, oldPassword string, newP
 		return fmt.Errorf("the user: %s/%s does not exist", owner, name)
 	}
 
-	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(oldPassword)) != nil {
+	if checkPasswordWithLock(user, oldPassword, clientIp) != nil {
 		return fmt.Errorf("the old password is wrong")
 	}
 

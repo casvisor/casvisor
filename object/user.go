@@ -15,6 +15,7 @@
 package object
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -69,10 +70,14 @@ func GetCasdoorUser(owner string, name string) (*casdoorsdk.User, error) {
 		return nil, err
 	}
 	if user == nil || user.Name == "" {
-		return nil, fmt.Errorf("the user: %s/%s does not exist", owner, name)
+		return nil, fmt.Errorf("%w: the user: %s/%s does not exist", ErrUserNotAllowed, owner, name)
 	}
 	if user.IsForbidden || user.IsDeleted {
-		return nil, fmt.Errorf("the user: %s/%s is forbidden to sign in", owner, name)
+		return nil, fmt.Errorf("%w: the user: %s/%s is forbidden to sign in", ErrUserNotAllowed, owner, name)
 	}
 	return user, nil
 }
+
+// ErrUserNotAllowed tells that Casdoor has no such user or forbids it, rather than that
+// Casdoor could not be reached.
+var ErrUserNotAllowed = errors.New("user not allowed")

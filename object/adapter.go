@@ -247,6 +247,17 @@ func (a *Adapter) createTable() {
 	}
 }
 
+// isSecretField keeps the columns holding credentials out of list searches,
+// which would otherwise tell them a character at a time.
+func isSecretField(field string) bool {
+	for _, word := range []string{"password", "secret", "key", "token", "totp", "passphrase", "credential"} {
+		if strings.Contains(field, word) {
+			return true
+		}
+	}
+	return false
+}
+
 func GetSession(owner string, offset, limit int, field, value, sortField, sortOrder string) *xorm.Session {
 	session := adapter.engine.Prepare()
 	if offset != -1 && limit != -1 {
@@ -256,11 +267,11 @@ func GetSession(owner string, offset, limit int, field, value, sortField, sortOr
 		session = session.And("owner=?", owner)
 	}
 	if field != "" && value != "" {
-		if util.FilterField(field) {
+		if util.FilterField(field) && !isSecretField(util.SnakeString(field)) {
 			session = session.And(fmt.Sprintf("%s like ?", util.SnakeString(field)), fmt.Sprintf("%%%s%%", value))
 		}
 	}
-	if sortField == "" || sortOrder == "" {
+	if sortField == "" || sortOrder == "" || !util.FilterField(sortField) {
 		sortField = "created_time"
 	}
 	if sortOrder == "ascend" {

@@ -85,7 +85,7 @@ func ProbeAsset(id string, asset *Asset) (*AssetProbeResult, error) {
 		}
 		res.Version = version.GitVersion
 	case ProtocolMysql, ProtocolPostgresql:
-		client, err := DialDatabase(&target)
+		client, err := dialDatabase(&target, true)
 		if err != nil {
 			return nil, err
 		}

@@ -154,6 +154,10 @@ func UpdateNetworkGateway(id string, gateway *NetworkGateway) (bool, error) {
 		return false, nil
 	}
 
+	keepsSecret := (gateway.Password == "***" && old.Password != "") || (gateway.PrivateKey == "***" && old.PrivateKey != "")
+	if keepsSecret && (gateway.Type != old.Type || gateway.Host != old.Host || gateway.Port != old.Port || gateway.Username != old.Username) {
+		return false, fmt.Errorf("the saved password and private key are only used for the saved host, port and username, enter them again for the changed network gateway")
+	}
 	if gateway.Password == "***" {
 		gateway.Password = old.Password
 	}

@@ -130,7 +130,7 @@ func (c *ApiController) DisableMfa() {
 		return
 	}
 
-	err := object.DisableLocalUserMfa(user.Owner, user.Name, form.Password)
+	err := object.DisableLocalUserMfa(user.Owner, user.Name, form.Password, c.getAuthzClientIp())
 	if err != nil {
 		c.ResponseError(err.Error())
 		return

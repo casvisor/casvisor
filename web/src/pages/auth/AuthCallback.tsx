@@ -30,9 +30,7 @@ export default function AuthCallback() {
 
   const signedIn = React.useCallback(() => {
     Setting.showMessage("success", i18next.t("general:Successfully logged in"));
-    const from = sessionStorage.getItem("from") || "/";
-    sessionStorage.removeItem("from");
-    Setting.goToLink(from);
+    Setting.goToLink(Setting.takeReturnPath());
   }, []);
 
   React.useEffect(() => {

@@ -85,6 +85,16 @@ function isScriptUrl(link: string) {
   return typeof link === "string" && link.trim().toLowerCase().startsWith("javascript:");
 }
 
+// takeReturnPath returns the page to go back to after signing in, only within this site.
+export function takeReturnPath() {
+  const from = sessionStorage.getItem("from") || "/";
+  sessionStorage.removeItem("from");
+  if (!from.startsWith("/") || from.startsWith("//") || from.startsWith("/\\")) {
+    return "/";
+  }
+  return from;
+}
+
 export function goToLink(link: string) {
   if (isScriptUrl(link)) {
     return;

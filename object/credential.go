@@ -44,6 +44,7 @@ var credentialTables = []struct {
 	{&NetworkGateway{}, []string{"owner", "name"}, []string{"password", "private_key"}},
 	{&LocalUser{}, []string{"owner", "name"}, []string{"totp_secret"}},
 	{&SshHostKey{}, []string{"name"}, []string{"private_key"}},
+	{&Webhook{}, []string{"owner", "name"}, []string{"secret"}},
 }
 
 // credentialKeyFromFile is the key read or generated at startup when credentialKey is not set.

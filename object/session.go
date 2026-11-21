@@ -16,6 +16,7 @@ package object
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -128,6 +129,32 @@ func getSession(owner string, name string) (*Session, error) {
 func GetConnSession(id string) (*Session, error) {
 	owner, name := util.GetOwnerAndNameFromIdNoCheck(id)
 	return getSession(owner, name)
+}
+
+// IsOwnRecording tells whether a recording was made in the session's organization.
+func (s *Session) IsOwnRecording(name string) bool {
+	return strings.HasPrefix(name, s.Owner+"/")
+}
+
+func (s *Session) GetOwnRecordings() []string {
+	res := []string{}
+	for _, name := range s.Recordings {
+		if s.IsOwnRecording(name) {
+			res = append(res, name)
+		}
+	}
+	return res
+}
+
+// ClaimSession lets one tunnel take a session that has not been connected yet,
+// so that a session id can't be connected again while or after it is used.
+func ClaimSession(id string) (bool, error) {
+	owner, name := util.GetOwnerAndNameFromIdNoCheck(id)
+	affected, err := adapter.engine.Where("owner = ? and name = ? and status = ?", owner, name, NoConnect).Cols("status").Update(&Session{Status: Connecting})
+	if err != nil {
+		return false, err
+	}
+	return affected == 1, nil
 }
 
 func UpdateSession(id string, session *Session, columns ...string) (bool, error) {
@@ -251,15 +278,6 @@ func CloseDBSession(id string, code int, msg string) error {
 	}
 
 	if s.Status == Disconnected {
-		return nil
-	}
-
-	if s.Status == Connecting {
-		// The session has not been established successfully, so you do not need to save data
-		_, err := DeleteSession(s)
-		if err != nil {
-			return err
-		}
 		return nil
 	}
 

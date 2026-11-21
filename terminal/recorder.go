@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/beego/beego/logs"
@@ -42,7 +43,13 @@ const (
 var (
 	pasteStart = []byte("\x1b[200~")
 	pasteEnd   = []byte("\x1b[201~")
+
+	bracketedPasteOn  = []byte("\x1b[?2004h")
+	bracketedPasteOff = []byte("\x1b[?2004l")
 )
+
+// maxTyped bounds the keystrokes kept for a line.
+const maxTyped = 4096
 
 type Options struct {
 	SessionId string
@@ -79,6 +86,11 @@ type Recorder struct {
 	closed     bool
 	rec        *recording.Recording
 	recStarted bool
+	outTail    []byte
+
+	// whether the program on the asset asked for bracketed paste, so that only then
+	// a pasted Enter is taken as text rather than as running the line
+	bracketedPaste atomic.Bool
 
 	// only touched by the input goroutine
 	operator    *casdoorsdk.User
@@ -88,6 +100,11 @@ type Recorder struct {
 	promptX     int
 	promptText  string
 	inPaste     bool
+	inTail      []byte
+	// typed is what was typed for the line, for when the screen doesn't show it
+	typed         []byte
+	typedReliable bool
+	inEscape      bool
 }
 
 var recorders sync.Map
@@ -155,6 +172,7 @@ func (r *Recorder) Output(p []byte) {
 		r.partial = nil
 	}
 	r.lastOutput = time.Now()
+	r.trackBracketedPaste(p)
 
 	r.startRecording()
 	r.rec.Write(recording.KindData, p)
@@ -169,6 +187,25 @@ func (r *Recorder) Output(p []byte) {
 			delete(r.viewers, viewer)
 		}
 	}
+}
+
+// trackBracketedPaste follows the asset turning bracketed paste on and off, across
+// writes that split the sequence; the caller holds the lock.
+func (r *Recorder) trackBracketedPaste(p []byte) {
+	scan := append(append([]byte{}, r.outTail...), p...)
+	on := bytes.LastIndex(scan, bracketedPasteOn)
+	off := bytes.LastIndex(scan, bracketedPasteOff)
+	if on > off {
+		r.bracketedPaste.Store(true)
+	} else if off > on {
+		r.bracketedPaste.Store(false)
+	}
+
+	tail := len(bracketedPasteOn) - 1
+	if len(scan) > tail {
+		scan = scan[len(scan)-tail:]
+	}
+	r.outTail = append([]byte{}, scan...)
 }
 
 // startRecording starts the recording at the first output, so a session that
@@ -281,30 +318,78 @@ func (r *Recorder) send(p []byte) {
 	}
 }
 
+// isLineEnd tells the keys that make a shell run the line: Enter, Ctrl+J and,
+// in bash, Ctrl+O.
+func isLineEnd(b byte) bool {
+	return b == '\r' || b == '\n' || b == 0x0f
+}
+
 func (r *Recorder) process(p []byte) {
+	// the paste markers are looked for across chunks, as a client can split them
+	scan := append(append([]byte{}, r.inTail...), p...)
+	offset := len(r.inTail)
+
 	start := 0
 	for i := 0; i < len(p); i++ {
-		if bytes.HasPrefix(p[i:], pasteStart) {
+		end := scan[:offset+i+1]
+		if bytes.HasSuffix(end, pasteStart) {
 			r.inPaste = true
-		} else if bytes.HasPrefix(p[i:], pasteEnd) {
+		} else if bytes.HasSuffix(end, pasteEnd) {
 			r.inPaste = false
 		}
 
 		switch b := p[i]; {
-		case b == '\r' && !r.inPaste:
+		case isLineEnd(b) && !(r.inPaste && r.bracketedPaste.Load()):
 			r.send(p[start:i])
 			start = i + 1
-			r.enter()
+			r.enter(b)
 		case b == 3 || b == 4:
 			// Ctrl+C or Ctrl+D drops the line
 			r.lineStarted = false
+			r.inPaste = false
 		default:
 			if !r.lineStarted {
 				r.startLine()
 			}
+			r.addTyped(b)
 		}
 	}
 	r.send(p[start:])
+
+	tail := len(pasteStart) - 1
+	if len(scan) > tail {
+		scan = scan[len(scan)-tail:]
+	}
+	r.inTail = append([]byte{}, scan...)
+}
+
+// addTyped keeps the printable keystrokes of the line; a line edited with cursor
+// keys or other sequences can't be followed, so it is no longer used.
+func (r *Recorder) addTyped(b byte) {
+	switch {
+	case r.inEscape:
+		// a CSI sequence ends with a byte from @ to ~
+		if b >= 0x40 && b <= 0x7e && b != '[' {
+			r.inEscape = false
+		}
+	case b == 0x1b:
+		r.inEscape = true
+		if !r.inPaste {
+			r.typedReliable = false
+		}
+	case b == 0x7f || b == 0x08:
+		if len(r.typed) > 0 {
+			r.typed = r.typed[:len(r.typed)-1]
+		}
+	case b == '\n' || b == '\r':
+		r.typed = append(r.typed, ' ')
+	case b == '\t' || b < 0x20:
+		r.typedReliable = false
+	default:
+		if len(r.typed) < maxTyped {
+			r.typed = append(r.typed, b)
+		}
+	}
 }
 
 // startLine notes where the prompt ends, before the first keystroke of a line.
@@ -322,6 +407,9 @@ func (r *Recorder) startLine() {
 	r.promptText = string(r.rowCells(cursor.Y)[:r.promptX])
 	r.lineStarted = true
 	r.lineUser = r.operator
+	r.typed = r.typed[:0]
+	r.typedReliable = true
+	r.inEscape = false
 }
 
 func (r *Recorder) isFullScreen() bool {
@@ -333,40 +421,68 @@ func (r *Recorder) isFullScreen() bool {
 	return r.vt.Mode()&vt10x.ModeAltScreen != 0
 }
 
-func (r *Recorder) enter() {
-	if !r.lineStarted || r.isFullScreen() {
-		r.lineStarted = false
-		r.send([]byte{'\r'})
+func (r *Recorder) enter(key byte) {
+	if !r.lineStarted {
+		r.send([]byte{key})
 		return
 	}
 
 	r.waitForEcho()
+	fullScreen := r.isFullScreen()
 	command := r.readCommand()
+	typed := ""
+	if r.typedReliable {
+		typed = strings.TrimSpace(string(r.typed))
+	}
 	r.lineStarted = false
-	if command == "" {
-		r.send([]byte{'\r'})
+
+	if fullScreen || command == "" {
+		// A full-screen program, or a line the screen doesn't show such as with echo
+		// turned off: what is on the line and what was typed are still checked, but
+		// only recorded when blocked, as they are often text or passwords.
+		for _, text := range []string{command, typed} {
+			if text != "" && r.block(text, false) {
+				return
+			}
+		}
+		r.send([]byte{key})
 		return
 	}
 
-	rule, err := object.MatchCommandRule(r.getLineUser(), r.opts.Asset, command)
+	if r.block(command, true) {
+		return
+	}
+	if typed != "" && typed != command && r.block(typed, false) {
+		return
+	}
+	r.send([]byte{key})
+}
+
+// block checks a line against the command rules and, when it is blocked, clears it
+// instead of running it; a line it lets run is recorded when record is set.
+func (r *Recorder) block(text string, record bool) bool {
+	rule, err := object.MatchCommandRule(r.getLineUser(), r.opts.Asset, text)
 	if err != nil {
 		// a command whose rules can't be read is blocked rather than run unchecked
-		logs.Error(fmt.Sprintf("Recorder.enter(): failed to match the command rules: %s", err.Error()))
+		logs.Error(fmt.Sprintf("Recorder.block(): failed to match the command rules: %s", err.Error()))
 		r.notify("\r\n\x1b[1;31m[Casvisor] The command is blocked because the command rules can't be read\x1b[0m\r\n")
 		r.send([]byte{3})
-		r.record(command, nil, "the command is blocked because the command rules can't be read")
-		return
+		r.record(text, nil, "the command is blocked because the command rules can't be read")
+		return true
 	}
 
 	if rule != nil && rule.Action == object.CommandActionBlock {
 		r.notify(fmt.Sprintf("\r\n\x1b[1;31m[Casvisor] The command is blocked by the rule: %s\x1b[0m\r\n", getRuleName(rule)))
 		// Ctrl+C clears the line instead of running it
 		r.send([]byte{3})
-	} else {
-		r.send([]byte{'\r'})
+		r.record(text, rule, "")
+		return true
 	}
 
-	r.record(command, rule, "")
+	if record {
+		r.record(text, rule, "")
+	}
+	return false
 }
 
 // waitForEcho waits for the asset to echo what was typed last, so that the screen

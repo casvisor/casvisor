@@ -334,6 +334,20 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 		}
 
 		if old != nil {
+			err = asset.checkKeptSecrets(old, asset.Password == old.Password, asset.PrivateKey == old.PrivateKey)
+			if err != nil {
+				fail(err)
+				continue
+			}
+			if asset.Password == old.Password && old.Password != "" {
+				asset.Password = "***"
+			}
+			if asset.PrivateKey == old.PrivateKey && old.PrivateKey != "" {
+				asset.PrivateKey = "***"
+			}
+		}
+
+		if old != nil {
 			result.Action = AssetImportUpdate
 			result.Changes = append(getAssetChanges(old, asset), result.Changes...)
 			if len(result.Changes) == 0 {

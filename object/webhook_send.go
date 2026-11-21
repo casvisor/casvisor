@@ -23,12 +23,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/beego/beego/logs"
@@ -77,7 +79,9 @@ func (event *WebhookEvent) getText() string {
 	}
 	for _, field := range event.Fields {
 		if field.Value != "" {
-			lines = append(lines, fmt.Sprintf("%s: %s", field.Name, field.Value))
+			// a value typed by a user, such as the reason of an access request, stays on its
+			// own line, so that it can't add lines that look like Casvisor's
+			lines = append(lines, fmt.Sprintf("%s: %s", field.Name, strings.Join(strings.Fields(field.Value), " ")))
 		}
 	}
 	lines = append(lines, fmt.Sprintf("Time: %s", event.Time))
@@ -116,7 +120,8 @@ func (webhook *Webhook) post(event *WebhookEvent) error {
 	case WebhookTypeWeCom:
 		body = map[string]interface{}{"msgtype": "text", "text": map[string]string{"content": text}}
 	case WebhookTypeSlack:
-		body = map[string]string{"text": text}
+		// Slack reads <...> as mentions and links
+		body = map[string]string{"text": strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace(text)}
 	default:
 		body = event.getJson()
 	}
@@ -139,7 +144,13 @@ func (webhook *Webhook) post(event *WebhookEvent) error {
 	req.Header = header
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: webhookTimeout}
+	client := &http.Client{
+		Timeout:   webhookTimeout,
+		Transport: webhookTransport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to post to the webhook: %s", strings.ReplaceAll(err.Error(), webhook.Url, webhook.getHost()))
@@ -148,9 +159,31 @@ func (webhook *Webhook) post(event *WebhookEvent) error {
 
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("the webhook returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		// the body is not shown, so that a webhook can't be used to read internal pages
+		return fmt.Errorf("the webhook returned HTTP %d", resp.StatusCode)
 	}
 	return getBotError(respBody)
+}
+
+// webhookTransport refuses the link-local addresses, where cloud servers keep their
+// metadata and credentials; webhooks on the internal network still work.
+var webhookTransport = &http.Transport{
+	Proxy: http.ProxyFromEnvironment,
+	DialContext: (&net.Dialer{
+		Timeout: webhookTimeout,
+		Control: func(network, address string, c syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return err
+			}
+			ip := net.ParseIP(host)
+			if ip == nil || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.Equal(net.ParseIP("100.100.100.200")) {
+				return fmt.Errorf("webhooks can't be sent to the address: %s", host)
+			}
+			return nil
+		},
+	}).DialContext,
+	TLSHandshakeTimeout: webhookTimeout,
 }
 
 // getBotError reads the error that DingTalk, Feishu and WeCom bots return with HTTP 200.

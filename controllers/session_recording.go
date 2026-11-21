@@ -54,7 +54,7 @@ func (c *ApiController) GetSessionRecording() {
 	if !c.checkOwner(session.Owner) {
 		return
 	}
-	if index < 0 || index >= len(session.Recordings) {
+	if index < 0 || index >= len(session.Recordings) || !session.IsOwnRecording(session.Recordings[index]) {
 		c.ResponseError("the session has no such recording")
 		return
 	}

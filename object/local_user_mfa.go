@@ -29,7 +29,6 @@ import (
 
 	"github.com/casvisor/casvisor/util"
 	"github.com/skip2/go-qrcode"
-	"golang.org/x/crypto/bcrypt"
 	"xorm.io/core"
 )
 
@@ -125,7 +124,7 @@ func EnableLocalUserMfa(owner string, name string, secret string, code string) e
 }
 
 // DisableLocalUserMfa turns off two-factor sign-in after checking the user's password.
-func DisableLocalUserMfa(owner string, name string, password string) error {
+func DisableLocalUserMfa(owner string, name string, password string, clientIp string) error {
 	user, err := getLocalUser(owner, name)
 	if err != nil {
 		return err
@@ -133,8 +132,9 @@ func DisableLocalUserMfa(owner string, name string, password string) error {
 	if user == nil {
 		return fmt.Errorf("the user: %s/%s does not exist", owner, name)
 	}
-	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
-		return fmt.Errorf("the password is wrong")
+	err = checkPasswordWithLock(user, password, clientIp)
+	if err != nil {
+		return err
 	}
 	return clearLocalUserMfa(owner, name)
 }

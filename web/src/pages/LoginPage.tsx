@@ -52,9 +52,7 @@ export default function LoginPage() {
     return <Loading className="min-h-screen" />;
   }
   if (account) {
-    const from = sessionStorage.getItem("from") || "/";
-    sessionStorage.removeItem("from");
-    return <Navigate to={from} replace />;
+    return <Navigate to={Setting.takeReturnPath()} replace />;
   }
 
   const submit = () => {

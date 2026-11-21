@@ -29,6 +29,8 @@ import (
 const (
 	certUserExtension = "casvisor-cert-user"
 	certIdExtension   = "casvisor-cert-id"
+	// set when the certificate doesn't permit port forwarding
+	certNoForwardExtension = "casvisor-cert-no-port-forwarding"
 )
 
 // getTrustedUserCaKeys reads sshGatewayTrustedUserCaKeys, like sshd's TrustedUserCAKeys: the CA
@@ -143,6 +145,9 @@ func checkCertificate(meta ssh.ConnMetadata, cert *ssh.Certificate) (*ssh.Permis
 			certUserExtension: util.GetIdFromOwnerAndName(user.Owner, user.Name),
 			certIdExtension:   fmt.Sprintf("%s (serial %d, CA %s)", cert.KeyId, cert.Serial, ssh.FingerprintSHA256(cert.SignatureKey)),
 		},
+	}
+	if _, ok := cert.Extensions["permit-port-forwarding"]; !ok {
+		perms.Extensions[certNoForwardExtension] = "true"
 	}
 	return checkLoginRules(meta, user, perms)
 }

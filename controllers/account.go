@@ -151,6 +151,7 @@ func (c *ApiController) Signin() {
 		return
 	}
 
+	c.SessionRegenerateID()
 	c.SetSessionClaims(claims)
 	c.Ctx.Input.SetParam("recordUserId", userId)
 
@@ -229,7 +230,7 @@ func (c *ApiController) ChangePassword() {
 		return
 	}
 
-	err = object.ChangeLocalUserPassword(user.Owner, user.Name, form.OldPassword, form.NewPassword)
+	err = object.ChangeLocalUserPassword(user.Owner, user.Name, form.OldPassword, form.NewPassword, c.getAuthzClientIp())
 	if err != nil {
 		c.ResponseError(err.Error())
 		return

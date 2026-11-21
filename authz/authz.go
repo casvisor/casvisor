@@ -150,7 +150,7 @@ p, *, *, POST, /api/cancel-login-review, *, *
 }
 
 func IsAllowed(user *casdoorsdk.User, subOwner string, subName string, method string, urlPath string, objOwner string, objName string) bool {
-	if conf.GetConfigBool("IsDemoMode") {
+	if conf.GetConfigBool("isDemoMode") {
 		if !isAllowedInDemoMode(method, urlPath) {
 			return false
 		}

@@ -109,3 +109,16 @@ func GetLanguage(language string) string {
 		return language
 	}
 }
+
+// GetConfigAllowedOrigins are the origins other than Casvisor's own that may
+// call its APIs from a browser, such as "https://admin.example.com".
+func GetConfigAllowedOrigins() []string {
+	res := []string{}
+	for _, origin := range strings.Split(GetConfigString("allowedOrigins"), ",") {
+		origin = strings.TrimSpace(origin)
+		if origin != "" {
+			res = append(res, origin)
+		}
+	}
+	return res
+}

@@ -35,6 +35,9 @@ type LiveSession struct {
 	ClientIp string
 	// OnActions passes the actions held now to a session that enforces them itself, like the SSH gateway
 	OnActions func(actions []string)
+	// Operations are the file and clipboard operations the session was started with; a session
+	// without OnActions is ended when one of them is revoked, to start again with what is left
+	Operations []string
 }
 
 var liveSessions sync.Map
@@ -110,6 +113,13 @@ func (liveSession *LiveSession) check() (string, error) {
 
 	if liveSession.OnActions != nil {
 		liveSession.OnActions(actions)
+	} else {
+		operations := GetSessionOperations(actions)
+		for _, operation := range liveSession.Operations {
+			if !slices.Contains(operations, operation) {
+				return fmt.Sprintf("The permission to %s on the asset: %s has been revoked, connect again", operation, asset.Name), nil
+			}
+		}
 	}
 	return "", nil
 }

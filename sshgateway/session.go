@@ -17,6 +17,7 @@ package sshgateway
 import (
 	"fmt"
 	"io"
+	"net"
 	"path"
 	"strings"
 	"sync"
@@ -343,7 +344,9 @@ func getTransferAction(command string) string {
 			return object.ActionUpload
 		}
 	case "rsync":
-		if !strings.Contains(command, "--server") {
+		// the daemon mode runs from a config file it can be given, with its own
+		// modules and commands, so it is not a plain transfer
+		if !strings.Contains(command, "--server") || strings.Contains(command, "--daemon") || strings.Contains(command, "--config") {
 			return ""
 		}
 		if strings.Contains(command, "--sender") {
@@ -357,6 +360,10 @@ func getTransferAction(command string) string {
 // handleForward passes a port forwarding channel ("ssh -L", VS Code Remote) through to
 // the asset, so the connection is opened from the asset, as with a direct SSH login.
 func (g *gatewayConn) handleForward(newChannel ssh.NewChannel) {
+	if g.conn.Permissions != nil && g.conn.Permissions.Extensions[certNoForwardExtension] != "" {
+		_ = newChannel.Reject(ssh.Prohibited, "the certificate does not permit port forwarding")
+		return
+	}
 	if g.isUserLogin {
 		g.handleTunnel(newChannel)
 		return
@@ -367,6 +374,11 @@ func (g *gatewayConn) handleForward(newChannel ssh.NewChannel) {
 	}
 	if !g.can(object.ActionForward) {
 		_ = newChannel.Reject(ssh.Prohibited, fmt.Sprintf("you have no permission to forward ports on the asset: %s", g.getAsset().Name))
+		return
+	}
+
+	if !isAllowedForward(g.getAsset(), newChannel.ChannelType(), newChannel.ExtraData()) {
+		_ = newChannel.Reject(ssh.Prohibited, fmt.Sprintf("ports can only be forwarded to the asset: %s itself, connect to other assets through their own permissions", g.getAsset().Name))
 		return
 	}
 
@@ -413,6 +425,31 @@ func (g *gatewayConn) handleForward(newChannel ssh.NewChannel) {
 	_, _ = io.Copy(down, up)
 	_ = down.Close()
 	_ = up.Close()
+}
+
+// isAllowedForward keeps forwarding to the asset itself: its loopback ports or its own
+// address, not other hosts it can reach nor its Unix sockets such as docker.sock.
+func isAllowedForward(asset *object.Asset, channelType string, extraData []byte) bool {
+	if channelType != "direct-tcpip" {
+		return false
+	}
+
+	var payload struct {
+		Host       string
+		Port       uint32
+		OriginHost string
+		OriginPort uint32
+	}
+	if ssh.Unmarshal(extraData, &payload) != nil {
+		return false
+	}
+
+	host := strings.Trim(payload.Host, "[]")
+	if strings.EqualFold(host, "localhost") || strings.EqualFold(host, asset.Host) {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func getForwardDestination(channelType string, extraData []byte) string {

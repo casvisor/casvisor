@@ -117,7 +117,7 @@ func (c *ApiController) DeleteSession() {
 		return
 	}
 	if affected && old != nil && recording.Get(old.GetId()) == nil {
-		recording.Delete(old.Recordings)
+		recording.Delete(old.GetOwnRecordings())
 	}
 
 	c.Data["json"] = wrapActionResponse(affected)
@@ -160,6 +160,8 @@ func (c *ApiController) AddSession() {
 		c.ResponseError(err.Error())
 		return
 	}
+	// recordings are only added by Casvisor itself while a session is live
+	session.Recordings = nil
 
 	c.Data["json"] = wrapActionResponse(object.AddSession(&session))
 	c.ServeJSON()

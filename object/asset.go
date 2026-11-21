@@ -150,6 +150,29 @@ func GetMaskedAssets(assets []*Asset, errs ...error) ([]*Asset, error) {
 	return assets, nil
 }
 
+// checkKeptSecrets lets an asset keep its saved secrets, and its system accounts theirs,
+// only while it points where they were saved for, so that they can't be sent to
+// another host by editing the asset.
+func (asset *Asset) checkKeptSecrets(saved *Asset, keepPassword bool, keepPrivateKey bool) error {
+	targetChanged := saved.Owner != asset.Owner || saved.Protocol != asset.Protocol || saved.Host != asset.Host || saved.Port != asset.Port || saved.NetworkGateway != asset.NetworkGateway
+	if (keepPassword && saved.Password != "") || (keepPrivateKey && saved.PrivateKey != "") {
+		if targetChanged || saved.Username != asset.Username {
+			return fmt.Errorf("the saved password and private key are only used for the saved host, port, username and network gateway, enter them again for the changed asset")
+		}
+	}
+
+	if targetChanged {
+		count, err := adapter.engine.Where("owner = ? and asset = ? and (password <> '' or private_key <> '')", saved.Owner, saved.Name).Count(&AssetAccount{})
+		if err != nil {
+			return err
+		}
+		if count != 0 {
+			return fmt.Errorf("the system accounts of the asset keep their saved passwords and private keys only for the saved host, port and network gateway, clear them before pointing the asset elsewhere")
+		}
+	}
+	return nil
+}
+
 func UpdateAsset(id string, asset *Asset) (bool, error) {
 	owner, name := util.GetOwnerAndNameFromId(id)
 	p, err := getAsset(owner, name)
@@ -157,6 +180,11 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		return false, err
 	} else if p == nil {
 		return false, nil
+	}
+
+	err = asset.checkKeptSecrets(p, asset.Password == "***", asset.PrivateKey == "***")
+	if err != nil {
+		return false, err
 	}
 
 	if asset.Password == "***" {
