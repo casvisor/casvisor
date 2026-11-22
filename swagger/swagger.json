@@ -2445,6 +2445,32 @@
                 }
             }
         },
+        "/get-web-asset-url": {
+            "post": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "connect the session of a Web asset, and return the address that opens the website on its subdomain of webAssetDomain; the address signs the browser in to the session, once and within a minute",
+                "operationId": "ApiController.GetWebAssetUrl",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "sessionId",
+                        "description": "The id of the session, from add-asset-tunnel",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The address of the website",
+                        "schema": {
+                            "$ref": "#/definitions/Response"
+                        }
+                    }
+                }
+            }
+        },
         "/get-webhook": {
             "get": {
                 "tags": [
@@ -3918,6 +3944,10 @@
                 },
                 "session": {
                     "type": "string"
+                },
+                "statusCode": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "text": {
                     "type": "string"
