@@ -35,6 +35,7 @@ import (
 	"github.com/casvisor/casvisor/syslog"
 	"github.com/casvisor/casvisor/task"
 	"github.com/casvisor/casvisor/util"
+	"github.com/casvisor/casvisor/webproxy"
 )
 
 func main() {
@@ -82,6 +83,8 @@ func main() {
 		}))
 	}
 
+	// the websites of Web assets are served on subdomains of their own, before anything else
+	beego.InsertFilter("*", beego.BeforeStatic, webproxy.Filter)
 	beego.InsertFilter("*", beego.BeforeStatic, routers.RejectEncodedBody)
 	beego.SetStaticPath("/swagger", "swagger")
 	beego.InsertFilter("/metrics", beego.BeforeRouter, routers.MetricsFilter)
@@ -110,6 +113,7 @@ func main() {
 	demo.StartDemoTargets()
 	sshgateway.Start()
 	object.StartLiveSessionChecker()
+	webproxy.Start()
 	object.StartAccountRotator()
 
 	// The profiles of a running server, on an address of its own that is

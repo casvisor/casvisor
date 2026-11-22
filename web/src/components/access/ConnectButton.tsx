@@ -21,7 +21,7 @@ import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/
 import {Input} from "@/components/ui/input";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import type {Asset} from "@/backend/types";
-import {DesktopProtocol, KubernetesProtocol} from "@/lib/asset";
+import {DesktopProtocol, KubernetesProtocol, WebProtocol} from "@/lib/asset";
 
 type Credentials = {username: string; password: string};
 
@@ -115,7 +115,8 @@ export function ConnectButton({asset, disabled}: {asset: Asset; disabled?: boole
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const isKubernetes = asset.protocol === KubernetesProtocol;
-  const hasCredentials = asset.protocol === DesktopProtocol || Boolean((isKubernetes || asset.username) && asset.password);
+  // a website without credentials has a sign-in page of its own
+  const hasCredentials = asset.protocol === DesktopProtocol || asset.protocol === WebProtocol || Boolean((isKubernetes || asset.username) && asset.password);
   const canSubmit = (isKubernetes || username !== "") && password !== "";
   const accounts = asset.accounts ?? [];
 

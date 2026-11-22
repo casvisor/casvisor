@@ -25,7 +25,7 @@ import {Button} from "@/components/ui/button";
 import {Switch} from "@/components/ui/switch";
 import {ReplayPlayer} from "@/components/replay/player";
 import {createScreen} from "@/components/replay/screens";
-import {isDatabaseProtocol, isTerminalProtocol} from "@/lib/asset";
+import {isRequestLogProtocol, isTerminalProtocol} from "@/lib/asset";
 import {formatDuration, parseRecording, type Recording} from "@/lib/recording";
 import * as Setting from "@/lib/setting";
 
@@ -46,7 +46,7 @@ function getSeekPosition(at: string | null, startTime: string, duration: number)
   return Math.max(0, Math.min(dayjs(at).diff(dayjs(startTime)) - 1000, duration));
 }
 
-/** Replays a recorded session, or lists the statements of a database session. */
+/** Replays a recorded session, or lists the statements of a database session or the requests of a web session. */
 export default function SessionReplayPage() {
   const {owner = "", name = ""} = useParams();
   const [session, setSession] = React.useState<Session | null | undefined>(undefined);
@@ -60,7 +60,7 @@ export default function SessionReplayPage() {
   if (session === undefined) {
     return <div className="h-screen w-screen bg-[#1b1b1b]" />;
   }
-  if (session && isDatabaseProtocol(session.protocol)) {
+  if (session && isRequestLogProtocol(session.protocol)) {
     return <SqlSessionLog session={session} />;
   }
   return <RecordingReplay session={session} />;

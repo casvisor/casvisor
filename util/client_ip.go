@@ -90,3 +90,24 @@ func GetClientIp(req *http.Request) string {
 
 	return ip.String()
 }
+
+// GetRequestScheme returns https or http, as the client sees the request, read from
+// X-Forwarded-Proto only when the request comes from a trusted proxy.
+func GetRequestScheme(req *http.Request) string {
+	if req.TLS != nil {
+		return "https"
+	}
+
+	remoteIp := req.RemoteAddr
+	if host, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+		remoteIp = host
+	}
+	ip := net.ParseIP(remoteIp)
+	if ip != nil && isTrustedProxy(ip) {
+		proto := strings.ToLower(strings.TrimSpace(strings.Split(req.Header.Get("X-Forwarded-Proto"), ",")[0]))
+		if proto == "https" || proto == "http" {
+			return proto
+		}
+	}
+	return "http"
+}

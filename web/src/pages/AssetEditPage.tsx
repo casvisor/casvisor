@@ -31,7 +31,7 @@ import {AssetAccountsPanel} from "@/components/access/AssetAccountsPanel";
 import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
-import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, KubernetesProtocol, OperatingSystems, Protocols} from "@/lib/asset";
+import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, KubernetesProtocol, OperatingSystems, Protocols, WebProtocol} from "@/lib/asset";
 import {getNodeOptions} from "@/lib/assetNode";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
@@ -94,6 +94,7 @@ export default function AssetEditPage() {
   };
 
   const isKubernetes = asset.protocol === KubernetesProtocol;
+  const isWeb = asset.protocol === WebProtocol;
 
   // The test connects with what is in the form without saving it; a host key seen for the first time goes into the form.
   const test = async() => {
@@ -152,10 +153,13 @@ export default function AssetEditPage() {
       </FormRow>
       {asset.protocol !== DesktopProtocol ? (
         <>
-          <FormRow labelKey={isKubernetes ? "asset:API server" : "asset:Host"}>
+          <FormRow
+            labelKey={isKubernetes ? "asset:API server" : isWeb ? "web:Address" : "asset:Host"}
+            tooltip={isWeb ? i18next.t("web:Address - Tooltip") : undefined}
+          >
             <Input
               value={asset.host}
-              placeholder={isKubernetes ? "https://192.168.1.10:6443" : undefined}
+              placeholder={isKubernetes ? "https://192.168.1.10:6443" : isWeb ? "http://192.168.1.10:3000/" : undefined}
               onChange={(e) => updateField("host", e.target.value)}
             />
           </FormRow>
@@ -166,7 +170,10 @@ export default function AssetEditPage() {
               onChange={(e) => updateField("port", Setting.myParseInt(e.target.value))}
             />
           </FormRow>
-          <FormRow labelKey="general:Username" tooltip={isKubernetes ? i18next.t("asset:Username of a Kubernetes cluster - Tooltip") : undefined}>
+          <FormRow
+            labelKey="general:Username"
+            tooltip={isKubernetes ? i18next.t("asset:Username of a Kubernetes cluster - Tooltip") : isWeb ? i18next.t("web:Basic authentication - Tooltip") : undefined}
+          >
             <Input value={asset.username} autoComplete="off" onChange={(e) => updateField("username", e.target.value)} />
           </FormRow>
           <FormRow labelKey={isKubernetes ? "asset:Token" : "general:Password"}>
@@ -199,7 +206,7 @@ export default function AssetEditPage() {
           />
         </FormRow>
       ) : null}
-      {asset.protocol === "SSH" || asset.protocol === "RDP" || asset.protocol === "MySQL" || asset.protocol === "PostgreSQL" || isKubernetes ? (
+      {asset.protocol === "SSH" || asset.protocol === "RDP" || asset.protocol === "MySQL" || asset.protocol === "PostgreSQL" || isKubernetes || isWeb ? (
         <FormRow labelKey="asset:Fingerprint">
           <div className="flex w-full flex-col gap-1">
             <Input
@@ -208,9 +215,11 @@ export default function AssetEditPage() {
               onChange={(e) => updateField("fingerprint", e.target.value)}
             />
             <span className="text-xs text-muted-foreground">
-              {isKubernetes
-                ? i18next.t("asset:The public key of the API server is recorded on the first connection, a different one is rejected afterwards. Clear it if the cluster was reinstalled")
-                : i18next.t("asset:Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed")}
+              {isWeb
+                ? i18next.t("web:A certificate the system trusts is always accepted. Any other one, like a self-signed certificate, is recorded by its public key on the first connection, and a different one is rejected afterwards")
+                : isKubernetes
+                  ? i18next.t("asset:The public key of the API server is recorded on the first connection, a different one is rejected afterwards. Clear it if the cluster was reinstalled")
+                  : i18next.t("asset:Recorded on the first connection, a different host key or certificate is rejected afterwards. Clear it if the server was reinstalled or its certificate renewed")}
             </span>
           </div>
         </FormRow>

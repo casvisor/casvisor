@@ -19,7 +19,7 @@ import type {Session} from "@/backend/types";
 import {Watermark} from "@/components/access/Watermark";
 import {Loading} from "@/components/common/Loading";
 import type {ConnectionProps} from "@/components/access/util";
-import {isDatabaseProtocol, KubernetesProtocol} from "@/lib/asset";
+import {isDatabaseProtocol, KubernetesProtocol, WebProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 // each client library is only downloaded for the protocol that needs it
@@ -29,6 +29,7 @@ const RdpView = React.lazy(() => import("@/components/access/RdpView"));
 const DesktopView = React.lazy(() => import("@/components/access/DesktopView"));
 const DatabaseView = React.lazy(() => import("@/components/access/DatabaseView"));
 const KubernetesView = React.lazy(() => import("@/components/access/KubernetesView"));
+const WebView = React.lazy(() => import("@/components/access/WebView"));
 
 /** Looks the asset up and opens it with the client its protocol needs. */
 export function AssetConnection(props: ConnectionProps) {
@@ -65,6 +66,8 @@ export function AssetConnection(props: ConnectionProps) {
           <DatabaseView {...connectionProps} />
         ) : protocol === KubernetesProtocol ? (
           <KubernetesView {...connectionProps} />
+        ) : protocol === WebProtocol ? (
+          <WebView {...connectionProps} />
         ) : (
           <SshView {...connectionProps} protocol={protocol} />
         )}

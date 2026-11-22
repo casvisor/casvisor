@@ -16,17 +16,18 @@ import * as React from "react";
 import i18next from "i18next";
 import dayjs from "dayjs";
 import {useSearchParams} from "react-router-dom";
-import {Database} from "lucide-react";
+import {Database, Globe} from "lucide-react";
 import * as CommandBackend from "@/backend/CommandBackend";
 import * as SessionBackend from "@/backend/SessionBackend";
 import type {Command, Session} from "@/backend/types";
+import {WebProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 const maxStatements = 1000;
 const refreshInterval = 3000;
 
-/** The statements of a database session in the order they ran, with how each
- *  turned out; a connected session is followed as it goes. */
+/** The statements of a database session, or the requests of a web session, in the
+ *  order they were sent, with how each turned out; a connected session is followed as it goes. */
 export function SqlSessionLog({session: initialSession}: {session: Session}) {
   const [searchParams] = useSearchParams();
   const atParam = searchParams.get("at");
@@ -36,6 +37,7 @@ export function SqlSessionLog({session: initialSession}: {session: Session}) {
   const scrolledAt = React.useRef<string | null>(null);
   const sessionId = `${session.owner}/${session.name}`;
   const live = session.status === SessionBackend.Connected;
+  const isWeb = session.protocol === WebProtocol;
 
   React.useEffect(() => {
     document.title = `${i18next.t("session:Replay")} | ${session.name}`;
@@ -93,16 +95,16 @@ export function SqlSessionLog({session: initialSession}: {session: Session}) {
   return (
     <div className="flex h-screen w-screen flex-col bg-[#1b1b1b] text-neutral-200">
       <div className="flex flex-wrap items-center gap-3 border-b border-neutral-700 px-4 py-2 text-sm">
-        <Database className="h-4 w-4" />
-        <span className="font-medium">{i18next.t("database:SQL statements")}</span>
+        {isWeb ? <Globe className="h-4 w-4" /> : <Database className="h-4 w-4" />}
+        <span className="font-medium">{isWeb ? i18next.t("web:Requests") : i18next.t("database:SQL statements")}</span>
         <span className="truncate text-neutral-400">
           {session.asset} | {session.creator} | {Setting.getFormattedDate(session.startTime)}
         </span>
         {live ? <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-xs text-white">{i18next.t("session:Online")}</span> : null}
         <span className="ml-auto text-neutral-400">
           {total > commands.length
-            ? i18next.t("database:The first {{count}} of {{total}} statements", {count: commands.length, total})
-            : i18next.t("database:{{n}} statement(s)", {n: commands.length})}
+            ? i18next.t(isWeb ? "web:The first {{count}} of {{total}} requests" : "database:The first {{count}} of {{total}} statements", {count: commands.length, total})
+            : i18next.t(isWeb ? "web:{{n}} request(s)" : "database:{{n}} statement(s)", {n: commands.length})}
         </span>
       </div>
 
@@ -111,7 +113,7 @@ export function SqlSessionLog({session: initialSession}: {session: Session}) {
           <thead className="sticky top-0 bg-[#1b1b1b] text-left text-neutral-400">
             <tr className="border-b border-neutral-700">
               <th className="w-24 px-4 py-2 font-medium">{i18next.t("general:Time")}</th>
-              <th className="px-4 py-2 font-medium">{i18next.t("database:Statement")}</th>
+              <th className="px-4 py-2 font-medium">{isWeb ? i18next.t("web:Request") : i18next.t("database:Statement")}</th>
               <th className="w-72 px-4 py-2 font-medium">{i18next.t("database:Result")}</th>
               <th className="w-24 px-4 py-2 text-right font-medium">{i18next.t("database:Duration")}</th>
             </tr>
@@ -133,9 +135,13 @@ export function SqlSessionLog({session: initialSession}: {session: Session}) {
                 </td>
                 <td className="px-4 py-1.5">
                   {command.action === "Block" ? (
-                    <span className="text-red-400">{i18next.t("command:Block")}: {Setting.getShortName(command.rule)}</span>
+                    <span className="break-all text-red-400">
+                      {i18next.t("command:Block")}: {command.rule ? Setting.getShortName(command.rule) : command.error}
+                    </span>
                   ) : command.error ? (
-                    <span className="break-all text-red-400">{command.error}</span>
+                    <span className="break-all text-red-400">{isWeb && command.statusCode ? `HTTP ${command.statusCode}, ` : ""}{command.error}</span>
+                  ) : isWeb ? (
+                    <span className={`tabular-nums ${(command.statusCode ?? 0) >= 400 ? "text-amber-300" : ""}`}>HTTP {command.statusCode ?? 0}</span>
                   ) : (
                     <span className="tabular-nums">{i18next.t("database:{{n}} row(s)", {n: command.rowCount ?? 0})}</span>
                   )}
@@ -151,7 +157,7 @@ export function SqlSessionLog({session: initialSession}: {session: Session}) {
           </tbody>
         </table>
         {commands.length === 0 ? (
-          <div className="p-8 text-center text-sm text-neutral-500">{i18next.t("database:No statements were run in this session")}</div>
+          <div className="p-8 text-center text-sm text-neutral-500">{isWeb ? i18next.t("web:No requests were sent in this session") : i18next.t("database:No statements were run in this session")}</div>
         ) : null}
       </div>
     </div>

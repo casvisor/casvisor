@@ -23,7 +23,7 @@ import {ExportCsvButton} from "@/components/crud/ExportCsvButton";
 import {textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
-import {isDatabaseProtocol, KubernetesProtocol, Protocols} from "@/lib/asset";
+import {isRequestLogProtocol, KubernetesProtocol, Protocols} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 export default function SessionListPage() {
@@ -133,7 +133,7 @@ export default function SessionListPage() {
       title: i18next.t("general:Commands"),
       width: 110,
       render: (value, session) =>
-        session.protocol === "SSH" || session.protocol === KubernetesProtocol || isDatabaseProtocol(session.protocol) ? (
+        session.protocol === "SSH" || session.protocol === KubernetesProtocol || isRequestLogProtocol(session.protocol) ? (
           <Link to={`/commands?session=${encodeURIComponent(Setting.getIdFromObject(session))}`} className="tabular-nums underline-offset-4 hover:underline">
             {value ?? 0}
           </Link>
@@ -168,13 +168,13 @@ export default function SessionListPage() {
             key: "monitor",
             label: i18next.t("session:Monitor"),
             onSelect: () => {
-              // a database session has no screen to watch, its statements are listed instead
-              const page = isDatabaseProtocol(session.protocol) ? "replay" : "monitor";
+              // a database or web session has no screen to watch, its statements or requests are listed instead
+              const page = isRequestLogProtocol(session.protocol) ? "replay" : "monitor";
               window.open(`/sessions/${session.owner}/${session.name}/${page}`, "_blank");
             },
           }
           : null,
-        (session.recordings?.length ?? 0) > 0 || (!isOnline && isDatabaseProtocol(session.protocol))
+        (session.recordings?.length ?? 0) > 0 || (!isOnline && isRequestLogProtocol(session.protocol))
           ? {
             key: "replay",
             label: i18next.t("session:Replay"),

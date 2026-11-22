@@ -685,6 +685,20 @@
     "Turn off two-factor sign-in?": "关闭这个用户的两步验证？",
     "View User": "查看用户"
   },
+  "web": {
+    "A certificate the system trusts is always accepted. Any other one, like a self-signed certificate, is recorded by its public key on the first connection, and a different one is rejected afterwards": "系统信任的证书总是接受；其他证书（如自签名证书）在第一次连接时按公钥记录，之后换了公钥就拒绝",
+    "Address": "网址",
+    "Address - Tooltip": "网站的地址，如 http://192.168.1.10:3000/，路径是打开后的第一页；只填主机时用下面的端口，443 走 https，其他端口走 http",
+    "Basic authentication - Tooltip": "和下面的密码一起，以 HTTP 基本认证发给网站。网站有自己的登录页时两项都留空",
+    "No requests were sent in this session": "这个会话没有发出请求",
+    "Open the website": "打开网站",
+    "Opening the website...": "正在打开网站...",
+    "Request": "请求",
+    "Requests": "请求记录",
+    "The first {{count}} of {{total}} requests": "共 {{total}} 个请求，显示前 {{count}} 个",
+    "The website opens in a window of its own, through Casvisor": "网站经 Casvisor 在单独的窗口里打开",
+    "{{n}} request(s)": "{{n}} 个请求"
+  },
   "webhook": {
     "DingTalk": "钉钉机器人",
     "Edit Webhook": "编辑 Webhook",

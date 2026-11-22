@@ -194,7 +194,7 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		asset.PrivateKey = p.PrivateKey
 	}
 
-	err = asset.normalizeKubernetes()
+	err = asset.normalizeAddress()
 	if err != nil {
 		return false, err
 	}
@@ -230,7 +230,7 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 }
 
 func AddAsset(asset *Asset) (bool, error) {
-	err := asset.normalizeKubernetes()
+	err := asset.normalizeAddress()
 	if err != nil {
 		return false, err
 	}

@@ -57,6 +57,12 @@ func (asset *Asset) getAddress() string {
 			return u.Host
 		}
 	}
+	if asset.Protocol == ProtocolWeb {
+		u, err := getWebUrl(asset.Host, asset.Port)
+		if err == nil {
+			return u.Host
+		}
+	}
 	return net.JoinHostPort(asset.Host, strconv.Itoa(asset.Port))
 }
 

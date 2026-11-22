@@ -35,7 +35,7 @@ func ProbeAsset(id string, asset *Asset) (*AssetProbeResult, error) {
 	target := *asset
 	target.Host = strings.TrimSpace(target.Host)
 
-	err := target.normalizeKubernetes()
+	err := target.normalizeAddress()
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +84,11 @@ func ProbeAsset(id string, asset *Asset) (*AssetProbeResult, error) {
 			return nil, err
 		}
 		res.Version = version.GitVersion
+	case ProtocolWeb:
+		res.Version, err = probeWeb(&target)
+		if err != nil {
+			return nil, err
+		}
 	case ProtocolMysql, ProtocolPostgresql:
 		client, err := dialDatabase(&target, true)
 		if err != nil {

@@ -19,8 +19,8 @@ import (
 	"xorm.io/core"
 )
 
-// Command is a command run, or stopped by a rule, in an SSH session, or a SQL
-// statement run in a database session.
+// Command is a command run, or stopped by a rule, in an SSH session, a SQL
+// statement run in a database session, or a request sent in a web session.
 type Command struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -37,8 +37,10 @@ type Command struct {
 
 	Protocol string `xorm:"varchar(20)" json:"protocol"`
 	RowCount int64  `json:"rowCount"`
-	Duration int64  `json:"duration"`
-	Error    string `xorm:"varchar(1000)" json:"error"`
+	// StatusCode is the HTTP status of a request in a web session
+	StatusCode int    `json:"statusCode"`
+	Duration   int64  `json:"duration"`
+	Error      string `xorm:"varchar(1000)" json:"error"`
 }
 
 func GetCommandCount(owner, field, value string) (int64, error) {

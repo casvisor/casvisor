@@ -326,6 +326,8 @@ export interface Command {
   rule: string;
   protocol: string;
   rowCount: number;
+  /** the HTTP status of a request in a web session */
+  statusCode?: number;
   duration: number;
   error: string;
 }

@@ -7,7 +7,7 @@
 
   <p>
     Casvisor gives your team one place to reach servers, desktops and databases from the browser.<br>
-    It connects over <strong>SSH</strong>, <strong>RDP</strong>, <strong>VNC</strong>, <strong>Telnet</strong>, <strong>MySQL</strong> and <strong>PostgreSQL</strong>, with an <strong>SSH gateway</strong> for <code>ssh</code>, <code>scp</code> and VS Code,<br>
+    It connects over <strong>SSH</strong>, <strong>RDP</strong>, <strong>VNC</strong>, <strong>Telnet</strong>, <strong>MySQL</strong>, <strong>PostgreSQL</strong> and <strong>HTTP</strong> for internal websites, with an <strong>SSH gateway</strong> for <code>ssh</code>, <code>scp</code> and VS Code,<br>
     and records every session, checks every command and keeps the passwords to itself.
   </p>
 
@@ -89,7 +89,7 @@ Prefer not to install anything? The hosted demo at **[demo.casvisor.com](https:/
 
 Casvisor sits between the people who run your servers and the servers themselves. People open sessions from a browser tab, or with their own `ssh`, `scp` and VS Code through the SSH gateway. They only reach the servers and databases a permission gives them, and never see the stored passwords.
 
-- **One Go binary.** Casvisor speaks SSH, RDP, VNC, Telnet, MySQL and PostgreSQL itself, with nothing to install on the servers. It runs on SQLite with its own accounts out of the box.
+- **One Go binary.** Casvisor speaks SSH, RDP, VNC, Telnet, MySQL, PostgreSQL and HTTP itself, with nothing to install on the servers. It runs on SQLite with its own accounts out of the box.
 - **Apache-2.0, no enterprise edition.** Recording, the SSH gateway, network gateways, system accounts, jobs and everything else in this README are in the open-source project.
 - **Policy you can read.** Permissions are enforced with [Casbin](https://casbin.apache.org), and sign-in can be handed to [Casdoor](https://casdoor.ai) for SSO, MFA, LDAP and social logins.
 - **Audit by default.** Sessions are recorded, commands and SQL statements are checked against your rules and logged, and the logs export to CSV or a syslog server.
@@ -196,6 +196,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **VNC** — noVNC in the browser; Casvisor does the VNC authentication itself, so the password stays on the server
 - **Telnet** — for network gear and old systems, logging in with the asset's account
 - **MySQL and PostgreSQL** — a browser SQL console with the databases, tables and columns on the left, one tab per result, and CSV export
+- **Websites** — internal web apps such as Grafana, Jenkins or a router's admin page, each opened on a subdomain of its own through Casvisor's reverse proxy, WebSockets included, with optional HTTP basic authentication filled in by Casvisor; uploads and downloads follow the `Upload` and `Download` actions, and pages opened and changing requests are recorded
 - **SSH gateway** — `ssh -p 2222 web-01@casvisor.example.com`, `scp`, `sftp`, `rsync`, Xshell and VS Code Remote, signed in with the user's public key, or an OpenSSH certificate from a CA you trust (Vault, step-ca, `ssh-keygen -s`), and under the same permissions as the browser; `-L` also forwards Unix sockets such as `/var/run/docker.sock`
 - **Port forwarding to any asset** — `ssh -p 2222 -N -L 13389:win-01:3389 alice@casvisor.example.com`, then mstsc, a VNC viewer or a database client connects to `localhost:13389`
 - **Network gateways** — reach assets in another data center or behind NAT, through an SSH jump host or an agent that connects out over HTTPS
@@ -207,7 +208,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **System accounts** — several accounts per asset, such as `root`, `deploy` and `readonly`; permissions decide which one a user may connect with, and passwords can be changed by hand or on a schedule
 - **Access requests** — users ask for an asset with a reason and an end time, an administrator approves, and withdrawing it disconnects open sessions
 - **Two-step verification** — for local accounts, with any TOTP authenticator app
-- **Command rules** — block or flag commands matching a regular expression, in the web terminal, the SQL console and through the SSH gateway alike
+- **Command rules** — block or flag commands matching a regular expression, in the web terminal, the SQL console, website requests and through the SSH gateway alike
 - **Revocation takes effect at once** — open sessions are disconnected as soon as their permission or account is edited, deleted or expires
 
 **🔍 Audit**

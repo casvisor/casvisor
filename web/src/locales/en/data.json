@@ -685,6 +685,20 @@
     "Turn off two-factor sign-in?": "Turn off two-factor sign-in?",
     "View User": "View User"
   },
+  "web": {
+    "A certificate the system trusts is always accepted. Any other one, like a self-signed certificate, is recorded by its public key on the first connection, and a different one is rejected afterwards": "A certificate the system trusts is always accepted. Any other one, like a self-signed certificate, is recorded by its public key on the first connection, and a different one is rejected afterwards",
+    "Address": "Address",
+    "Address - Tooltip": "The address of the website, like http://192.168.1.10:3000/, whose path is the page opened first; a host alone uses the port below, over https on 443 and over http on the others",
+    "Basic authentication - Tooltip": "With the password below, sent to the website as HTTP basic authentication. Leave both empty for a website with a sign-in page of its own",
+    "No requests were sent in this session": "No requests were sent in this session",
+    "Open the website": "Open the website",
+    "Opening the website...": "Opening the website...",
+    "Request": "Request",
+    "Requests": "Requests",
+    "The first {{count}} of {{total}} requests": "The first {{count}} of {{total}} requests",
+    "The website opens in a window of its own, through Casvisor": "The website opens in a window of its own, through Casvisor",
+    "{{n}} request(s)": "{{n}} request(s)"
+  },
   "webhook": {
     "DingTalk": "DingTalk",
     "Edit Webhook": "Edit Webhook",
