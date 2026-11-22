@@ -343,6 +343,8 @@ export interface SqlResult {
   error: string;
   action: string;
   rule: string;
+  /** The default database after the statement, when the statement changed it. */
+  database?: string;
 }
 
 export interface DatabaseTable {

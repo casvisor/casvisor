@@ -118,7 +118,7 @@ export default function CommandRuleEditPage() {
         <div className="flex w-full flex-col gap-1">
           <Input className="font-mono" value={rule.pattern} onChange={(e) => updateField("pattern", e.target.value)} />
           <span className="text-xs text-muted-foreground">
-            {i18next.t("command:In MySQL and PostgreSQL sessions the pattern is matched against each SQL statement, for example")}{" "}
+            {i18next.t("command:In database sessions the pattern is matched against each SQL statement, SQL Server batch, Redis command or MongoDB call, for example")}{" "}
             <code className="font-mono">{String.raw`(?i)^\s*(drop|truncate|delete)\b`}</code>
           </span>
         </div>

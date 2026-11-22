@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -92,7 +93,7 @@ func (s *databaseSession) getResult(id string) *object.SqlResult {
 // the session; a blocked statement comes back with the rule in its result. A statement
 // whose rules can't be read is blocked too.
 func (s *databaseSession) record(statement string) (*object.Command, *object.SqlResult) {
-	rule, ruleErr := object.MatchSqlRule(s.user, s.asset, statement)
+	rule, ruleErr := object.MatchStatementRule(s.user, s.asset, statement)
 	if ruleErr != nil {
 		logs.Error(fmt.Sprintf("databaseSession.record(): failed to match the command rules: %s", ruleErr.Error()))
 	}
@@ -133,27 +134,35 @@ func (s *databaseSession) record(statement string) (*object.Command, *object.Sql
 	return command, blocked
 }
 
-func (s *databaseSession) execute(statement string) *object.SqlResult {
+// execute runs a statement after checking it against the command rules; a SQL Server
+// batch may return several results, all recorded on the same command.
+func (s *databaseSession) execute(statement string) []*object.SqlResult {
 	command, blocked := s.record(statement)
 	if blocked != nil {
-		return blocked
+		return []*object.SqlResult{blocked}
 	}
 
-	result := s.client.Execute(statement)
-	result.Action = command.Action
-	if result.Columns != nil {
-		result.Id = util.GenerateId()
-		s.keepResult(result)
+	results := s.client.Execute(statement)
+	messages := []string{}
+	for _, result := range results {
+		result.Action = command.Action
+		if result.Columns != nil {
+			result.Id = util.GenerateId()
+			s.keepResult(result)
+		}
+		command.RowCount += result.RowCount
+		command.Duration = result.Duration
+		if result.Error != "" {
+			messages = append(messages, result.Error)
+		}
 	}
+	command.Error = strings.Join(messages, "; ")
 
-	command.RowCount = result.RowCount
-	command.Duration = result.Duration
-	command.Error = result.Error
 	err := object.UpdateCommandResult(command)
 	if err != nil {
 		logs.Error(fmt.Sprintf("databaseSession.execute(): %s", err.Error()))
 	}
-	return result
+	return results
 }
 
 func (s *databaseSession) handle(stream *wsStream, request *databaseRequest) {
@@ -161,14 +170,20 @@ func (s *databaseSession) handle(stream *wsStream, request *databaseRequest) {
 	var err error
 	switch request.Type {
 	case "query":
-		statements := object.SplitSqlStatements(request.Sql, s.asset.Protocol)
+		statements := object.SplitDatabaseStatements(request.Sql, s.asset.Protocol)
 		if len(statements) == 0 {
 			err = fmt.Errorf("no statement to run")
 			break
 		}
 		for _, statement := range statements {
-			result := s.execute(statement)
-			if stream.WriteJSONUnrecorded(databaseReply{Type: "result", Id: request.Id, Result: result}) != nil || result.Error != "" {
+			// the run stops at the first statement that fails
+			failed := false
+			for _, result := range s.execute(statement) {
+				if stream.WriteJSONUnrecorded(databaseReply{Type: "result", Id: request.Id, Result: result}) != nil || result.Error != "" {
+					failed = true
+				}
+			}
+			if failed {
 				break
 			}
 		}
@@ -208,7 +223,7 @@ func (s *databaseSession) handle(stream *wsStream, request *databaseRequest) {
 // GetAssetDatabase
 // @Title GetAssetDatabase
 // @Tag Session API
-// @Description connect to the MySQL or PostgreSQL database of an asset over a websocket, to browse it and run SQL; every statement is checked against the command rules and recorded as a command of the session
+// @Description connect to the database of an asset (MySQL, PostgreSQL, SQL Server, Oracle, Redis or MongoDB) over a websocket, to browse it and run SQL, Redis commands or MongoDB shell calls; every statement is checked against the command rules and recorded as a command of the session
 // @Param   sessionId    query    string  true     "The id of the session, from add-asset-tunnel"
 // @router /get-asset-database [get]
 func (c *ApiController) GetAssetDatabase() {

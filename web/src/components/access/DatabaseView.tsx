@@ -61,7 +61,85 @@ interface Reply {
 type Loadable<T> = {loading: true} | {error: string} | {items: T[]};
 
 function quoteIdentifier(name: string, protocol: string) {
-  return protocol === "MySQL" ? `\`${name.replace(/`/g, "``")}\`` : `"${name.replace(/"/g, "\"\"")}"`;
+  if (protocol === "MySQL") {
+    return `\`${name.replace(/`/g, "``")}\``;
+  }
+  if (protocol === "SQLServer") {
+    return `[${name.replace(/]/g, "]]")}]`;
+  }
+  return `"${name.replace(/"/g, "\"\"")}"`;
+}
+
+/** A Redis argument written the way redis-cli reads it back. */
+function quoteRedisArg(arg: string) {
+  return arg !== "" && !/[\s"'\\]/.test(arg) ? arg : JSON.stringify(arg);
+}
+
+/** The protocols that list the tables of the current database only, so that opening another one switches to it. */
+function switchesOnExpand(protocol: string) {
+  return protocol === "PostgreSQL" || protocol === "Redis";
+}
+
+/** The schema shown before a table name, when it isn't the default one. */
+function getSchemaPrefix(table: DatabaseTable, protocol: string) {
+  if ((protocol === "PostgreSQL" && table.schema !== "public") || (protocol === "SQLServer" && table.schema !== "dbo")) {
+    return table.schema;
+  }
+  return "";
+}
+
+function getEditorPlaceholder(protocol: string) {
+  switch (protocol) {
+  case "Redis":
+    return i18next.t("database:Type Redis commands here, one per line, Ctrl+Enter runs the selected text or all of it");
+  case "MongoDB":
+    return i18next.t("database:Type MongoDB shell commands here, such as db.users.find({}), Ctrl+Enter runs the selected text or all of it");
+  case "SQLServer":
+    return i18next.t("database:Type T-SQL here, separate the batches with GO lines, Ctrl+Enter runs the selected text or all of it");
+  case "Oracle":
+    return i18next.t("database:Type SQL here, end a PL/SQL block with a line holding a slash, Ctrl+Enter runs the selected text or all of it");
+  default:
+    return i18next.t("database:Type SQL here, Ctrl+Enter runs the selected text or all of it");
+  }
+}
+
+/** The statement that shows the first rows of a table, the value of a Redis key or the first documents of a collection. */
+function getTableQuery(protocol: string, database: string, current: string | undefined, table: DatabaseTable) {
+  if (protocol === "Redis") {
+    const key = quoteRedisArg(table.name);
+    const commands: Record<string, string> = {
+      string: `GET ${key}`,
+      hash: `HGETALL ${key}`,
+      list: `LRANGE ${key} 0 99`,
+      set: `SSCAN ${key} 0 COUNT 100`,
+      zset: `ZRANGE ${key} 0 99 WITHSCORES`,
+      stream: `XRANGE ${key} - + COUNT 100`,
+    };
+    return commands[table.type] ?? `TYPE ${key}`;
+  }
+  if (protocol === "MongoDB") {
+    const collection = /^[A-Za-z_$][\w$]*$/.test(table.name) ? `.${table.name}` : `.getCollection(${JSON.stringify(table.name)})`;
+    const db = database === current ? "db" : `db.getSiblingDB(${JSON.stringify(database)})`;
+    return `${db}${collection}.find({}).limit(100)`;
+  }
+
+  let name = quoteIdentifier(table.name, protocol);
+  if (protocol === "Oracle") {
+    return `SELECT * FROM ${quoteIdentifier(table.schema, protocol)}.${name} WHERE ROWNUM <= 100`;
+  }
+  if (protocol === "SQLServer") {
+    name = `${quoteIdentifier(table.schema, protocol)}.${name}`;
+    if (database !== current) {
+      name = `${quoteIdentifier(database, protocol)}.${name}`;
+    }
+    return `SELECT TOP 100 * FROM ${name};`;
+  }
+  if (protocol === "MySQL" && database !== current) {
+    name = `${quoteIdentifier(database, protocol)}.${name}`;
+  } else if (protocol === "PostgreSQL" && table.schema !== "public") {
+    name = `${quoteIdentifier(table.schema, protocol)}.${name}`;
+  }
+  return `SELECT * FROM ${name} LIMIT 100;`;
 }
 
 function getTableKey(database: string, table: DatabaseTable) {
@@ -78,9 +156,9 @@ function toTsv(result: SqlResult) {
   return lines.join("\n");
 }
 
-/** A SQL console for a MySQL or PostgreSQL asset: the databases and tables on
- *  the left, the editor and the results on the right. Every statement runs on
- *  the server, which checks it against the command rules and records it. */
+/** A console for a database asset: the databases and tables (Redis keys, MongoDB
+ *  collections) on the left, the editor and the results on the right. Every
+ *  statement runs on the server, which checks it against the command rules and records it. */
 export default function DatabaseView(props: ConnectionProps) {
   const {assetId, inTab, addClient, username, password} = props;
   const assetName = Setting.getShortName(assetId);
@@ -90,6 +168,7 @@ export default function DatabaseView(props: ConnectionProps) {
   const pendingRef = React.useRef(new Map<number, (reply: Reply) => void>());
   const runIdRef = React.useRef(0);
   const editorRef = React.useRef<HTMLTextAreaElement>(null);
+  const protocolRef = React.useRef("");
 
   const [failure, setFailure] = React.useState<string | null>(null);
   const [closed, setClosed] = React.useState(false);
@@ -181,11 +260,20 @@ export default function DatabaseView(props: ConnectionProps) {
           setSessionId(id);
           setOperations(session.operations ?? []);
           setInfo(reply.data);
+          protocolRef.current = reply.data?.protocol ?? "";
           status.success(i18next.t("asset:Connection successful"));
           editorRef.current?.focus();
         } else if (reply.type === "error") {
           errorMessage = reply.message ?? "";
         } else if (reply.type === "result" && reply.result) {
+          const database = reply.result.database;
+          if (database) {
+            setInfo((info) => (info ? {...info, database} : info));
+            if (switchesOnExpand(protocolRef.current)) {
+              setTables({});
+              setColumns({});
+            }
+          }
           if (reply.id === runIdRef.current) {
             setResults((results) => [...results, reply.result!]);
             if (reply.result.error) {
@@ -297,7 +385,7 @@ export default function DatabaseView(props: ConnectionProps) {
         return;
       }
       setInfo((info) => (info ? {...info, database: reply.data?.current ?? database} : info));
-      if (protocol === "PostgreSQL") {
+      if (switchesOnExpand(protocol)) {
         setTables({});
         setColumns({});
       }
@@ -305,13 +393,7 @@ export default function DatabaseView(props: ConnectionProps) {
   };
 
   const queryTable = (database: string, table: DatabaseTable) => {
-    let name = quoteIdentifier(table.name, protocol);
-    if (protocol === "MySQL" && database !== info?.database) {
-      name = `${quoteIdentifier(database, protocol)}.${name}`;
-    } else if (protocol === "PostgreSQL" && table.schema !== "public") {
-      name = `${quoteIdentifier(table.schema, protocol)}.${name}`;
-    }
-    const text = `SELECT * FROM ${name} LIMIT 100;`;
+    const text = getTableQuery(protocol, database, info?.database, table);
     setSql(text);
     run(text);
   };
@@ -383,7 +465,7 @@ export default function DatabaseView(props: ConnectionProps) {
       <div className="flex min-h-0 flex-1">
         <div className="flex w-64 shrink-0 flex-col border-r">
           <div className="flex h-9 shrink-0 items-center justify-between border-b px-3 text-xs font-medium text-muted-foreground">
-            {i18next.t("database:Databases")}
+            {protocol === "Oracle" ? i18next.t("database:Schemas") : i18next.t("database:Databases")}
             <Button variant="ghost" size="icon" className="h-6 w-6" disabled={!connected} onClick={loadDatabases} aria-label={i18next.t("general:Refresh")}>
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
@@ -403,7 +485,7 @@ export default function DatabaseView(props: ConnectionProps) {
                   tables={tables[database]}
                   columns={columns}
                   onExpand={() => {
-                    if (protocol === "PostgreSQL" && database !== info?.database) {
+                    if (switchesOnExpand(protocol) && database !== info?.database) {
                       switchDatabase(database);
                     } else {
                       loadTables(database);
@@ -432,7 +514,7 @@ export default function DatabaseView(props: ConnectionProps) {
             ref={editorRef}
             value={sql}
             spellCheck={false}
-            placeholder={i18next.t("database:Type SQL here, Ctrl+Enter runs the selected text or all of it")}
+            placeholder={getEditorPlaceholder(protocol)}
             style={{height: editorHeight}}
             className="w-full shrink-0 resize-none bg-background p-3 font-mono text-sm outline-none"
             onChange={(e) => setSql(e.target.value)}
@@ -450,6 +532,7 @@ export default function DatabaseView(props: ConnectionProps) {
             canCopy={canCopy}
             canExport={canExport}
             sessionId={sessionId}
+            protocol={protocol}
           />
         </div>
       </div>
@@ -488,7 +571,7 @@ function DatabaseNode({
       <button
         type="button"
         className="flex w-full items-center gap-1 px-2 py-1 text-left hover:bg-accent"
-        title={protocol === "PostgreSQL" && !current ? i18next.t("database:Switch to this database") : database}
+        title={switchesOnExpand(protocol) && !current ? i18next.t("database:Switch to this database") : database}
         onClick={expanded ? onCollapse : onExpand}
       >
         {expanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
@@ -500,13 +583,17 @@ function DatabaseNode({
       ) : "error" in tables ? (
         <div className="break-words py-1 pl-9 pr-2 text-xs text-destructive">{tables.error}</div>
       ) : tables.items.length === 0 ? (
-        <div className="py-1 pl-9 text-xs text-muted-foreground">{i18next.t("database:No tables")}</div>
+        <div className="py-1 pl-9 text-xs text-muted-foreground">
+          {protocol === "Redis" ? i18next.t("database:No keys") : protocol === "MongoDB" ? i18next.t("database:No collections") : i18next.t("database:No tables")}
+        </div>
       ) : (
         tables.items.map((table) => {
           const key = getTableKey(database, table);
           const tableColumns = columns[key];
           const isView = table.type.toUpperCase().includes("VIEW");
-          const label = protocol === "PostgreSQL" && table.schema !== "public" ? `${table.schema}.${table.name}` : table.name;
+          const schema = getSchemaPrefix(table, protocol);
+          const label = schema ? `${schema}.${table.name}` : table.name;
+          const queryLabel = protocol === "Redis" ? i18next.t("database:Query this key") : protocol === "MongoDB" ? i18next.t("database:Query this collection") : i18next.t("database:Query this table");
           return (
             <div key={key}>
               <div className="group flex items-center hover:bg-accent">
@@ -517,21 +604,28 @@ function DatabaseNode({
                   onClick={() => (tableColumns ? onCollapseTable(table) : onExpandTable(table))}
                 >
                   {tableColumns ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
-                  {isView ? <Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <Table2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                  {protocol === "Redis" ? (
+                    <KeyRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  ) : isView ? (
+                    <Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <Table2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  )}
                   <span className="truncate">{label}</span>
+                  {protocol === "Redis" ? <span className="ml-auto shrink-0 pl-2 pr-1 text-xs text-muted-foreground">{table.type}</span> : null}
                 </button>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       type="button"
                       className="mr-1 hidden rounded p-1 text-muted-foreground hover:text-foreground group-hover:block"
-                      aria-label={i18next.t("database:Query this table")}
+                      aria-label={queryLabel}
                       onClick={() => onQueryTable(table)}
                     >
                       <Play className="h-3 w-3" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">{i18next.t("database:Query this table")}</TooltipContent>
+                  <TooltipContent side="right">{queryLabel}</TooltipContent>
                 </Tooltip>
               </div>
               {tableColumns === undefined ? null : "loading" in tableColumns ? (
@@ -566,6 +660,7 @@ function ResultPanel({
   canCopy,
   canExport,
   sessionId,
+  protocol,
 }: {
   results: SqlResult[];
   active?: SqlResult;
@@ -577,6 +672,7 @@ function ResultPanel({
   canCopy: boolean;
   canExport: boolean;
   sessionId: string;
+  protocol: string;
 }) {
   const copy = (result: SqlResult) => {
     navigator.clipboard.writeText(toTsv(result)).then(
@@ -634,7 +730,7 @@ function ResultPanel({
       {active ? (
         <>
           <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-1.5 text-xs">
-            <ResultSummary result={active} maxRows={maxRows} />
+            <ResultSummary result={active} maxRows={maxRows} protocol={protocol} />
             {active.columns ? (
               <span className="ml-auto flex gap-1">
                 {canCopy ? (
@@ -695,7 +791,7 @@ function ResultPanel({
   );
 }
 
-function ResultSummary({result, maxRows}: {result: SqlResult; maxRows: number}) {
+function ResultSummary({result, maxRows, protocol}: {result: SqlResult; maxRows: number; protocol: string}) {
   const duration = <span className="tabular-nums text-muted-foreground">{result.duration} ms</span>;
   if (result.action === "Block") {
     return (
@@ -728,7 +824,9 @@ function ResultSummary({result, maxRows}: {result: SqlResult; maxRows: number}) 
       <span>
         {result.columns
           ? i18next.t("database:{{n}} row(s)", {n: result.rowCount})
-          : i18next.t("database:{{n}} row(s) affected", {n: result.rowCount})}
+          : result.rowCount === 0 && (protocol === "Redis" || protocol === "MongoDB")
+            ? i18next.t("database:OK")
+            : i18next.t("database:{{n}} row(s) affected", {n: result.rowCount})}
       </span>
       {result.truncated ? (
         <span className="text-amber-600 dark:text-amber-400">

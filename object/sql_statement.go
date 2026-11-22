@@ -15,6 +15,7 @@
 package object
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
@@ -23,9 +24,9 @@ import (
 // sqlScanner walks SQL text the way the database reads it, telling the
 // strings, quoted identifiers and comments apart from the code.
 type sqlScanner struct {
-	text    string
-	isMysql bool
-	pos     int
+	text     string
+	protocol string
+	pos      int
 }
 
 const (
@@ -36,8 +37,20 @@ const (
 	sqlTokenExecutableComment
 )
 
+var (
+	// the line of a SQL Server script that ends a batch
+	sqlServerBatchSeparator = regexp.MustCompile(`(?i)^[ \t]*GO(?:[ \t]+\d+)?[ \t]*\r?$`)
+	// the line of an Oracle script that ends a statement or a PL/SQL block
+	oracleBlockSeparator = regexp.MustCompile(`^[ \t]*/[ \t]*\r?$`)
+	oraclePlsqlBlock     = regexp.MustCompile(`^(?:BEGIN|DECLARE)\b|^CREATE\s+(?:OR\s+REPLACE\s+)?(?:(?:NON)?EDITIONABLE\s+)?(?:PROCEDURE|FUNCTION|PACKAGE|TRIGGER|TYPE|LIBRARY)\b`)
+)
+
 func isIdentChar(c byte) bool {
 	return c == '_' || c == '$' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80
+}
+
+func (s *sqlScanner) isMysql() bool {
+	return s.protocol == ProtocolMysql
 }
 
 // next returns the kind and the end of the token at the position.
@@ -46,11 +59,44 @@ func (s *sqlScanner) next() (int, int) {
 	i := s.pos
 	c := text[i]
 	rest := text[i:]
+	isMysql := s.isMysql()
+	isPostgresql := s.protocol == ProtocolPostgresql
 
 	switch {
-	case c == '\'' || c == '"' || c == '`' && s.isMysql:
-		backslash := s.isMysql && c != '`'
-		if !s.isMysql && c == '\'' && i > 0 && (text[i-1] == 'E' || text[i-1] == 'e') && (i == 1 || !isIdentChar(text[i-2])) {
+	case s.protocol == ProtocolOracle && (c == 'q' || c == 'Q') && len(rest) > 2 && rest[1] == '\'' && (i == 0 || !isIdentChar(text[i-1])):
+		// q'[...]', q'{...}' and the like, with any other character as its own closing one
+		closing := rest[2]
+		switch closing {
+		case '[':
+			closing = ']'
+		case '{':
+			closing = '}'
+		case '(':
+			closing = ')'
+		case '<':
+			closing = '>'
+		}
+		end := strings.Index(rest[3:], string(closing)+"'")
+		if end < 0 {
+			return sqlTokenQuoted, len(text)
+		}
+		return sqlTokenQuoted, i + 3 + end + 2
+	case c == '[' && s.protocol == ProtocolSqlServer:
+		j := i + 1
+		for j < len(text) {
+			if text[j] == ']' {
+				if j+1 < len(text) && text[j+1] == ']' {
+					j += 2
+					continue
+				}
+				return sqlTokenQuoted, j + 1
+			}
+			j++
+		}
+		return sqlTokenQuoted, len(text)
+	case c == '\'' || c == '"' || c == '`' && isMysql:
+		backslash := isMysql && c != '`'
+		if isPostgresql && c == '\'' && i > 0 && (text[i-1] == 'E' || text[i-1] == 'e') && (i == 1 || !isIdentChar(text[i-2])) {
 			backslash = true
 		}
 		j := i + 1
@@ -69,17 +115,19 @@ func (s *sqlScanner) next() (int, int) {
 			j++
 		}
 		return sqlTokenQuoted, len(text)
-	case strings.HasPrefix(rest, "--") && (!s.isMysql || len(rest) == 2 || rest[2] <= ' '), c == '#' && s.isMysql:
+	case strings.HasPrefix(rest, "--") && (!isMysql || len(rest) == 2 || rest[2] <= ' '), c == '#' && isMysql:
 		j := strings.IndexByte(rest, '\n')
 		if j < 0 {
 			return sqlTokenComment, len(text)
 		}
-		return sqlTokenComment, i + j + 1
+		return sqlTokenComment, i + j
 	case strings.HasPrefix(rest, "/*"):
 		kind := sqlTokenComment
-		if s.isMysql && (strings.HasPrefix(rest, "/*!") || strings.HasPrefix(rest, "/*M!")) {
+		if isMysql && (strings.HasPrefix(rest, "/*!") || strings.HasPrefix(rest, "/*M!")) {
 			kind = sqlTokenExecutableComment
 		}
+		// PostgreSQL and SQL Server nest block comments
+		nested := isPostgresql || s.protocol == ProtocolSqlServer
 		depth := 1
 		j := i + 2
 		for j < len(text) {
@@ -91,8 +139,7 @@ func (s *sqlScanner) next() (int, int) {
 				}
 				continue
 			}
-			// PostgreSQL nests block comments
-			if !s.isMysql && strings.HasPrefix(text[j:], "/*") {
+			if nested && strings.HasPrefix(text[j:], "/*") {
 				depth++
 				j += 2
 				continue
@@ -100,7 +147,7 @@ func (s *sqlScanner) next() (int, int) {
 			j++
 		}
 		return kind, len(text)
-	case c == '$' && !s.isMysql && (i == 0 || !isIdentChar(text[i-1])):
+	case c == '$' && isPostgresql && (i == 0 || !isIdentChar(text[i-1])):
 		j := i + 1
 		for j < len(text) && isIdentChar(text[j]) && text[j] != '$' {
 			j++
@@ -117,10 +164,42 @@ func (s *sqlScanner) next() (int, int) {
 	return sqlTokenCode, i + 1
 }
 
+// getSeparatorLine returns the end of the line starting at the position when
+// the line is a GO of SQL Server or a slash of Oracle, or -1.
+func (s *sqlScanner) getSeparatorLine(start int) int {
+	var separator *regexp.Regexp
+	switch s.protocol {
+	case ProtocolSqlServer:
+		separator = sqlServerBatchSeparator
+	case ProtocolOracle:
+		separator = oracleBlockSeparator
+	default:
+		return -1
+	}
+
+	end := strings.IndexByte(s.text[start:], '\n')
+	if end < 0 {
+		end = len(s.text)
+	} else {
+		end += start
+	}
+	if separator.MatchString(s.text[start:end]) {
+		return end
+	}
+	return -1
+}
+
+func isOraclePlsqlBlock(statement string) bool {
+	text := strings.ToUpper(strings.TrimLeft(NormalizeSqlStatement(statement, ProtocolOracle), "( \t\r\n"))
+	return oraclePlsqlBlock.MatchString(text)
+}
+
 // SplitSqlStatements splits SQL text at the semicolons outside strings,
-// quoted identifiers and comments, leaving out the statements with no code.
+// quoted identifiers and comments, leaving out the statements with no code. A
+// SQL Server script is split into the batches between its GO lines instead, and
+// an Oracle PL/SQL block runs up to a line with a slash.
 func SplitSqlStatements(text string, protocol string) []string {
-	s := &sqlScanner{text: text, isMysql: protocol == ProtocolMysql}
+	s := &sqlScanner{text: text, protocol: protocol}
 	res := []string{}
 	start := 0
 	add := func(end int) {
@@ -130,11 +209,27 @@ func SplitSqlStatements(text string, protocol string) []string {
 		}
 	}
 
+	if end := s.getSeparatorLine(0); end >= 0 {
+		start = end
+		s.pos = end
+	}
 	for s.pos < len(text) {
 		kind, end := s.next()
-		if kind == sqlTokenCode && text[s.pos] == ';' {
-			add(s.pos)
-			start = end
+		if kind == sqlTokenCode {
+			switch text[s.pos] {
+			case ';':
+				if protocol != ProtocolSqlServer && !(protocol == ProtocolOracle && isOraclePlsqlBlock(text[start:s.pos])) {
+					// Oracle wants the semicolon of a statement left out, and takes it only at the end of a block
+					add(s.pos)
+					start = end
+				}
+			case '\n':
+				if lineEnd := s.getSeparatorLine(end); lineEnd >= 0 {
+					add(s.pos)
+					start = lineEnd
+					end = lineEnd
+				}
+			}
 		}
 		s.pos = end
 	}
@@ -146,7 +241,7 @@ func SplitSqlStatements(text string, protocol string) []string {
 // of the MySQL comments the server runs, so that a rule like ^\s*drop sees the
 // statement the way the database does.
 func NormalizeSqlStatement(statement string, protocol string) string {
-	s := &sqlScanner{text: statement, isMysql: protocol == ProtocolMysql}
+	s := &sqlScanner{text: statement, protocol: protocol}
 	var sb strings.Builder
 	for s.pos < len(statement) {
 		kind, end := s.next()
@@ -175,24 +270,104 @@ func getSqlKeyword(statement string, protocol string) string {
 	return strings.ToUpper(text[:end])
 }
 
-// MatchSqlRule matches the command rules against a SQL statement as it was
-// typed and without its comments, a Block rule before an Alert rule.
-func MatchSqlRule(user *casdoorsdk.User, asset *Asset, statement string) (*CommandRule, error) {
-	rule, err := MatchCommandRule(user, asset, statement)
-	if err != nil || rule != nil && rule.Action == CommandActionBlock {
-		return rule, err
+// SplitDatabaseStatements splits what the user ran into the statements that are
+// checked, recorded and run one by one: SQL statements, the batches of a SQL
+// Server script, the lines of Redis commands or the calls of the MongoDB shell.
+func SplitDatabaseStatements(text string, protocol string) []string {
+	switch protocol {
+	case ProtocolRedis:
+		res := []string{}
+		for _, line := range strings.Split(text, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && !strings.HasPrefix(line, "#") {
+				res = append(res, line)
+			}
+		}
+		return res
+	case ProtocolMongodb:
+		return SplitMongoStatements(text)
+	default:
+		return SplitSqlStatements(text, protocol)
+	}
+}
+
+// getStatementForms returns the ways a statement is matched against the command
+// rules: as it was typed, without its comments, and for a SQL Server batch, each of
+// its lines and statements, as a batch may hold many statements.
+func getStatementForms(statement string, protocol string) []string {
+	forms := []string{statement}
+	add := func(form string) {
+		form = strings.TrimSpace(form)
+		if form == "" {
+			return
+		}
+		for _, f := range forms {
+			if f == form {
+				return
+			}
+		}
+		forms = append(forms, form)
 	}
 
-	normalized := NormalizeSqlStatement(statement, asset.Protocol)
-	if normalized == statement {
-		return rule, nil
+	switch protocol {
+	case ProtocolRedis:
+		args, err := ParseRedisCommand(statement)
+		if err == nil {
+			add(strings.Join(args, " "))
+		}
+	case ProtocolMongodb:
+		add(NormalizeMongoStatement(statement))
+	default:
+		normalized := NormalizeSqlStatement(statement, protocol)
+		add(normalized)
+		if protocol == ProtocolSqlServer {
+			s := &sqlScanner{text: normalized, protocol: protocol}
+			start := 0
+			for s.pos < len(normalized) {
+				kind, end := s.next()
+				if kind == sqlTokenCode && (normalized[s.pos] == ';' || normalized[s.pos] == '\n') {
+					add(normalized[start:s.pos])
+					start = end
+				}
+				s.pos = end
+			}
+			add(normalized[start:])
+		}
 	}
-	other, err := MatchCommandRule(user, asset, normalized)
+	return forms
+}
+
+// NormalizeMongoStatement writes a shell statement without its comments and spaces.
+func NormalizeMongoStatement(statement string) string {
+	tokens, err := lexMongo(statement)
 	if err != nil {
-		return nil, err
+		return statement
 	}
-	if other != nil && (rule == nil || other.Action == CommandActionBlock) {
-		return other, nil
+	var sb strings.Builder
+	for i, token := range tokens {
+		if i > 0 && tokens[i-1].kind == mongoTokenIdent && token.kind == mongoTokenIdent {
+			sb.WriteByte(' ')
+		}
+		sb.WriteString(statement[token.start:token.end])
 	}
-	return rule, nil
+	return sb.String()
+}
+
+// MatchStatementRule matches the command rules against each form of a
+// statement, a Block rule before an Alert rule.
+func MatchStatementRule(user *casdoorsdk.User, asset *Asset, statement string) (*CommandRule, error) {
+	var res *CommandRule
+	for _, form := range getStatementForms(statement, asset.Protocol) {
+		rule, err := MatchCommandRule(user, asset, form)
+		if err != nil {
+			return nil, err
+		}
+		if rule != nil && rule.Action == CommandActionBlock {
+			return rule, nil
+		}
+		if res == nil {
+			res = rule
+		}
+	}
+	return res, nil
 }

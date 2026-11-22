@@ -96,7 +96,7 @@ export function SqlSessionLog({session: initialSession}: {session: Session}) {
     <div className="flex h-screen w-screen flex-col bg-[#1b1b1b] text-neutral-200">
       <div className="flex flex-wrap items-center gap-3 border-b border-neutral-700 px-4 py-2 text-sm">
         {isWeb ? <Globe className="h-4 w-4" /> : <Database className="h-4 w-4" />}
-        <span className="font-medium">{isWeb ? i18next.t("web:Requests") : i18next.t("database:SQL statements")}</span>
+        <span className="font-medium">{isWeb ? i18next.t("web:Requests") : session.protocol === "Redis" || session.protocol === "MongoDB" ? i18next.t("database:Commands") : i18next.t("database:SQL statements")}</span>
         <span className="truncate text-neutral-400">
           {session.asset} | {session.creator} | {Setting.getFormattedDate(session.startTime)}
         </span>

@@ -185,8 +185,19 @@ export default function AssetEditPage() {
           </FormRow>
         </>
       ) : null}
-      {isDatabaseProtocol(asset.protocol) ? (
-        <FormRow label={i18next.t("asset:Database")} tooltip={i18next.t("asset:Database - Tooltip")}>
+      {asset.protocol === "Oracle" ? (
+        <FormRow label={i18next.t("asset:Service name")} tooltip={i18next.t("asset:Service name - Tooltip")}>
+          <Input value={asset.database ?? ""} placeholder="ORCLPDB1" onChange={(e) => updateField("database", e.target.value)} />
+        </FormRow>
+      ) : asset.protocol === "Redis" ? (
+        <FormRow label={i18next.t("asset:Database number")} tooltip={i18next.t("asset:Database number - Tooltip")}>
+          <Input value={asset.database ?? ""} placeholder="0" onChange={(e) => updateField("database", e.target.value)} />
+        </FormRow>
+      ) : isDatabaseProtocol(asset.protocol) ? (
+        <FormRow
+          label={i18next.t("asset:Database")}
+          tooltip={asset.protocol === "MongoDB" ? i18next.t("asset:Database of MongoDB - Tooltip") : i18next.t("asset:Database - Tooltip")}
+        >
           <Input value={asset.database ?? ""} onChange={(e) => updateField("database", e.target.value)} />
         </FormRow>
       ) : null}
@@ -206,7 +217,7 @@ export default function AssetEditPage() {
           />
         </FormRow>
       ) : null}
-      {asset.protocol === "SSH" || asset.protocol === "RDP" || asset.protocol === "MySQL" || asset.protocol === "PostgreSQL" || isKubernetes || isWeb ? (
+      {asset.protocol === "SSH" || asset.protocol === "RDP" || (isDatabaseProtocol(asset.protocol) && asset.protocol !== "Oracle") || isKubernetes || isWeb ? (
         <FormRow labelKey="asset:Fingerprint">
           <div className="flex w-full flex-col gap-1">
             <Input

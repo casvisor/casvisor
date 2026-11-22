@@ -89,7 +89,7 @@ func ProbeAsset(id string, asset *Asset) (*AssetProbeResult, error) {
 		if err != nil {
 			return nil, err
 		}
-	case ProtocolMysql, ProtocolPostgresql:
+	case ProtocolMysql, ProtocolPostgresql, ProtocolSqlServer, ProtocolOracle, ProtocolRedis, ProtocolMongodb:
 		client, err := dialDatabase(&target, true)
 		if err != nil {
 			return nil, err
