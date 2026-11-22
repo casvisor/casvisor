@@ -1397,7 +1397,7 @@
                 "tags": [
                     "Session API"
                 ],
-                "description": "connect to the MySQL or PostgreSQL database of an asset over a websocket, to browse it and run SQL; every statement is checked against the command rules and recorded as a command of the session",
+                "description": "connect to the database of an asset (MySQL, PostgreSQL, SQL Server, Oracle, Redis or MongoDB) over a websocket, to browse it and run SQL, Redis commands or MongoDB shell calls; every statement is checked against the command rules and recorded as a command of the session",
                 "operationId": "ApiController.GetAssetDatabase",
                 "parameters": [
                     {
