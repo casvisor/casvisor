@@ -75,8 +75,8 @@ var (
 	domainErr   error
 )
 
-// getDomain reads webAssetDomain, like web.casvisor.example.com, https://web.casvisor.example.com
-// or web.localhost:19000, whose subdomains all have to reach Casvisor.
+// getDomain reads webAssetDomain, like example-apps.com, https://example-apps.com or
+// web.localhost:19000, whose subdomains all have to reach Casvisor.
 func getDomain() (*domainConfig, error) {
 	domainOnce.Do(func() {
 		value := strings.TrimSpace(conf.GetConfigString("webAssetDomain"))
@@ -92,7 +92,7 @@ func getDomain() (*domainConfig, error) {
 		value = strings.TrimRight(value, "/")
 		u, err := url.Parse("http://" + value)
 		if err != nil || u.Hostname() == "" || u.Path != "" || u.User != nil || u.RawQuery != "" || (scheme != "" && scheme != "http" && scheme != "https") {
-			domainErr = fmt.Errorf("webAssetDomain: %s is invalid, it should be a domain like web.casvisor.example.com", conf.GetConfigString("webAssetDomain"))
+			domainErr = fmt.Errorf("webAssetDomain: %s is invalid, it should be a domain like example-apps.com", conf.GetConfigString("webAssetDomain"))
 			return
 		}
 		domainValue = &domainConfig{scheme: scheme, host: strings.ToLower(u.Host), hostname: strings.ToLower(u.Hostname())}
@@ -176,7 +176,7 @@ func NewSession(o *SessionOptions) (*Session, string, error) {
 		return nil, "", err
 	}
 	if d == nil {
-		return nil, "", fmt.Errorf("websites can't be opened until webAssetDomain is set in conf/app.conf, as a domain whose subdomains all reach Casvisor, like web.casvisor.example.com")
+		return nil, "", fmt.Errorf("websites can't be opened until webAssetDomain is set in conf/app.conf, as a domain of its own whose subdomains all reach Casvisor, like example-apps.com")
 	}
 
 	target, err := o.Asset.GetWebUrl()
