@@ -100,6 +100,8 @@ export default function App() {
           <Route path="/job-schedules/:owner/:name" element={page("JobScheduleEditPage")} />
           <Route path="/network-gateways" element={page("NetworkGatewayListPage")} />
           <Route path="/network-gateways/:owner/:name" element={page("NetworkGatewayEditPage")} />
+          <Route path="/connect-rules" element={page("ConnectRuleListPage")} />
+          <Route path="/connect-rules/:owner/:name" element={page("ConnectRuleEditPage")} />
           <Route path="/command-rules" element={page("CommandRuleListPage")} />
           <Route path="/command-rules/:owner/:name" element={page("CommandRuleEditPage")} />
           <Route path="/command-reviews" element={page("CommandReviewListPage")} />

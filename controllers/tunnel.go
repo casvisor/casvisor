@@ -125,6 +125,11 @@ func (c *ApiController) AddAssetTunnel() {
 		c.ResponseError(fmt.Sprintf("you have no permission to connect to the asset: %s as the account: %s", assetId, account))
 		return
 	}
+	err = object.CheckConnectMethod(user, asset, account, object.ConnectMethodWeb)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
 
 	if conf.GetConfigBool("isDemoMode") {
 		count, err := object.GetActiveSessionCountByClientIp(c.getClientIp(), demoSessionDuration)

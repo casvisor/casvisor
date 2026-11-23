@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {CalendarClock, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
+import {CalendarClock, Cable, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -97,6 +97,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         label: i18next.t("general:Login reviews"),
         icon: ShieldCheck,
         description: i18next.t("general:Approve or reject the sign-ins that login rules hold for review"),
+      },
+      {
+        key: "/connect-rules",
+        label: i18next.t("general:Connect rules"),
+        icon: Cable,
+        description: i18next.t("general:Allow or reject ways to connect, such as the browser, SSH clients, SFTP, port forwarding and Remote Desktop Connection"),
       },
       {
         key: "/patches",

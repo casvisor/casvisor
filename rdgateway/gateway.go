@@ -289,6 +289,10 @@ func (t *tunnel) authenticate(cookie string) error {
 	if !slices.Contains(actions, object.ActionConnect) || !slices.Contains(actions, object.ActionForward) {
 		return fmt.Errorf("the user: %s may no longer connect to the asset: %s from Remote Desktop Connection", token.UserId, asset.GetId())
 	}
+	err = object.CheckConnectMethod(user, asset, account, object.ConnectMethodRdp)
+	if err != nil {
+		return err
+	}
 
 	t.user = user
 	t.asset = asset

@@ -563,6 +563,25 @@ export interface Job {
   results?: JobResult[] | null;
 }
 
+/** Allows or rejects ways to connect to assets, for the users, assets and accounts it covers. */
+export interface ConnectRule {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  priority: number;
+  users: string[] | null;
+  groups: string[] | null;
+  assets: string[] | null;
+  assetTags: string[] | null;
+  accounts: string[] | null;
+  methods: string[] | null;
+  action: string;
+  isEnabled: boolean;
+}
+
 /** Starts a job on a cron schedule, as the administrator who last saved it. */
 export interface JobSchedule {
   owner: string;

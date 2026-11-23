@@ -277,6 +277,14 @@ func (g *gatewayConn) getSessionId() string {
 	return g.sessionId
 }
 
+// checkMethod applies the connect rules to the asset and account the connection is on.
+func (g *gatewayConn) checkMethod(method string) error {
+	g.mu.Lock()
+	asset, account := g.asset, g.account
+	g.mu.Unlock()
+	return object.CheckConnectMethod(g.user, asset, account, method)
+}
+
 func (g *gatewayConn) can(action string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()

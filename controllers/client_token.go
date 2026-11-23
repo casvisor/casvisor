@@ -108,6 +108,17 @@ func (c *ApiController) AddClientToken() {
 		c.ResponseError(fmt.Sprintf("you have no permission to forward ports to the asset: %s, which a client on your own machine needs", asset.Name))
 		return
 	}
+	method := object.ConnectMethodSsh
+	if kind == object.ClientTokenRdp {
+		method = object.ConnectMethodRdp
+	} else if kind != object.ClientTokenSsh {
+		method = object.ConnectMethodForward
+	}
+	err = object.CheckConnectMethod(user, asset, account, method)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
 
 	username := ""
 	if kind == object.ClientTokenRdp {

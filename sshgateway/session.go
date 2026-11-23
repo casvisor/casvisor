@@ -156,6 +156,14 @@ func (s *sessionChannel) start(req *ssh.Request) {
 		}
 
 		action := getTransferAction(payload.Command)
+		method := object.ConnectMethodSsh
+		if action != "" {
+			method = object.ConnectMethodSftp
+		}
+		if err = s.g.checkMethod(method); err != nil {
+			s.fail(req, err.Error())
+			return
+		}
 		if action != "" && !s.g.can(action) {
 			s.fail(req, fmt.Sprintf("you have no permission to %s files on the asset: %s", strings.ToLower(action), s.g.getAsset().Name))
 			return
@@ -199,7 +207,15 @@ func (s *sessionChannel) start(req *ssh.Request) {
 				exit(s.down, 0)
 				return
 			}
+			if err := s.g.checkMethod(object.ConnectMethodSsh); err != nil {
+				s.fail(nil, err.Error())
+				return
+			}
 			s.openUpstream("shell", nil, nil)
+			return
+		}
+		if err := s.g.checkMethod(object.ConnectMethodSsh); err != nil {
+			s.fail(req, err.Error())
 			return
 		}
 		s.openUpstream(req.Type, req.Payload, req)

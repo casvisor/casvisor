@@ -78,6 +78,11 @@ func (g *gatewayConn) handleTunnel(newChannel ssh.NewChannel) {
 		_ = newChannel.Reject(ssh.Prohibited, fmt.Sprintf("you have no permission to forward ports to the asset: %s", asset.Name))
 		return
 	}
+	err = object.CheckConnectMethod(g.user, asset, "", object.ConnectMethodForward)
+	if err != nil {
+		_ = newChannel.Reject(ssh.Prohibited, err.Error())
+		return
+	}
 
 	conn, err := object.DialAsset(asset)
 	if err != nil {

@@ -39,6 +39,10 @@ func (s *sessionChannel) serveSftp(req *ssh.Request) {
 		s.fail(req, fmt.Sprintf("you have no permission to transfer files on the asset: %s", g.getAsset().Name))
 		return
 	}
+	if err := g.checkMethod(object.ConnectMethodSftp); err != nil {
+		s.fail(req, err.Error())
+		return
+	}
 
 	client, err := g.getClient()
 	if err != nil {
