@@ -210,6 +210,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **System accounts** — several accounts per asset, such as `root`, `deploy` and `readonly`; permissions decide which one a user may connect with, and passwords can be changed by hand or on a schedule
 - **Access requests** — users ask for an asset with a reason and an end time, an administrator approves, and withdrawing it disconnects open sessions
 - **Two-step verification** — for local accounts, with any TOTP authenticator app
+- **Connect rules** — allow or reject ways to connect by user, group, asset, tag and account: the browser, SSH clients, SFTP, scp and rsync, port forwarding, and Remote Desktop Connection; for example only the browser for contractors, or no port forwarding to production
 - **Session sharing** — share your session with colleagues through a link and a six-digit code, for them to watch it or type in it too; you see who joins and leaves, what they type goes through the command rules under their own name, and revoking the share disconnects them
 - **Command rules** — block or flag commands matching a regular expression, in the web terminal, the SQL console, website requests and through the SSH gateway alike
 - **Command review** — a command a Review rule matches waits until another administrator approves it, then runs in the same session; the user can withdraw it with Ctrl+C

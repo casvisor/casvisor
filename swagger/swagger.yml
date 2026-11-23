@@ -162,6 +162,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /add-connect-rule:
+    post:
+      tags:
+      - Connect Rule API
+      description: add a connect rule
+      operationId: ApiController.AddConnectRule
+      parameters:
+      - in: body
+        name: body
+        description: The details of the connect rule
+        required: true
+        schema:
+          $ref: '#/definitions/object.ConnectRule'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /add-job-schedule:
     post:
       tags:
@@ -561,6 +579,24 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.CommandRule'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /delete-connect-rule:
+    post:
+      tags:
+      - Connect Rule API
+      description: delete a connect rule
+      operationId: ApiController.DeleteConnectRule
+      parameters:
+      - in: body
+        name: body
+        description: The connect rule
+        required: true
+        schema:
+          $ref: '#/definitions/object.ConnectRule'
       responses:
         "200":
           description: The Response object
@@ -1271,6 +1307,42 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.Command'
+  /get-connect-rule:
+    get:
+      tags:
+      - Connect Rule API
+      description: get a connect rule
+      operationId: ApiController.GetConnectRule
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the connect rule
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.ConnectRule'
+  /get-connect-rules:
+    get:
+      tags:
+      - Connect Rule API
+      description: get the connect rules, by priority
+      operationId: ApiController.GetConnectRules
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the connect rules
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/object.ConnectRule'
   /get-groups:
     get:
       tags:
@@ -2461,6 +2533,29 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /update-connect-rule:
+    post:
+      tags:
+      - Connect Rule API
+      description: update a connect rule
+      operationId: ApiController.UpdateConnectRule
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the connect rule
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The details of the connect rule
+        required: true
+        schema:
+          $ref: '#/definitions/object.ConnectRule'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /update-job-schedule:
     post:
       tags:
@@ -3281,6 +3376,53 @@ definitions:
         type: array
         items:
           type: string
+      updatedTime:
+        type: string
+      users:
+        type: array
+        items:
+          type: string
+  object.ConnectRule:
+    title: ConnectRule
+    type: object
+    properties:
+      accounts:
+        type: array
+        items:
+          type: string
+      action:
+        type: string
+      assetTags:
+        type: array
+        items:
+          type: string
+      assets:
+        type: array
+        items:
+          type: string
+      createdTime:
+        type: string
+      description:
+        type: string
+      displayName:
+        type: string
+      groups:
+        type: array
+        items:
+          type: string
+      isEnabled:
+        type: boolean
+      methods:
+        type: array
+        items:
+          type: string
+      name:
+        type: string
+      owner:
+        type: string
+      priority:
+        type: integer
+        format: int64
       updatedTime:
         type: string
       users:
