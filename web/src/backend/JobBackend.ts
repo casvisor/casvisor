@@ -16,7 +16,7 @@ import {type ListParams, get, listQuery, post} from "@/backend/request";
 import type {Job} from "@/backend/types";
 import * as Setting from "@/lib/setting";
 
-export const JobTypes = ["Command", "Script", "File"];
+export const JobTypes = ["Command", "Script", "File", "Playbook"];
 export const ScriptTypes = ["Bash", "PowerShell"];
 
 export function getJobs(owner: string, params: ListParams = {}) {
@@ -29,6 +29,11 @@ export function getJob(owner: string, name: string) {
 
 export function startJob(job: Partial<Job>) {
   return post("/api/start-job", {}, job);
+}
+
+/** Checks a playbook before it runs; resolves to {plays, tasks, handlers, modules, files}. */
+export function checkPlaybook(job: Partial<Job>) {
+  return post("/api/check-playbook", {}, job);
 }
 
 export function rerunJob(owner: string, name: string) {

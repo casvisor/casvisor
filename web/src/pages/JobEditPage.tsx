@@ -18,7 +18,7 @@ import {useLocation, useNavigate} from "react-router-dom";
 import {ArrowLeft, CalendarClock, Loader2, Play} from "lucide-react";
 import * as JobBackend from "@/backend/JobBackend";
 import type {Job} from "@/backend/types";
-import {getPickedAssets, JobFields, useJobAssets} from "@/components/job/JobFields";
+import {getPickedAssets, JobFields, useAssetNodes, useJobAssets} from "@/components/job/JobFields";
 import {PageHeader} from "@/components/crud/PageHeader";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent} from "@/components/ui/card";
@@ -34,6 +34,7 @@ export default function JobEditPage() {
   const from = (location.state as {job?: Job} | null)?.job;
 
   const assets = useJobAssets(owner);
+  const nodes = useAssetNodes(owner);
   const [uploading, setUploading] = React.useState(false);
   const [starting, setStarting] = React.useState(false);
   const [job, setJob] = React.useState<Partial<Job>>(() => ({
@@ -42,19 +43,23 @@ export default function JobEditPage() {
     type: from?.type ?? "Command",
     assets: from?.assets ?? [],
     assetTags: from?.assetTags ?? [],
+    assetNodes: from?.assetNodes ?? [],
     content: from?.content ?? "",
     scriptType: from?.scriptType || "Bash",
     fileKey: from?.fileKey ?? "",
     fileName: from?.fileName ?? "",
     fileSize: from?.fileSize ?? 0,
     filePath: from?.filePath ?? "",
+    variables: from?.variables ?? "",
+    files: from?.files ?? [],
+    checkMode: from?.checkMode ?? false,
     timeout: from?.timeout ?? 60,
     concurrency: from?.concurrency ?? 10,
   }));
 
   const update = (patch: Partial<Job>) => setJob((current) => ({...current, ...patch}));
 
-  const picked = getPickedAssets(assets, job);
+  const picked = getPickedAssets(assets, job, nodes);
 
   const start = async() => {
     setStarting(true);
@@ -79,7 +84,7 @@ export default function JobEditPage() {
     <div className="space-y-4">
       <PageHeader
         title={i18next.t("job:New job")}
-        description={i18next.t("general:Run commands, scripts and file transfers on many SSH assets at once")}
+        description={i18next.t("general:Run commands, scripts, file transfers and Ansible playbooks on many SSH assets at once")}
         actions={(
           <>
             <Button variant="ghost" onClick={() => navigate("/jobs")}>

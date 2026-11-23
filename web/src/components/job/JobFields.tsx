@@ -14,16 +14,19 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {Loader2, Upload} from "lucide-react";
+import {CheckCircle2, Loader2, Upload, X} from "lucide-react";
 import * as AssetBackend from "@/backend/AssetBackend";
+import * as AssetNodeBackend from "@/backend/AssetNodeBackend";
 import * as JobBackend from "@/backend/JobBackend";
-import type {Asset, Job} from "@/backend/types";
+import type {Asset, AssetNode, Job} from "@/backend/types";
 import {MultiSelect} from "@/components/common/MultiSelect";
 import {SelectField} from "@/components/common/SelectField";
 import {FormGrid, FormRow} from "@/components/crud/FormRow";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
+import {Switch} from "@/components/ui/switch";
 import {Textarea} from "@/components/ui/textarea";
+import {getDescendantNames, getNodeOptions} from "@/lib/assetNode";
 import * as Setting from "@/lib/setting";
 import {getJobTypeLabel} from "@/pages/JobListPage";
 
@@ -51,9 +54,200 @@ export function useJobAssets(owner: string) {
   return assets;
 }
 
-/** The assets a job runs on: the ones named, and the ones with the tags. */
-export function getPickedAssets(assets: Asset[], job: Partial<Job>) {
-  return assets.filter((asset) => (job.assets ?? []).includes(asset.name) || (asset.tag && (job.assetTags ?? []).includes(asset.tag)));
+/** The nodes of the asset tree, which jobs can pick assets by. */
+export function useAssetNodes(owner: string) {
+  const [nodes, setNodes] = React.useState<AssetNode[]>([]);
+  React.useEffect(() => {
+    AssetNodeBackend.getAssetNodes(owner).then((res) => {
+      if (res.status === "ok") {
+        setNodes((res.data ?? []) as AssetNode[]);
+      }
+    });
+  }, [owner]);
+  return nodes;
+}
+
+/** The assets a job runs on: the ones named, the ones with the tags and the ones in the nodes or below them. */
+export function getPickedAssets(assets: Asset[], job: Partial<Job>, nodes: AssetNode[] = []) {
+  const nodeNames = new Set<string>();
+  for (const name of job.assetNodes ?? []) {
+    getDescendantNames(nodes, name).forEach((item) => nodeNames.add(item));
+  }
+  return assets.filter((asset) => (job.assets ?? []).includes(asset.name)
+    || (asset.tag && (job.assetTags ?? []).includes(asset.tag))
+    || (asset.nodes ?? []).some((node) => nodeNames.has(node)));
+}
+
+const playbookPlaceholder = [
+  "- name: Install nginx",
+  "  hosts: all",
+  "  become: true",
+  "  tasks:",
+  "    - name: Install the package",
+  "      apt:",
+  "        name: nginx",
+  "        state: present",
+  "        update_cache: true",
+  "    - name: Write the site",
+  "      template:",
+  "        src: site.conf.j2",
+  "        dest: /etc/nginx/conf.d/site.conf",
+  "      notify: Reload nginx",
+  "  handlers:",
+  "    - name: Reload nginx",
+  "      service:",
+  "        name: nginx",
+  "        state: reloaded",
+].join("\n");
+
+/** The playbook of a job: its YAML, the files its tasks use, its extra variables and check mode. */
+function PlaybookFields({owner, job, update, onUploading}: {
+  owner: string;
+  job: Partial<Job>;
+  update: (patch: Partial<Job>) => void;
+  onUploading?: (uploading: boolean) => void;
+}) {
+  const [uploading, setUploading] = React.useState(false);
+  const [checking, setChecking] = React.useState(false);
+  const [checked, setChecked] = React.useState("");
+  const fileInput = React.useRef<HTMLInputElement>(null);
+  const playbookInput = React.useRef<HTMLInputElement>(null);
+  const files = job.files ?? [];
+
+  const upload = async(list: File[]) => {
+    setUploading(true);
+    onUploading?.(true);
+    try {
+      let next = [...files];
+      for (const file of list) {
+        const res = await JobBackend.uploadJobFile(owner, file);
+        if (res.status !== "ok") {
+          Setting.showMessage("error", res.msg);
+          break;
+        }
+        next = [...next.filter((item) => item.name !== res.data.name), res.data];
+      }
+      update({files: next});
+    } catch (error) {
+      Setting.showMessage("error", `${i18next.t("general:Failed to connect to server")}: ${error}`);
+    } finally {
+      setUploading(false);
+      onUploading?.(false);
+    }
+  };
+
+  const check = async() => {
+    setChecking(true);
+    setChecked("");
+    try {
+      const res = await JobBackend.checkPlaybook({owner, content: job.content, variables: job.variables, files});
+      if (res.status === "ok") {
+        setChecked(i18next.t("job:{{plays}} plays, {{tasks}} tasks and {{handlers}} handlers, with the modules {{modules}}", {
+          plays: res.data.plays, tasks: res.data.tasks, handlers: res.data.handlers, modules: (res.data.modules ?? []).join(", "),
+        }));
+      } else {
+        Setting.showMessage("error", res.msg);
+      }
+    } catch (error) {
+      Setting.showMessage("error", `${i18next.t("general:Failed to connect to server")}: ${error}`);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <>
+      <FormRow label={i18next.t("job:Playbook")} tooltip={i18next.t("job:Playbook - Tooltip")} block>
+        <div className="flex w-full flex-col gap-2">
+          <Textarea
+            className="min-h-[320px] font-mono text-xs"
+            spellCheck={false}
+            value={job.content}
+            placeholder={playbookPlaceholder}
+            onChange={(e) => {
+              setChecked("");
+              update({content: e.target.value});
+            }}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={playbookInput}
+              type="file"
+              accept=".yml,.yaml"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  file.text().then((text) => update({content: text}));
+                }
+                e.target.value = "";
+              }}
+            />
+            <Button variant="outline" size="sm" onClick={() => playbookInput.current?.click()}>
+              <Upload />
+              {i18next.t("job:Open playbook file")}
+            </Button>
+            <Button variant="outline" size="sm" onClick={check} disabled={checking || !job.content?.trim()}>
+              {checking ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+              {i18next.t("job:Check playbook")}
+            </Button>
+            {checked ? <span className="text-xs text-success">{checked}</span> : null}
+          </div>
+        </div>
+      </FormRow>
+      <FormRow label={i18next.t("job:Files")} tooltip={i18next.t("job:Files - Tooltip")} block>
+        <div className="flex w-full flex-col gap-2">
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const list = Array.from(e.target.files ?? []);
+              if (list.length > 0) {
+                upload(list);
+              }
+              e.target.value = "";
+            }}
+          />
+          {files.length > 0 ? (
+            <div className="flex flex-col gap-1">
+              {files.map((file) => (
+                <div key={file.key} className="flex items-center gap-2 text-sm">
+                  <span className="font-mono text-xs">{file.name}</span>
+                  <span className="text-xs text-muted-foreground">({formatSize(file.size)})</span>
+                  <Button variant="ghost" size="iconSm" aria-label={i18next.t("general:Delete")} onClick={() => update({files: files.filter((item) => item.key !== file.key)})}>
+                    <X />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <div>
+            <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()} disabled={uploading}>
+              {uploading ? <Loader2 className="animate-spin" /> : <Upload />}
+              {i18next.t("job:Attach files")}
+            </Button>
+          </div>
+        </div>
+      </FormRow>
+      <FormRow label={i18next.t("job:Variables")} tooltip={i18next.t("job:Variables - Tooltip")} block>
+        <Textarea
+          className="min-h-[80px] font-mono text-xs"
+          spellCheck={false}
+          value={job.variables ?? ""}
+          placeholder={"port: 8080\nusers: [alice, bob]"}
+          onChange={(e) => {
+            setChecked("");
+            update({variables: e.target.value});
+          }}
+        />
+      </FormRow>
+      <FormRow label={i18next.t("job:Check mode")} tooltip={i18next.t("job:Check mode - Tooltip")}>
+        <Switch checked={Boolean(job.checkMode)} onCheckedChange={(checkMode) => update({checkMode})} />
+      </FormRow>
+    </>
+  );
 }
 
 /** What a job runs and where: its type, assets, command, script or file, timeout and concurrency.
@@ -68,6 +262,7 @@ export function JobFields({owner, job, update, assets, onUploading, children}: {
 }) {
   const [uploading, setUploading] = React.useState(false);
   const fileInput = React.useRef<HTMLInputElement>(null);
+  const nodes = useAssetNodes(owner);
 
   const assetOptions = assets.map((asset) => ({
     value: asset.name,
@@ -75,7 +270,7 @@ export function JobFields({owner, job, update, assets, onUploading, children}: {
     keywords: `${asset.name} ${asset.displayName} ${asset.host}`,
   }));
   const tagOptions = [...new Set(assets.map((asset) => asset.tag).filter(Boolean))].map((tag) => ({value: tag, label: tag}));
-  const picked = getPickedAssets(assets, job);
+  const picked = getPickedAssets(assets, job, nodes);
 
   const upload = async(file: File) => {
     setUploading(true);
@@ -105,7 +300,7 @@ export function JobFields({owner, job, update, assets, onUploading, children}: {
           <SelectField
             value={job.type}
             options={JobBackend.JobTypes.map((type) => ({id: type, name: getJobTypeLabel(type)}))}
-            onChange={(value) => update({type: value})}
+            onChange={(value) => update(value === "Playbook" && (!job.timeout || job.timeout === 60) ? {type: value, timeout: 1800} : {type: value})}
           />
         </FormRow>
         <FormRow label={i18next.t("general:Assets")} tooltip={i18next.t("job:Only SSH assets can run jobs")}>
@@ -113,6 +308,9 @@ export function JobFields({owner, job, update, assets, onUploading, children}: {
         </FormRow>
         <FormRow label={i18next.t("permission:Asset tags")} tooltip={i18next.t("job:Every SSH asset with one of these tags")}>
           <MultiSelect value={job.assetTags ?? []} options={tagOptions} onChange={(value) => update({assetTags: value})} />
+        </FormRow>
+        <FormRow label={i18next.t("assetNode:Nodes")} tooltip={i18next.t("job:Every SSH asset in one of these nodes or below them")}>
+          <MultiSelect value={job.assetNodes ?? []} options={getNodeOptions(nodes)} onChange={(value) => update({assetNodes: value})} />
         </FormRow>
 
         {job.type === "Script" ? (
@@ -125,7 +323,9 @@ export function JobFields({owner, job, update, assets, onUploading, children}: {
           </FormRow>
         ) : null}
 
-        {job.type === "File" ? (
+        {job.type === "Playbook" ? (
+          <PlaybookFields owner={owner} job={job} update={update} onUploading={onUploading} />
+        ) : job.type === "File" ? (
           <>
             <FormRow label={i18next.t("job:File")}>
               <div className="flex items-center gap-3">
@@ -178,7 +378,7 @@ export function JobFields({owner, job, update, assets, onUploading, children}: {
       {children}
       <div className="mt-2 text-sm text-muted-foreground">
         {picked.length === 0
-          ? i18next.t("job:Pick assets by name or by tag")
+          ? i18next.t("job:Pick assets by name, tag or node")
           : `${i18next.t("job:Runs on")}: ${picked.map((asset) => asset.displayName || asset.name).join(", ")}`}
       </div>
     </>

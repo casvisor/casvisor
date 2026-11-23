@@ -621,6 +621,28 @@ export interface LocalUser {
   mfaEnabled?: boolean;
 }
 
+/** How a task of a playbook went on an asset. */
+export interface PlaybookTaskResult {
+  play: string;
+  name: string;
+  module: string;
+  handler?: boolean;
+  status: string;
+  ignored?: boolean;
+  msg?: string;
+  rc?: number;
+  output?: string;
+  items?: {label: string; status: string; msg?: string}[];
+  startTime: string;
+  endTime: string;
+}
+
+export interface JobFile {
+  key: string;
+  name: string;
+  size: number;
+}
+
 export interface JobResult {
   owner: string;
   job: string;
@@ -635,6 +657,7 @@ export interface JobResult {
   rule: string;
   startTime: string;
   endTime: string;
+  tasks?: PlaybookTaskResult[] | null;
 }
 
 export interface Job {
@@ -645,12 +668,18 @@ export interface Job {
   type: string;
   assets: string[] | null;
   assetTags: string[] | null;
+  assetNodes: string[] | null;
   content: string;
   scriptType: string;
   fileKey: string;
   fileName: string;
   fileSize: number;
   filePath: string;
+  /** the extra variables of a playbook, in YAML or JSON */
+  variables: string;
+  /** the files the tasks of a playbook use */
+  files: JobFile[] | null;
+  checkMode: boolean;
   timeout: number;
   concurrency: number;
   user: string;
@@ -697,12 +726,16 @@ export interface JobSchedule {
   type: string;
   assets: string[] | null;
   assetTags: string[] | null;
+  assetNodes: string[] | null;
   content: string;
   scriptType: string;
   fileKey: string;
   fileName: string;
   fileSize: number;
   filePath: string;
+  variables: string;
+  files: JobFile[] | null;
+  checkMode: boolean;
   timeout: number;
   concurrency: number;
   cron: string;

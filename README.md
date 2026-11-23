@@ -232,7 +232,8 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 
 **⚙️ Operate**
 
-- **Jobs** — run a command, a Bash or PowerShell script, or a file copy on many SSH assets at once, with concurrency, timeouts and per-asset output and exit codes
+- **Jobs** — run a command, a Bash or PowerShell script, or a file copy on many SSH assets at once, picked by name, tag or asset tree node, with concurrency, timeouts and per-asset output and exit codes
+- **Ansible playbooks** — run a playbook as a job without installing Ansible: Casvisor runs it over its own SSH connections, so the command rules, command review, recording and network gateways apply to every task. It supports the common modules (command, shell, script, raw, copy, template, file, lineinfile, apt, yum, dnf, package, service, systemd, user, group, get_url, debug, set_fact, assert, fail), vars, extra variables, become, when, loops, register, ignore_errors, changed_when, failed_when, handlers and check mode, checks the playbook before it runs, and shows ok, changed, failed and skipped for every task on every asset
 - **Job schedules** — run a job on a cron schedule in any time zone, such as a backup at 03:00 every day; a run is skipped while the last one is still going, and webhooks tell when a job fails
 - **Patch management** — scan SSH assets for pending system updates, install them and restart, on Windows (Windows Update) and Linux (apt, dnf, yum)
 - **REST API** — every console action is also an API call, with [Swagger docs](swagger)

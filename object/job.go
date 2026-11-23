@@ -27,9 +27,10 @@ import (
 )
 
 const (
-	JobTypeCommand = "Command"
-	JobTypeScript  = "Script"
-	JobTypeFile    = "File"
+	JobTypeCommand  = "Command"
+	JobTypeScript   = "Script"
+	JobTypeFile     = "File"
+	JobTypePlaybook = "Playbook"
 
 	JobScriptBash       = "Bash"
 	JobScriptPowerShell = "PowerShell"
@@ -43,15 +44,23 @@ const (
 	JobCanceled    = "Canceled"
 	JobInterrupted = "Interrupted"
 
-	defaultJobTimeout     = 60
-	maxJobTimeout         = 24 * 3600
-	defaultJobConcurrency = 10
-	maxJobConcurrency     = 100
+	defaultJobTimeout      = 60
+	defaultPlaybookTimeout = 1800
+	maxJobTimeout          = 24 * 3600
+	defaultJobConcurrency  = 10
+	maxJobConcurrency      = 100
 )
 
 var jobFileKeyRegex = regexp.MustCompile(`^[0-9a-f-]{36}$`)
 
-// Job runs a command, a script or a file transfer on many SSH assets at once.
+// JobFile is a file uploaded for a job.
+type JobFile struct {
+	Key  string `json:"key"`
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+}
+
+// Job runs a command, a script, a file transfer or a playbook on many SSH assets at once.
 type Job struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -61,8 +70,14 @@ type Job struct {
 	Type       string   `xorm:"varchar(20)" json:"type"`
 	Assets     []string `xorm:"mediumtext" json:"assets"`
 	AssetTags  []string `xorm:"mediumtext" json:"assetTags"`
+	AssetNodes []string `xorm:"mediumtext" json:"assetNodes"`
 	Content    string   `xorm:"mediumtext" json:"content"`
 	ScriptType string   `xorm:"varchar(20)" json:"scriptType"`
+
+	// Variables are the extra variables of a playbook, in YAML or JSON, and Files the files its tasks use
+	Variables string     `xorm:"mediumtext" json:"variables"`
+	Files     []*JobFile `xorm:"mediumtext" json:"files"`
+	CheckMode bool       `json:"checkMode"`
 
 	FileKey  string `xorm:"varchar(100)" json:"fileKey"`
 	FileName string `xorm:"varchar(500)" json:"fileName"`
@@ -104,6 +119,8 @@ type JobResult struct {
 	Rule        string `xorm:"varchar(200)" json:"rule"`
 	StartTime   string `xorm:"varchar(100)" json:"startTime"`
 	EndTime     string `xorm:"varchar(100)" json:"endTime"`
+
+	Tasks []*PlaybookTaskResult `xorm:"mediumtext" json:"tasks"`
 }
 
 func GetJobCount(owner, field, value string) (int64, error) {
@@ -182,10 +199,10 @@ func DeleteJob(job *Job) (bool, error) {
 	}
 
 	if old.FileKey != "" {
-		path, err := GetJobFilePath(old.Owner, old.FileKey)
-		if err == nil {
-			_ = os.Remove(path)
-		}
+		removeJobFile(old.Owner, old.FileKey)
+	}
+	for _, file := range old.Files {
+		removeJobFile(old.Owner, file.Key)
 	}
 
 	return affected != 0, nil
@@ -217,6 +234,34 @@ func (job *Job) check() error {
 		if job.ScriptType != JobScriptBash && job.ScriptType != JobScriptPowerShell {
 			return fmt.Errorf("unknown script type: %s", job.ScriptType)
 		}
+	case JobTypePlaybook:
+		if job.Content == "" {
+			return fmt.Errorf("the playbook should not be empty")
+		}
+		files := []*JobFile{}
+		for _, file := range job.Files {
+			if file == nil {
+				continue
+			}
+			path, err := GetJobFilePath(job.Owner, file.Key)
+			if err != nil {
+				return err
+			}
+			info, err := os.Stat(path)
+			if err != nil {
+				return fmt.Errorf("the attached file: %s is gone, attach it again", file.Name)
+			}
+			if findJobFile(files, file.Name) != nil {
+				return fmt.Errorf("two attached files are named %s", file.Name)
+			}
+			file.Size = info.Size()
+			files = append(files, file)
+		}
+		job.Files = files
+		_, err := CheckPlaybook(job)
+		if err != nil {
+			return err
+		}
 	case JobTypeFile:
 		if job.FileKey == "" {
 			return fmt.Errorf("no file is uploaded")
@@ -238,8 +283,14 @@ func (job *Job) check() error {
 		return fmt.Errorf("unknown job type: %s", job.Type)
 	}
 
+	if job.Type != JobTypePlaybook {
+		job.Variables, job.Files, job.CheckMode = "", nil, false
+	}
 	if job.Timeout <= 0 {
 		job.Timeout = defaultJobTimeout
+		if job.Type == JobTypePlaybook {
+			job.Timeout = defaultPlaybookTimeout
+		}
 	}
 	job.Timeout = min(job.Timeout, maxJobTimeout)
 	if job.Concurrency <= 0 {
@@ -249,11 +300,29 @@ func (job *Job) check() error {
 	return nil
 }
 
-// getJobAssets returns the SSH assets the job runs on: the ones named, and the ones with the tags.
+// getJobAssets returns the SSH assets the job runs on: the ones named, the ones with the tags,
+// and the ones in the nodes or below them.
 func (job *Job) getJobAssets() ([]*Asset, error) {
 	assets, err := GetAssets(job.Owner)
 	if err != nil {
 		return nil, err
+	}
+
+	nodeNames := map[string]bool{}
+	if len(job.AssetNodes) > 0 {
+		nodes, err := GetAssetNodes(job.Owner)
+		if err != nil {
+			return nil, err
+		}
+		nodeMap := getAssetNodeMap(nodes)
+		for _, name := range job.AssetNodes {
+			if nodeMap[name] == nil {
+				return nil, fmt.Errorf("the node: %s does not exist", name)
+			}
+			for descendant := range GetAssetNodeDescendants(nodes, name) {
+				nodeNames[descendant] = true
+			}
+		}
 	}
 
 	byName := map[string]*Asset{}
@@ -278,7 +347,10 @@ func (job *Job) getJobAssets() ([]*Asset, error) {
 	}
 
 	for _, asset := range assets {
-		if seen[asset.Name] || asset.Tag == "" || !slices.Contains(job.AssetTags, asset.Tag) || !strings.EqualFold(asset.Protocol, "SSH") {
+		if seen[asset.Name] || !strings.EqualFold(asset.Protocol, "SSH") {
+			continue
+		}
+		if !(asset.Tag != "" && slices.Contains(job.AssetTags, asset.Tag)) && !(len(nodeNames) > 0 && IsAssetInNodes(asset, nodeNames)) {
 			continue
 		}
 		seen[asset.Name] = true

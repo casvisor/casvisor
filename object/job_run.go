@@ -24,6 +24,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ import (
 
 	"github.com/beego/beego/logs"
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/util"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -60,11 +62,14 @@ type jobRun struct {
 
 type jobResultRun struct {
 	result *JobResult
+	run    *jobRun
 
 	lock      sync.Mutex
 	out       []byte
 	truncated bool
 	dirty     bool
+	tasks     []*PlaybookTaskResult
+	rec       *recording.Recording
 }
 
 func getJobRun(jobId string) *jobRun {
@@ -97,6 +102,12 @@ func StartJob(job *Job, user *casdoorsdk.User, clientIp string) (*Job, error) {
 	}
 	if job.AssetTags == nil {
 		job.AssetTags = []string{}
+	}
+	if job.AssetNodes == nil {
+		job.AssetNodes = []string{}
+	}
+	if job.Files == nil {
+		job.Files = []*JobFile{}
 	}
 
 	results := []*JobResult{}
@@ -147,6 +158,15 @@ func RerunJob(id string, user *casdoorsdk.User, clientIp string) (*Job, error) {
 		}
 		if _, err = os.Stat(filePath); err != nil {
 			return nil, fmt.Errorf("the uploaded file of the job is gone")
+		}
+	}
+	for _, file := range job.Files {
+		filePath, err := GetJobFilePath(job.Owner, file.Key)
+		if err != nil {
+			return nil, err
+		}
+		if _, err = os.Stat(filePath); err != nil {
+			return nil, fmt.Errorf("the attached file: %s of the job is gone", file.Name)
 		}
 	}
 
@@ -211,7 +231,7 @@ func newJobRun(job *Job, results []*JobResult, user *casdoorsdk.User, clientIp s
 	ctx, cancel := context.WithCancel(context.Background())
 	run := &jobRun{job: job, user: user, clientIp: clientIp, ctx: ctx, cancel: cancel, results: map[string]*jobResultRun{}}
 	for _, result := range results {
-		run.results[result.Asset] = &jobResultRun{result: result}
+		run.results[result.Asset] = &jobResultRun{result: result, run: run}
 	}
 
 	jobRunsLock.Lock()
@@ -227,6 +247,7 @@ func newJobRun(job *Job, results []*JobResult, user *casdoorsdk.User, clientIp s
 func (r *jobResultRun) Write(p []byte) (int, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+	r.record(p)
 	r.out = append(r.out, p...)
 	if len(r.out) > maxJobOutput {
 		r.out = r.out[len(r.out)-maxJobOutput:]
@@ -246,6 +267,48 @@ func (r *jobResultRun) logf(format string, args ...interface{}) {
 	_, _ = r.Write([]byte(prefix + "[casvisor] " + fmt.Sprintf(format, args...) + "\n"))
 }
 
+// record keeps the output in the recording of the session, as a terminal shows it; the caller holds the lock.
+func (r *jobResultRun) record(p []byte) {
+	if r.result.Session == "" {
+		return
+	}
+	if r.rec == nil {
+		rec, err := recording.Start(recording.Header{
+			Protocol: "SSH",
+			Session:  r.result.Session,
+			Asset:    util.GetIdFromOwnerAndName(r.result.Owner, r.result.Asset),
+			User:     r.run.job.User,
+			Cols:     160,
+			Rows:     40,
+		})
+		if err != nil {
+			logs.Error("failed to start the recording of the job: %s on the asset: %s: %s", r.result.Job, r.result.Asset, err.Error())
+		}
+		if rec == nil {
+			r.result.Session = ""
+			return
+		}
+		err = AddSessionRecording(r.result.Session, rec.Name)
+		if err != nil {
+			logs.Error("failed to save the recording of the job: %s on the asset: %s: %s", r.result.Job, r.result.Asset, err.Error())
+		}
+		r.rec = rec
+	}
+	r.rec.Write(recording.KindData, bytes.ReplaceAll(bytes.ReplaceAll(p, []byte("\r\n"), []byte("\n")), []byte("\n"), []byte("\r\n")))
+}
+
+func (r *jobResultRun) getTasks() []*PlaybookTaskResult {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	tasks := []*PlaybookTaskResult{}
+	for _, task := range r.tasks {
+		copied := *task
+		copied.Items = slices.Clone(task.Items)
+		tasks = append(tasks, &copied)
+	}
+	return tasks
+}
+
 func (r *jobResultRun) output() string {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -261,6 +324,9 @@ func (run *jobRun) fillLive(results []*JobResult) {
 		rr := run.results[result.Asset]
 		if rr != nil && result.Status == JobRunning {
 			result.Output = rr.output()
+			if run.job.Type == JobTypePlaybook {
+				result.Tasks = rr.getTasks()
+			}
 		}
 	}
 }
@@ -275,8 +341,8 @@ func (run *jobRun) flush() {
 			continue
 		}
 
-		result := &JobResult{Output: rr.output()}
-		_, err := adapter.engine.ID(core.PK{rr.result.Owner, rr.result.Job, rr.result.Asset}).Cols("output").Update(result)
+		result := &JobResult{Output: rr.output(), Tasks: rr.getTasks()}
+		_, err := adapter.engine.ID(core.PK{rr.result.Owner, rr.result.Job, rr.result.Asset}).Cols("output", "tasks").Update(result)
 		if err != nil {
 			logs.Error("failed to save the output of the job: %s on the asset: %s: %s", run.job.Name, rr.result.Asset, err.Error())
 		}
@@ -378,7 +444,11 @@ func (run *jobRun) endResult(rr *jobResultRun, status string, err error) {
 	}
 	result.EndTime = util.GetCurrentTime()
 	result.Output = rr.output()
-	run.saveResult(rr, "status", "exit_code", "error", "rule", "session", "start_time", "end_time", "output")
+	result.Tasks = rr.getTasks()
+	rr.lock.Lock()
+	rr.rec.Close()
+	rr.lock.Unlock()
+	run.saveResult(rr, "status", "exit_code", "error", "rule", "session", "start_time", "end_time", "output", "tasks")
 }
 
 func (run *jobRun) runOnAsset(rr *jobResultRun) {
@@ -493,6 +563,9 @@ func matchJobRule(user *casdoorsdk.User, asset *Asset, text string) (*CommandRul
 // execute runs the job on one asset and returns the status when it is not just success or failure.
 func (run *jobRun) execute(ctx context.Context, rr *jobResultRun, asset *Asset, sessionId string) (status string, resErr error) {
 	job := run.job
+	if job.Type == JobTypePlaybook {
+		return run.executePlaybook(ctx, rr, asset, sessionId)
+	}
 	result := rr.result
 	text := job.getJobCommandText()
 
@@ -601,6 +674,42 @@ func (run *jobRun) execute(ctx context.Context, rr *jobResultRun, asset *Asset, 
 		return JobFailed, fmt.Errorf("exited with code %d", code)
 	}
 	return JobSucceeded, nil
+}
+
+// executePlaybook runs the playbook of the job on one asset, with the command rules checked task by task.
+func (run *jobRun) executePlaybook(ctx context.Context, rr *jobResultRun, asset *Asset, sessionId string) (string, error) {
+	job := run.job
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(job.Timeout)*time.Second)
+	defer cancel()
+
+	rr.logf("Connecting to %s (%s:%d)", asset.GetId(), asset.Host, asset.Port)
+	client, err := DialSsh(asset)
+	if err != nil {
+		return "", err
+	}
+	defer client.Close()
+	stop := context.AfterFunc(ctx, func() {
+		time.Sleep(3 * time.Second)
+		_ = client.Close()
+	})
+	defer stop()
+
+	runner := &pbRunner{run: run, rr: rr, ctx: ctx, asset: asset, sessionId: sessionId, client: client}
+	defer func() {
+		if runner.sftp != nil {
+			_ = runner.sftp.Close()
+		}
+	}()
+
+	status, err := runner.runPlaybook()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) && status != JobBlocked {
+		return JobTimeout, fmt.Errorf("timed out after %d seconds", job.Timeout)
+	}
+	rr.result.ExitCode = 0
+	if status == JobFailed {
+		rr.result.ExitCode = 2
+	}
+	return status, err
 }
 
 type jobHost struct {

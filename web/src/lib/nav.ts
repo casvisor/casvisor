@@ -199,7 +199,7 @@ export function getNavGroups(account: Account | null | undefined): NavGroup[] {
           key: "/jobs",
           label: i18next.t("general:Jobs"),
           icon: ListChecks,
-          description: i18next.t("general:Run commands, scripts and file transfers on many SSH assets at once"),
+          description: i18next.t("general:Run commands, scripts, file transfers and Ansible playbooks on many SSH assets at once"),
         },
         {
           key: "/job-schedules",

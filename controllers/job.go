@@ -94,8 +94,8 @@ func (c *ApiController) GetJob() {
 // StartJob
 // @Title StartJob
 // @Tag Job API
-// @Description run a command, a script or a file transfer on SSH assets, picked by name or by tag
-// @Param   body    body   object.Job  true        "The owner, displayName, type (Command, Script or File), assets, assetTags, content, scriptType (Bash or PowerShell), fileKey, fileName and filePath, timeout in seconds and concurrency"
+// @Description run a command, a script, a file transfer or an Ansible playbook on SSH assets, picked by name, by tag or by node
+// @Param   body    body   object.Job  true        "The owner, displayName, type (Command, Script, File or Playbook), assets, assetTags, assetNodes, content (the command, script or playbook), scriptType (Bash or PowerShell), fileKey, fileName and filePath, the variables, files and checkMode of a playbook, timeout in seconds and concurrency"
 // @Success 200 {object} object.Job The Response object
 // @router /start-job [post]
 func (c *ApiController) StartJob() {
@@ -117,6 +117,34 @@ func (c *ApiController) StartJob() {
 	}
 
 	c.ResponseOk(res)
+}
+
+// CheckPlaybook
+// @Title CheckPlaybook
+// @Tag Job API
+// @Description check a playbook before it runs: its YAML, keywords, modules and their options, expressions, variables and attached files
+// @Param   body    body   object.Job  true        "The owner, content (the playbook), variables and files"
+// @Success 200 {object} object.PlaybookSummary The Response object
+// @router /check-playbook [post]
+func (c *ApiController) CheckPlaybook() {
+	var job object.Job
+	err := json.Unmarshal(c.Ctx.Input.RequestBody, &job)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	if !c.checkOwner(job.Owner) {
+		return
+	}
+
+	summary, err := object.CheckPlaybook(&job)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+
+	c.ResponseOk(summary)
 }
 
 // RerunJob
@@ -191,7 +219,7 @@ func (c *ApiController) DeleteJob() {
 // UploadJobFile
 // @Title UploadJobFile
 // @Tag Job API
-// @Description upload the file a job sends to its assets, as the form field "file"; the key it returns goes in the fileKey of the job
+// @Description upload the file a job sends to its assets, or a file a playbook uses, as the form field "file"; the key it returns goes in the fileKey or the files of the job
 // @Param   owner     query    string  true        "The owner of the job"
 // @Success 200 {object} controllers.jobFile The Response object
 // @router /upload-job-file [post]

@@ -33,6 +33,8 @@ export function getJobTypeLabel(type: string) {
     return i18next.t("job:Script");
   } else if (type === "File") {
     return i18next.t("job:File transfer");
+  } else if (type === "Playbook") {
+    return i18next.t("job:Ansible playbook");
   }
   return type;
 }
@@ -154,7 +156,7 @@ export default function JobListPage() {
       key={schedule}
       initialQuery={schedule ? {searchedColumn: "schedule", searchText: schedule} : undefined}
       title={i18next.t("general:Jobs")}
-      description={i18next.t("general:Run commands, scripts and file transfers on many SSH assets at once")}
+      description={i18next.t("general:Run commands, scripts, file transfers and Ansible playbooks on many SSH assets at once")}
       columns={columns}
       fetch={fetchJobs}
       deps={[owner]}

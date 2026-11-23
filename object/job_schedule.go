@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -43,17 +44,21 @@ type JobSchedule struct {
 	Description string `xorm:"varchar(500)" json:"description"`
 
 	// what each job runs, as in Job
-	Type        string   `xorm:"varchar(20)" json:"type"`
-	Assets      []string `xorm:"mediumtext" json:"assets"`
-	AssetTags   []string `xorm:"mediumtext" json:"assetTags"`
-	Content     string   `xorm:"mediumtext" json:"content"`
-	ScriptType  string   `xorm:"varchar(20)" json:"scriptType"`
-	FileKey     string   `xorm:"varchar(100)" json:"fileKey"`
-	FileName    string   `xorm:"varchar(500)" json:"fileName"`
-	FileSize    int64    `json:"fileSize"`
-	FilePath    string   `xorm:"varchar(1000)" json:"filePath"`
-	Timeout     int      `json:"timeout"`
-	Concurrency int      `json:"concurrency"`
+	Type        string     `xorm:"varchar(20)" json:"type"`
+	Assets      []string   `xorm:"mediumtext" json:"assets"`
+	AssetTags   []string   `xorm:"mediumtext" json:"assetTags"`
+	AssetNodes  []string   `xorm:"mediumtext" json:"assetNodes"`
+	Content     string     `xorm:"mediumtext" json:"content"`
+	ScriptType  string     `xorm:"varchar(20)" json:"scriptType"`
+	FileKey     string     `xorm:"varchar(100)" json:"fileKey"`
+	FileName    string     `xorm:"varchar(500)" json:"fileName"`
+	FileSize    int64      `json:"fileSize"`
+	FilePath    string     `xorm:"varchar(1000)" json:"filePath"`
+	Timeout     int        `json:"timeout"`
+	Concurrency int        `json:"concurrency"`
+	Variables   string     `xorm:"mediumtext" json:"variables"`
+	Files       []*JobFile `xorm:"mediumtext" json:"files"`
+	CheckMode   bool       `json:"checkMode"`
 
 	// Cron is a crontab line in the time zone, such as "0 3 * * *" for 03:00 every day
 	Cron      string `xorm:"varchar(100)" json:"cron"`
@@ -116,6 +121,7 @@ func (schedule *JobSchedule) toJob() *Job {
 		Type:        schedule.Type,
 		Assets:      schedule.Assets,
 		AssetTags:   schedule.AssetTags,
+		AssetNodes:  schedule.AssetNodes,
 		Content:     schedule.Content,
 		ScriptType:  schedule.ScriptType,
 		FileKey:     schedule.FileKey,
@@ -123,6 +129,9 @@ func (schedule *JobSchedule) toJob() *Job {
 		FilePath:    schedule.FilePath,
 		Timeout:     schedule.Timeout,
 		Concurrency: schedule.Concurrency,
+		Variables:   schedule.Variables,
+		Files:       schedule.Files,
+		CheckMode:   schedule.CheckMode,
 		Schedule:    schedule.Name,
 	}
 }
@@ -173,6 +182,13 @@ func (schedule *JobSchedule) check() error {
 		return err
 	}
 	schedule.Content, schedule.FileSize, schedule.Timeout, schedule.Concurrency = job.Content, job.FileSize, job.Timeout, job.Concurrency
+	schedule.Variables, schedule.Files, schedule.CheckMode = job.Variables, job.Files, job.CheckMode
+	if schedule.Files == nil {
+		schedule.Files = []*JobFile{}
+	}
+	if schedule.AssetNodes == nil {
+		schedule.AssetNodes = []string{}
+	}
 
 	schedule.NextRunTime, err = schedule.getNextRunTime(time.Now())
 	if err != nil {
@@ -217,6 +233,13 @@ func UpdateJobSchedule(id string, schedule *JobSchedule, user *casdoorsdk.User) 
 	if affected != 0 && old.FileKey != "" && old.FileKey != schedule.FileKey {
 		removeJobFile(old.Owner, old.FileKey)
 	}
+	if affected != 0 {
+		for _, file := range old.Files {
+			if !slices.ContainsFunc(schedule.Files, func(f *JobFile) bool { return f.Key == file.Key }) {
+				removeJobFile(old.Owner, file.Key)
+			}
+		}
+	}
 	return affected != 0, nil
 }
 
@@ -245,7 +268,18 @@ func DeleteJobSchedule(schedule *JobSchedule) (bool, error) {
 	if old != nil && old.FileKey != "" {
 		removeJobFile(old.Owner, old.FileKey)
 	}
+	if old != nil {
+		for _, file := range old.Files {
+			removeJobFile(old.Owner, file.Key)
+		}
+	}
 	return affected != 0, nil
+}
+
+func removeJobFiles(job *Job) {
+	for _, file := range job.Files {
+		removeJobFile(job.Owner, file.Key)
+	}
 }
 
 func removeJobFile(owner string, key string) {
@@ -348,6 +382,18 @@ func (schedule *JobSchedule) run(now time.Time) (*Job, error) {
 			return nil, err
 		}
 	}
+	if newJob.Type == JobTypePlaybook {
+		newJob.Files = []*JobFile{}
+		for _, file := range schedule.Files {
+			key, copyErr := copyJobFile(schedule.Owner, file.Key)
+			if copyErr != nil {
+				removeJobFiles(newJob)
+				err = copyErr
+				return nil, err
+			}
+			newJob.Files = append(newJob.Files, &JobFile{Key: key, Name: file.Name, Size: file.Size})
+		}
+	}
 
 	owner, name := util.GetOwnerAndNameFromIdNoCheck(schedule.User)
 	user := &casdoorsdk.User{Owner: owner, Name: name, IsAdmin: true, Groups: schedule.UserGroups}
@@ -356,6 +402,7 @@ func (schedule *JobSchedule) run(now time.Time) (*Job, error) {
 		if newJob.Type == JobTypeFile {
 			removeJobFile(schedule.Owner, newJob.FileKey)
 		}
+		removeJobFiles(newJob)
 		job = nil
 		return nil, err
 	}

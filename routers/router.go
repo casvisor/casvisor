@@ -193,6 +193,7 @@ func initAPI() {
 	beego.Router("/api/get-jobs", &controllers.ApiController{}, "GET:GetJobs")
 	beego.Router("/api/get-job", &controllers.ApiController{}, "GET:GetJob")
 	beego.Router("/api/start-job", &controllers.ApiController{}, "POST:StartJob")
+	beego.Router("/api/check-playbook", &controllers.ApiController{}, "POST:CheckPlaybook")
 	beego.Router("/api/get-job-schedules", &controllers.ApiController{}, "GET:GetJobSchedules")
 	beego.Router("/api/get-job-schedule", &controllers.ApiController{}, "GET:GetJobSchedule")
 	beego.Router("/api/update-job-schedule", &controllers.ApiController{}, "POST:UpdateJobSchedule")

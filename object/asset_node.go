@@ -299,6 +299,22 @@ func renameAssetNode(owner, oldName, newName string) error {
 			return err
 		}
 	}
+
+	schedules := []*JobSchedule{}
+	err = adapter.engine.Find(&schedules, &JobSchedule{Owner: owner})
+	if err != nil {
+		return err
+	}
+	for _, schedule := range schedules {
+		if !slices.Contains(schedule.AssetNodes, oldName) {
+			continue
+		}
+		schedule.AssetNodes = replaceName(schedule.AssetNodes, oldName, newName)
+		_, err = adapter.engine.ID(core.PK{owner, schedule.Name}).Cols("asset_nodes").Update(schedule)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
