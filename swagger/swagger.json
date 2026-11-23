@@ -218,7 +218,7 @@
                 "tags": [
                     "Session API"
                 ],
-                "description": "issue a one-time token, valid for two minutes, that lets a client on the user's machine open one connection to an asset: kind \"ssh\" signs in to the SSH gateway on an SSH asset (ssh, Xshell, WinSCP), \"tunnel\" forwards a local port to an asset through the SSH gateway, and \"rdp\" lets mstsc reach an RDP asset through Casvisor's Remote Desktop Gateway; \"tunnel\" and \"rdp\" pass the traffic through without recording it and need the Forward action. Kind \"db\" is the user and the password of a database client (DBeaver, Navicat, mysql, psql) on a MySQL or PostgreSQL asset through the database proxy; it lasts dbProxyTokenHours (8 hours by default), opens a session for every connection and can be revoked",
+                "description": "issue a one-time token, valid for two minutes, that lets a client on the user's machine open one connection to an asset: kind \"ssh\" signs in to the SSH gateway on an SSH asset (ssh, Xshell, WinSCP), \"tunnel\" forwards a local port to an asset through the SSH gateway, and \"rdp\" lets mstsc reach an RDP asset through Casvisor's Remote Desktop Gateway, which signs in to Windows with the account's password when it is stored (autoLogon); \"tunnel\" and \"rdp\" are not recorded and need the Forward action. Kind \"db\" is the user and the password of a database client (DBeaver, Navicat, mysql, psql) on a MySQL or PostgreSQL asset through the database proxy; it lasts dbProxyTokenHours (8 hours by default), opens a session for every connection and can be revoked",
                 "operationId": "ApiController.AddClientToken",
                 "parameters": [
                     {
@@ -5713,6 +5713,12 @@
             "title": "ClientToken",
             "type": "object",
             "properties": {
+                "autoLogon": {
+                    "type": "boolean"
+                },
+                "certHash": {
+                    "type": "string"
+                },
                 "expires": {
                     "type": "integer",
                     "format": "int64"
