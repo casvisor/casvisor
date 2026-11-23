@@ -234,6 +234,27 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /add-kubernetes-token:
+    post:
+      tags:
+      - Session API
+      description: issue a kubeconfig that lets kubectl reach a Kubernetes asset through Casvisor for eight hours, with a token of Casvisor in it; every request is checked against the user's permission, its namespaces and the command rules, and recorded in a session of the token, which can be stopped to revoke it. The asset, or the account, has to keep its own token
+      operationId: ApiController.AddKubernetesToken
+      parameters:
+      - in: query
+        name: assetId
+        description: The id of the asset
+        required: true
+        type: string
+      - in: query
+        name: account
+        description: The system account of the asset to connect as
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.KubernetesToken'
   /add-local-user:
     post:
       tags:
@@ -1001,6 +1022,50 @@ paths:
       responses:
         "200":
           description: '{file} file The zip file'
+  /download-kubernetes-file:
+    post:
+      tags:
+      - Session File API
+      description: download a file from a container of a Kubernetes asset, or a directory as a tar file, with the Download permission, the way kubectl cp does, by running tar in the container; the token typed for an asset that keeps none goes in the body
+      operationId: ApiController.DownloadKubernetesFile
+      parameters:
+      - in: query
+        name: assetId
+        description: The id of the asset
+        required: true
+        type: string
+      - in: query
+        name: account
+        description: The system account of the asset to connect as
+        type: string
+      - in: query
+        name: namespace
+        description: The namespace of the pod
+        required: true
+        type: string
+      - in: query
+        name: pod
+        description: The pod
+        required: true
+        type: string
+      - in: query
+        name: container
+        description: The container of the pod
+        required: true
+        type: string
+      - in: query
+        name: path
+        description: The absolute path of the file or directory
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The token in password, when the asset keeps none
+        schema:
+          $ref: '#/definitions/object.TunnelCredential'
+      responses:
+        "200":
+          description: '{file} file The file'
   /download-report:
     get:
       tags:
@@ -1844,6 +1909,62 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.Job'
+  /get-kubernetes-logs:
+    post:
+      tags:
+      - Session API
+      description: stream the log of a container of a Kubernetes asset as plain text, with the Connect permission on a namespace the user may read; a log that is followed goes on until the request is cancelled or the permission is revoked; the token typed for an asset that keeps none goes in the body
+      operationId: ApiController.GetKubernetesLogs
+      parameters:
+      - in: query
+        name: assetId
+        description: The id of the asset
+        required: true
+        type: string
+      - in: query
+        name: account
+        description: The system account of the asset to connect as
+        type: string
+      - in: query
+        name: namespace
+        description: The namespace of the pod
+        required: true
+        type: string
+      - in: query
+        name: pod
+        description: The pod
+        required: true
+        type: string
+      - in: query
+        name: container
+        description: The container of the pod
+        required: true
+        type: string
+      - in: query
+        name: tailLines
+        description: The lines from the end to start with, all of them when empty or 0
+        type: integer
+        format: int64
+      - in: query
+        name: follow
+        description: true to follow the log
+        type: boolean
+      - in: query
+        name: timestamps
+        description: true to start each line with its time
+        type: boolean
+      - in: query
+        name: previous
+        description: true for the log of the container's previous run
+        type: boolean
+      - in: body
+        name: body
+        description: The token in password, when the asset keeps none
+        schema:
+          $ref: '#/definitions/object.TunnelCredential'
+      responses:
+        "200":
+          description: '{string} string The log'
   /get-kubernetes-pods:
     post:
       tags:
@@ -1874,6 +1995,25 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/object.KubernetesPods'
+  /get-kubernetes-tokens:
+    get:
+      tags:
+      - Session API
+      description: 'list the kubeconfigs of a Kubernetes asset that are still valid: the user''s own, and everyone''s for administrators'
+      operationId: ApiController.GetKubernetesTokens
+      parameters:
+      - in: query
+        name: assetId
+        description: The id of the asset
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/object.KubernetesToken'
   /get-local-user:
     get:
       tags:
@@ -2808,6 +2948,23 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /revoke-kubernetes-token:
+    post:
+      tags:
+      - Session API
+      description: revoke a kubeconfig, which ends its session, the requests in progress like watches, and the shells opened with it
+      operationId: ApiController.RevokeKubernetesToken
+      parameters:
+      - in: query
+        name: id
+        description: The id of the kubeconfig
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /revoke-network-gateway-token:
     post:
       tags:
@@ -3471,6 +3628,47 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.jobFile'
+  /upload-kubernetes-file:
+    post:
+      tags:
+      - Session File API
+      description: upload files (form field "files") into a directory of a container of a Kubernetes asset, with the Upload permission, the way kubectl cp does, by running tar in the container; the token typed for an asset that keeps none goes in the form field "password"
+      operationId: ApiController.UploadKubernetesFile
+      parameters:
+      - in: query
+        name: assetId
+        description: The id of the asset
+        required: true
+        type: string
+      - in: query
+        name: account
+        description: The system account of the asset to connect as
+        type: string
+      - in: query
+        name: namespace
+        description: The namespace of the pod
+        required: true
+        type: string
+      - in: query
+        name: pod
+        description: The pod
+        required: true
+        type: string
+      - in: query
+        name: container
+        description: The container of the pod
+        required: true
+        type: string
+      - in: query
+        name: path
+        description: The absolute path of the directory
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /upload-session-file:
     post:
       tags:
@@ -3521,6 +3719,18 @@ definitions:
       token:
         type: string
       username:
+        type: string
+  controllers.KubernetesToken:
+    title: KubernetesToken
+    type: object
+    properties:
+      expireTime:
+        type: string
+      kubeconfig:
+        type: string
+      name:
+        type: string
+      server:
         type: string
   controllers.MfaForm:
     title: MfaForm
@@ -4603,6 +4813,32 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/object.KubernetesPod'
+      readOnly:
+        type: boolean
+  object.KubernetesToken:
+    title: KubernetesToken
+    type: object
+    properties:
+      account:
+        type: string
+      asset:
+        type: string
+      clientIp:
+        type: string
+      createdTime:
+        type: string
+      expireTime:
+        type: string
+      isRevoked:
+        type: boolean
+      name:
+        type: string
+      owner:
+        type: string
+      session:
+        type: string
+      user:
+        type: string
   object.LocalUser:
     title: LocalUser
     type: object
@@ -4936,12 +5172,18 @@ definitions:
         type: boolean
       name:
         type: string
+      namespaces:
+        type: array
+        items:
+          type: string
       nodes:
         type: array
         items:
           type: string
       owner:
         type: string
+      readOnly:
+        type: boolean
       startTime:
         type: string
       timeZone:
