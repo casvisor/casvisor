@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, Users, Webhook, type LucideIcon} from "lucide-react";
+import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -120,7 +120,13 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         key: "/command-rules",
         label: i18next.t("general:Command rules"),
         icon: ShieldAlert,
-        description: i18next.t("general:Block or flag dangerous commands in SSH sessions"),
+        description: i18next.t("general:Block, hold for review or flag dangerous commands"),
+      },
+      {
+        key: "/command-reviews",
+        label: i18next.t("general:Command reviews"),
+        icon: UserCheck,
+        description: i18next.t("general:Approve or reject the commands that command rules hold for review"),
       },
       {
         key: "/records",
@@ -132,7 +138,7 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         key: "/webhooks",
         label: i18next.t("general:Webhooks"),
         icon: Webhook,
-        description: i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests and sign-ins waiting for review"),
+        description: i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests, and sign-ins and commands waiting for review"),
       },
     );
   }

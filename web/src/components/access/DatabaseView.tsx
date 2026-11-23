@@ -183,6 +183,8 @@ export default function DatabaseView(props: ConnectionProps) {
   const [results, setResults] = React.useState<SqlResult[]>([]);
   const [runError, setRunError] = React.useState("");
   const [activeResult, setActiveResult] = React.useState(0);
+  // the statement waiting for an administrator's approval, by the request it belongs to
+  const [waiting, setWaiting] = React.useState<{id: number; review: string; statement: string} | null>(null);
   const [editorHeight, setEditorHeight] = React.useState(220);
   const status = useConnectionToast(assetId);
 
@@ -265,7 +267,10 @@ export default function DatabaseView(props: ConnectionProps) {
           editorRef.current?.focus();
         } else if (reply.type === "error") {
           errorMessage = reply.message ?? "";
+        } else if (reply.type === "review" && reply.id !== undefined) {
+          setWaiting({id: reply.id, review: reply.data?.review ?? "", statement: reply.data?.statement ?? ""});
         } else if (reply.type === "result" && reply.result) {
+          setWaiting((waiting) => (waiting?.id === reply.id ? null : waiting));
           const database = reply.result.database;
           if (database) {
             setInfo((info) => (info ? {...info, database} : info));
@@ -282,6 +287,7 @@ export default function DatabaseView(props: ConnectionProps) {
             }
           }
         } else if (reply.type === "reply" && reply.id !== undefined) {
+          setWaiting((waiting) => (waiting?.id === reply.id ? null : waiting));
           const resolve = pendingRef.current.get(reply.id);
           pendingRef.current.delete(reply.id);
           resolve?.(reply);
@@ -293,6 +299,7 @@ export default function DatabaseView(props: ConnectionProps) {
           return;
         }
         status.dismiss();
+        setWaiting(null);
         for (const resolve of pendingRef.current.values()) {
           resolve({type: "reply", error: errorMessage || i18next.t("asset:Connection closed")});
         }
@@ -521,6 +528,18 @@ export default function DatabaseView(props: ConnectionProps) {
             onKeyDown={onEditorKeyDown}
           />
           <div className="h-1.5 shrink-0 cursor-row-resize border-y bg-muted hover:bg-accent" onMouseDown={startResize} />
+          {waiting ? (
+            <div className="flex shrink-0 items-center gap-3 border-b bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              <div className="min-w-0 flex-1">
+                <div>{i18next.t("database:Waiting for an administrator to approve this statement (request {{id}})", {id: waiting.review})}</div>
+                <code className="block truncate font-mono text-xs opacity-80" title={waiting.statement}>{waiting.statement}</code>
+              </div>
+              <Button size="sm" variant="outline" className="h-7" onClick={() => wsRef.current?.send(JSON.stringify({type: "cancel"}))}>
+                {i18next.t("database:Withdraw")}
+              </Button>
+            </div>
+          ) : null}
           <ResultPanel
             results={results}
             active={result}

@@ -82,7 +82,7 @@ export default function CommandListPage() {
           return <span className={`text-xs tabular-nums ${(command.statusCode ?? 0) >= 400 ? "text-amber-600" : ""}`}>{status}</span>;
         }
         if (!isDatabaseProtocol(command.protocol) || command.action === "Block") {
-          return null;
+          return command.error ? <span className="line-clamp-2 break-all text-xs text-destructive" title={command.error}>{command.error}</span> : null;
         }
         if (command.error) {
           return <span className="line-clamp-2 break-all text-xs text-destructive" title={command.error}>{command.error}</span>;
@@ -108,6 +108,12 @@ export default function CommandListPage() {
       render: (value) => (value ? (
         <Link to={`/command-rules/${value}`} className="underline-offset-4 hover:underline">{Setting.getShortName(value)}</Link>
       ) : null),
+    },
+    {
+      dataIndex: "reviewer",
+      title: i18next.t("command:Reviewer"),
+      width: 120,
+      render: (value) => (value ? Setting.getShortName(value) : null),
     },
     textColumn<Command>({dataIndex: "clientIp", title: i18next.t("general:Client IP"), width: 140, searchable: true}),
     {

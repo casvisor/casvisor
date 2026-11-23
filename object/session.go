@@ -291,7 +291,7 @@ func CloseDBSession(id string, code int, msg string) error {
 		return err
 	}
 	forwardSession(s, false)
-	return nil
+	return CancelSessionCommandReviews(id)
 }
 
 var mutex sync.Mutex

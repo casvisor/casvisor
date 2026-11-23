@@ -23,6 +23,8 @@ export const WebhookEvents = [
   "access_request.reviewed",
   "login_review.created",
   "login_review.reviewed",
+  "command_review.created",
+  "command_review.reviewed",
 ];
 
 export function getWebhooks(owner: string, params: ListParams = {}) {

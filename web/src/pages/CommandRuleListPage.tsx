@@ -29,7 +29,7 @@ export function CommandActionBadge({action}: {action: string}) {
     return null;
   }
   return (
-    <Badge variant={action === "Block" ? "destructive" : "secondary"}>
+    <Badge variant={action === "Block" ? "destructive" : action === "Review" ? "warning" : "secondary"}>
       {i18next.t(`command:${action}`)}
     </Badge>
   );
@@ -94,7 +94,7 @@ export default function CommandRuleListPage() {
   return (
     <CrudListPage<CommandRule>
       title={i18next.t("general:Command rules")}
-      description={i18next.t("general:Block or flag dangerous commands in SSH sessions")}
+      description={i18next.t("general:Block, hold for review or flag dangerous commands")}
       columns={columns}
       fetch={fetchRules}
       deps={[owner]}

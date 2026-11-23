@@ -20,6 +20,7 @@ package terminal
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -92,6 +93,10 @@ type Recorder struct {
 	// a pasted Enter is taken as text rather than as running the line
 	bracketedPaste atomic.Bool
 
+	// reviewCancel is set while a command waits for review: the keystrokes are dropped
+	// meanwhile, and Ctrl+C or the end of the session withdraws the command
+	reviewCancel chan struct{}
+
 	// only touched by the input goroutine
 	operator    *casdoorsdk.User
 	lineUser    *casdoorsdk.User
@@ -154,6 +159,7 @@ func (r *Recorder) Close() {
 		return
 	}
 	r.closed = true
+	r.cancelReview()
 	r.rec.Close()
 	close(r.input)
 	for viewer := range r.viewers {
@@ -310,11 +316,25 @@ func (r *Recorder) InputAs(operator *casdoorsdk.User, p []byte) {
 	if r.closed || len(p) == 0 {
 		return
 	}
+	if r.reviewCancel != nil {
+		if bytes.IndexByte(p, 3) >= 0 {
+			r.cancelReview()
+		}
+		return
+	}
 
 	select {
 	case r.input <- inputChunk{data: append([]byte{}, p...), operator: operator}:
 	default:
 		// the asset is not reading, drop the keystrokes rather than block the session
+	}
+}
+
+// cancelReview withdraws the command waiting for review, if any; the caller holds the lock.
+func (r *Recorder) cancelReview() {
+	if r.reviewCancel != nil {
+		close(r.reviewCancel)
+		r.reviewCancel = nil
 	}
 }
 
@@ -471,53 +491,115 @@ func (r *Recorder) enter(key byte) {
 	}
 	r.lineStarted = false
 
-	if fullScreen || command == "" {
-		// A full-screen program, or a line the screen doesn't show such as with echo
-		// turned off: what is on the line and what was typed are still checked, but
-		// only recorded when blocked, as they are often text or passwords.
-		for _, text := range []string{command, typed} {
-			if text != "" && r.block(text, false) {
-				return
-			}
+	// In a full-screen program, or on a line the screen doesn't show such as with echo
+	// turned off, what is on the line and what was typed are still checked, but only
+	// recorded when a rule stops or holds them, as they are often text or passwords.
+	visible := !fullScreen && command != ""
+	texts := []string{}
+	for _, text := range []string{command, typed} {
+		if text != "" && !slices.Contains(texts, text) {
+			texts = append(texts, text)
 		}
-		r.send([]byte{key})
+	}
+
+	var rule *object.CommandRule
+	matchedText := ""
+	for _, text := range texts {
+		matched, err := object.MatchCommandRule(r.getLineUser(), r.opts.Asset, text)
+		if err != nil {
+			// a command whose rules can't be read is blocked rather than run unchecked
+			logs.Error(fmt.Sprintf("Recorder.enter(): failed to match the command rules: %s", err.Error()))
+			r.notify("\r\n\x1b[1;31m[Casvisor] The command is blocked because the command rules can't be read\x1b[0m\r\n")
+			r.send([]byte{3})
+			c := r.newCommand(text, nil)
+			c.Action, c.Error = object.CommandActionBlock, "the command is blocked because the command rules can't be read"
+			r.record(c)
+			return
+		}
+		if more := object.MoreSevereRule(rule, matched); more != rule {
+			rule, matchedText = more, text
+		}
+	}
+
+	if rule != nil && rule.Action == object.CommandActionBlock {
+		r.notify(fmt.Sprintf("\r\n\x1b[1;31m[Casvisor] The command is blocked by the rule: %s\x1b[0m\r\n", rule.GetDisplayName()))
+		// Ctrl+C clears the line instead of running it
+		r.send([]byte{3})
+		r.record(r.newCommand(matchedText, rule))
 		return
 	}
 
-	if r.block(command, true) {
+	if rule != nil && rule.Action == object.CommandActionReview {
+		// the reviewer sees the line as the screen shows it, which is what runs
+		if visible {
+			matchedText = command
+		}
+		if r.hold(matchedText, rule) {
+			r.send([]byte{key})
+		} else {
+			r.send([]byte{3})
+		}
 		return
 	}
-	if typed != "" && typed != command && r.block(typed, false) {
-		return
+
+	if visible {
+		r.record(r.newCommand(command, rule))
 	}
 	r.send([]byte{key})
 }
 
-// block checks a line against the command rules and, when it is blocked, clears it
-// instead of running it; a line it lets run is recorded when record is set.
-func (r *Recorder) block(text string, record bool) bool {
-	rule, err := object.MatchCommandRule(r.getLineUser(), r.opts.Asset, text)
+// hold keeps the line from running until an administrator approves it, and tells whether
+// it was approved. Keystrokes are dropped while it waits, and Ctrl+C withdraws the command.
+func (r *Recorder) hold(text string, rule *object.CommandRule) bool {
+	cancel := make(chan struct{})
+	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		return false
+	}
+	r.reviewCancel = cancel
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		if r.reviewCancel == cancel {
+			r.reviewCancel = nil
+		}
+		r.mu.Unlock()
+	}()
+
+	command := r.newCommand(text, nil)
+	approved, err := object.HoldCommand(command, rule, cancel, func(review *object.CommandReview) {
+		r.notifyOpen(fmt.Sprintf("\r\n\x1b[1;33m[Casvisor] %s, press Ctrl+C to withdraw it\x1b[0m\r\n", capitalize(object.GetHeldMessage(rule, review))))
+	})
 	if err != nil {
-		// a command whose rules can't be read is blocked rather than run unchecked
-		logs.Error(fmt.Sprintf("Recorder.block(): failed to match the command rules: %s", err.Error()))
-		r.notify("\r\n\x1b[1;31m[Casvisor] The command is blocked because the command rules can't be read\x1b[0m\r\n")
-		r.send([]byte{3})
-		r.record(text, nil, "the command is blocked because the command rules can't be read")
-		return true
+		logs.Error(fmt.Sprintf("Recorder.hold(): %s", err.Error()))
 	}
+	r.record(command)
 
-	if rule != nil && rule.Action == object.CommandActionBlock {
-		r.notify(fmt.Sprintf("\r\n\x1b[1;31m[Casvisor] The command is blocked by the rule: %s\x1b[0m\r\n", getRuleName(rule)))
-		// Ctrl+C clears the line instead of running it
-		r.send([]byte{3})
-		r.record(text, rule, "")
-		return true
+	if approved {
+		_, reviewer := util.GetOwnerAndNameFromIdNoCheck(command.Reviewer)
+		r.notifyOpen(fmt.Sprintf("\x1b[1;32m[Casvisor] The command is approved by %s\x1b[0m\r\n", reviewer))
+	} else {
+		r.notifyOpen(fmt.Sprintf("\x1b[1;31m[Casvisor] %s\x1b[0m\r\n", capitalize(command.Error)))
 	}
+	return approved
+}
 
-	if record {
-		r.record(text, rule, "")
+// notifyOpen shows a message unless the session has ended meanwhile.
+func (r *Recorder) notifyOpen(message string) {
+	r.mu.Lock()
+	closed := r.closed
+	r.mu.Unlock()
+	if !closed {
+		r.notify(message)
 	}
-	return false
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // waitForEcho waits for the asset to echo what was typed last, so that the screen
@@ -600,8 +682,8 @@ func (r *Recorder) notify(message string) {
 	r.Output(p)
 }
 
-// record saves a command with the rule it broke, or as blocked with blockedError.
-func (r *Recorder) record(text string, rule *object.CommandRule, blockedError string) {
+// newCommand is a command of the session, with the rule it broke.
+func (r *Recorder) newCommand(text string, rule *object.CommandRule) *object.Command {
 	asset := r.opts.Asset
 	command := &object.Command{
 		Owner:    asset.Owner,
@@ -615,44 +697,55 @@ func (r *Recorder) record(text string, rule *object.CommandRule, blockedError st
 	if r.lineUser != nil {
 		command.Operator = util.GetIdFromOwnerAndName(r.lineUser.Owner, r.lineUser.Name)
 	}
-	if blockedError != "" {
-		command.Action = object.CommandActionBlock
-		command.Error = blockedError
-	} else if rule != nil {
+	if rule != nil {
 		command.Action = rule.Action
 		command.Rule = rule.GetId()
 	}
+	return command
+}
 
+func (r *Recorder) record(command *object.Command) {
 	err := object.AddCommand(command)
 	if err != nil {
 		logs.Error(fmt.Sprintf("Recorder.record(): %s", err.Error()))
 	}
 }
 
-func getRuleName(rule *object.CommandRule) string {
-	if rule.DisplayName != "" {
-		return rule.DisplayName
-	}
-	return rule.Name
-}
-
 // CheckCommand applies the command rules to a command run without a terminal, like
-// "ssh <asset> <command>", records it, and returns the rule that blocks it.
-func CheckCommand(sessionId string, user *casdoorsdk.User, asset *object.Asset, clientIp string, text string) (*object.CommandRule, error) {
+// "ssh <asset> <command>", holds it while a Review rule has it reviewed, records it, and
+// tells why it may not run, or "" when it may. onHeld is told while the command waits;
+// closing cancel withdraws it.
+func CheckCommand(sessionId string, user *casdoorsdk.User, asset *object.Asset, clientIp string, text string, cancel <-chan struct{}, onHeld func(message string)) (string, error) {
 	rule, err := object.MatchCommandRule(user, asset, text)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	r := &Recorder{opts: Options{SessionId: sessionId, User: user, Asset: asset, ClientIp: clientIp}}
-	r.record(text, rule, "")
-
-	if rule != nil && rule.Action == object.CommandActionBlock {
-		return rule, nil
+	command := r.newCommand(text, rule)
+	if rule != nil && rule.Action == object.CommandActionReview {
+		approved, err := object.HoldCommand(command, rule, cancel, func(review *object.CommandReview) {
+			if onHeld != nil {
+				onHeld(object.GetHeldMessage(rule, review))
+			}
+		})
+		r.record(command)
+		if err != nil {
+			return "", err
+		}
+		if !approved {
+			return command.Error, nil
+		}
+		return "", nil
 	}
-	return nil, nil
+
+	r.record(command)
+	if rule != nil && rule.Action == object.CommandActionBlock {
+		return GetBlockedMessage(rule), nil
+	}
+	return "", nil
 }
 
 func GetBlockedMessage(rule *object.CommandRule) string {
-	return fmt.Sprintf("the command is blocked by the rule: %s", getRuleName(rule))
+	return fmt.Sprintf("the command is blocked by the rule: %s", rule.GetDisplayName())
 }

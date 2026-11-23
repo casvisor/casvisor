@@ -190,11 +190,11 @@ func (s *Session) serve(w http.ResponseWriter, r *http.Request) {
 		command.Rule = rule.GetId()
 		command.Action = rule.Action
 		if rule.Action == object.CommandActionBlock {
-			ruleName := rule.DisplayName
-			if ruleName == "" {
-				ruleName = rule.Name
-			}
+			ruleName := rule.GetDisplayName()
 			s.block(w, command, fmt.Sprintf("the request is blocked by the rule: %s", ruleName), "The request is blocked", fmt.Sprintf("The request is blocked by the rule: %s.", ruleName))
+			return
+		}
+		if rule.Action == object.CommandActionReview && !s.review(w, r, command, rule) {
 			return
 		}
 	}
@@ -242,6 +242,60 @@ func (s *Session) forward(w http.ResponseWriter, r *http.Request) (aborted bool)
 
 	s.proxy.ServeHTTP(w, r)
 	return false
+}
+
+// review lets a request that a Review rule matched through once an administrator has approved
+// it. A browser can't wait for the review, so the request is answered with a page that says it
+// waits, and the same request sent again after the approval goes through, once.
+func (s *Session) review(w http.ResponseWriter, r *http.Request, command *object.Command, rule *object.CommandRule) bool {
+	review, err := object.FindCommandReview(s.asset.Owner, s.id, command.Text)
+	if err != nil {
+		logs.Error(fmt.Sprintf("webproxy.review(): %s", err.Error()))
+		s.block(w, command, "the request is blocked because its review can't be read", "The request is blocked", "Its review can't be read.")
+		return false
+	}
+
+	// a page the browser navigated to reloads by itself until it is approved
+	refresh := 0
+	again := "Send it again once it is approved."
+	if isSafeMethod(r.Method) && isNavigation(r) {
+		refresh = 5
+		again = "This page reloads by itself and opens once it is approved."
+	}
+
+	if review == nil {
+		review, err = object.AddCommandReview(command, rule)
+		if err != nil {
+			logs.Error(fmt.Sprintf("webproxy.review(): %s", err.Error()))
+			s.block(w, command, "the request is blocked because it can't be held for review", "The request is blocked", "It can't be held for review.")
+			return false
+		}
+		command.Review = review.Name
+		command.Error = "the request waits for review"
+		command.StatusCode = http.StatusForbidden
+		s.save(command)
+	}
+
+	switch review.Status {
+	case object.CommandReviewPending:
+		writePageRefresh(w, http.StatusForbidden, "The request waits for review", fmt.Sprintf("This request needs the approval of an administrator by the rule: %s. It waits for review (request %s) for up to %d minutes. %s", rule.GetDisplayName(), review.Name, int(object.CommandReviewTimeout.Minutes()), again), "", refresh)
+		return false
+	case object.CommandReviewApproved:
+		used, err := object.ConsumeCommandReview(review.GetId())
+		if err != nil {
+			logs.Error(fmt.Sprintf("webproxy.review(): %s", err.Error()))
+		}
+		if !used {
+			writePage(w, http.StatusForbidden, "The request is not approved", "Its approval has just been used. Send it again to ask for a new review.", "")
+			return false
+		}
+		command.Review, command.Reviewer = review.Name, review.Reviewer
+		return true
+	default:
+		outcome := review.GetReviewOutcome()
+		writePage(w, http.StatusForbidden, "The request is not approved", strings.ToUpper(outcome[:1])+outcome[1:]+".", "")
+		return false
+	}
 }
 
 func (s *Session) block(w http.ResponseWriter, command *object.Command, reason string, title string, message string) {
@@ -505,6 +559,11 @@ small{color:#8a9099}
 `
 
 func writePage(w http.ResponseWriter, status int, title string, message string, link string) {
+	writePageRefresh(w, status, title, message, link, 0)
+}
+
+// writePageRefresh writes a page of Casvisor that the browser reloads every refresh seconds, if set.
+func writePageRefresh(w http.ResponseWriter, status int, title string, message string, link string, refresh int) {
 	linkHtml := ""
 	if link != "" {
 		linkHtml = fmt.Sprintf(`<p><a href="%s">Go to Casvisor</a></p>`, html.EscapeString(link))
@@ -518,6 +577,9 @@ func writePage(w http.ResponseWriter, status int, title string, message string, 
 	header.Set("Cache-Control", "no-store")
 	header.Set("X-Content-Type-Options", "nosniff")
 	header.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+	if refresh > 0 {
+		header.Set("Refresh", fmt.Sprintf("%d", refresh))
+	}
 	w.WriteHeader(status)
 	_, _ = fmt.Fprintf(w, pageTemplate, html.EscapeString(title), html.EscapeString(title), html.EscapeString(message), linkHtml)
 }

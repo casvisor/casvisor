@@ -311,7 +311,30 @@ export interface CommandRule {
   groups: string[] | null;
   assets: string[] | null;
   assetTags: string[] | null;
+  /** the administrators who may approve what a Review rule holds, all of them when empty */
+  reviewers?: string[] | null;
   isEnabled: boolean;
+}
+
+/** A command that a Review rule holds until an administrator approves it. */
+export interface CommandReview {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  session: string;
+  asset: string;
+  user: string;
+  operator: string;
+  clientIp: string;
+  protocol: string;
+  text: string;
+  rule: string;
+  status: string;
+  expireTime: string;
+  reviewer: string;
+  reviewedTime: string;
+  comment: string;
 }
 
 export interface Command {
@@ -326,6 +349,9 @@ export interface Command {
   text: string;
   action: string;
   rule: string;
+  /** the review of a command a Review rule held, and who decided it */
+  review?: string;
+  reviewer?: string;
   protocol: string;
   rowCount: number;
   /** the HTTP status of a request in a web session */

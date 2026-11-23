@@ -26,13 +26,14 @@ import (
 )
 
 const (
-	CommandActionBlock = "Block"
-	CommandActionAlert = "Alert"
+	CommandActionBlock  = "Block"
+	CommandActionReview = "Review"
+	CommandActionAlert  = "Alert"
 )
 
-// CommandRule blocks or flags the commands that match its pattern, for the users
-// and assets it covers; empty users and groups cover everyone, empty assets and
-// asset tags cover every asset.
+// CommandRule blocks, holds for review or flags the commands that match its pattern, for the
+// users and assets it covers; empty users and groups cover everyone, empty assets and asset
+// tags cover every asset.
 type CommandRule struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -47,6 +48,9 @@ type CommandRule struct {
 	Groups    []string `xorm:"mediumtext" json:"groups"`
 	Assets    []string `xorm:"mediumtext" json:"assets"`
 	AssetTags []string `xorm:"mediumtext" json:"assetTags"`
+	// Reviewers are the administrators who may approve the commands a Review rule holds, all
+	// administrators of the organization when empty
+	Reviewers []string `xorm:"mediumtext" json:"reviewers"`
 	IsEnabled bool     `json:"isEnabled"`
 }
 
@@ -157,10 +161,51 @@ func (rule *CommandRule) check() error {
 		return fmt.Errorf("invalid pattern: %s", err.Error())
 	}
 
-	if rule.Action != CommandActionBlock && rule.Action != CommandActionAlert {
+	if rule.Action != CommandActionBlock && rule.Action != CommandActionReview && rule.Action != CommandActionAlert {
 		return fmt.Errorf("invalid action: %s", rule.Action)
 	}
+	if rule.Action != CommandActionReview {
+		rule.Reviewers = nil
+	}
 	return nil
+}
+
+// CanReviewCommand tells whether the user may approve or reject the commands the rule holds.
+func (rule *CommandRule) CanReviewCommand(user *casdoorsdk.User) bool {
+	if user == nil {
+		return false
+	}
+	if user.Owner == "built-in" {
+		return true
+	}
+	if user.Owner != rule.Owner || !user.IsAdmin {
+		return false
+	}
+	return len(rule.Reviewers) == 0 || slices.Contains(rule.Reviewers, user.Name)
+}
+
+func getActionRank(action string) int {
+	switch action {
+	case CommandActionBlock:
+		return 3
+	case CommandActionReview:
+		return 2
+	case CommandActionAlert:
+		return 1
+	}
+	return 0
+}
+
+// MoreSevereRule returns the rule whose action goes further, Block before Review before
+// Alert, the first one when they are alike.
+func MoreSevereRule(a *CommandRule, b *CommandRule) *CommandRule {
+	if b == nil {
+		return a
+	}
+	if a == nil || getActionRank(b.Action) > getActionRank(a.Action) {
+		return b
+	}
+	return a
 }
 
 var patternCache sync.Map
@@ -206,8 +251,8 @@ func (rule *CommandRule) covers(user *casdoorsdk.User, asset *Asset) bool {
 	return true
 }
 
-// MatchCommandRule returns the rule a command breaks on the asset, a Block rule
-// before an Alert rule, or nil when the command may run without notice.
+// MatchCommandRule returns the rule a command breaks on the asset, a Block rule before a
+// Review rule before an Alert rule, or nil when the command may run without notice.
 func MatchCommandRule(user *casdoorsdk.User, asset *Asset, command string) (*CommandRule, error) {
 	rules, err := GetCommandRules(asset.Owner)
 	if err != nil {
@@ -228,9 +273,14 @@ func MatchCommandRule(user *casdoorsdk.User, asset *Asset, command string) (*Com
 		if rule.Action == CommandActionBlock {
 			return rule, nil
 		}
-		if res == nil {
-			res = rule
-		}
+		res = MoreSevereRule(res, rule)
 	}
 	return res, nil
+}
+
+func (rule *CommandRule) GetDisplayName() string {
+	if rule.DisplayName != "" {
+		return rule.DisplayName
+	}
+	return rule.Name
 }

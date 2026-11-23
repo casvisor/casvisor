@@ -135,6 +135,8 @@ func initAPI() {
 	beego.Router("/api/update-command-rule", &controllers.ApiController{}, "POST:UpdateCommandRule")
 	beego.Router("/api/add-command-rule", &controllers.ApiController{}, "POST:AddCommandRule")
 	beego.Router("/api/delete-command-rule", &controllers.ApiController{}, "POST:DeleteCommandRule")
+	beego.Router("/api/get-command-reviews", &controllers.ApiController{}, "GET:GetCommandReviews")
+	beego.Router("/api/review-command", &controllers.ApiController{}, "POST:ReviewCommand")
 	beego.Router("/api/get-commands", &controllers.ApiController{}, "GET:GetCommands")
 	beego.Router("/api/export-commands", &controllers.ApiController{}, "GET:ExportCommands")
 

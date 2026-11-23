@@ -73,6 +73,13 @@ func forwardCommand(command *Command) {
 	} else if command.Action == CommandActionAlert {
 		severity = syslog.SeverityNotice
 		name = "Command alerted"
+	} else if command.Action == CommandActionReview {
+		severity = syslog.SeverityNotice
+		name = "Command reviewed"
+		if command.Error != "" {
+			severity = syslog.SeverityWarning
+			name = "Command not approved"
+		}
 	}
 
 	syslog.Send(syslog.Event{
@@ -89,6 +96,7 @@ func forwardCommand(command *Command) {
 			{Key: "command", CefKey: "msg", Value: command.Text},
 			{Key: "action", CefKey: "act", Value: command.Action},
 			{Key: "rule", CefKey: "cs3", Value: command.Rule},
+			{Key: "reviewer", CefKey: "duser", Value: command.Reviewer},
 		},
 	})
 }

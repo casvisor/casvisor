@@ -14,7 +14,9 @@
 
 import {get, listQuery, post, type ListParams} from "@/backend/request";
 
-export const CommandActions = ["Block", "Alert"];
+export const CommandActions = ["Block", "Review", "Alert"];
+
+export const CommandReviewStatuses = ["Pending", "Approved", "Used", "Rejected", "Canceled", "Expired"];
 
 export function getCommandRules(owner: string, params: ListParams = {}) {
   return get("/api/get-command-rules", listQuery(owner, params));
@@ -38,4 +40,12 @@ export function deleteCommandRule(rule: any) {
 
 export function getCommands(owner: string, params: ListParams = {}) {
   return get("/api/get-commands", listQuery(owner, params));
+}
+
+export function getCommandReviews(owner: string, status: string, params: ListParams = {}) {
+  return get("/api/get-command-reviews", {...listQuery(owner, params), status});
+}
+
+export function reviewCommand(id: string, approve: boolean, comment: string) {
+  return post("/api/review-command", {}, {id, approve, comment});
 }

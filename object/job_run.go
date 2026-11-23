@@ -425,8 +425,8 @@ func (run *jobRun) runOnAsset(rr *jobResultRun) {
 	result.Session = sessionId
 	run.saveResult(rr, "session")
 
-	timeout := time.Duration(run.job.Timeout) * time.Second
-	ctx, cancel := context.WithTimeout(run.ctx, timeout+5*time.Second)
+	// the timeout starts in execute, once the command may run, so that a wait for review doesn't count
+	ctx, cancel := context.WithCancel(run.ctx)
 	defer cancel()
 	AddSessionCloser(sessionId, func(code int, msg string) { cancel() })
 	defer RemoveSessionCloser(sessionId)
@@ -438,14 +438,9 @@ func (run *jobRun) runOnAsset(rr *jobResultRun) {
 			status = JobFailed
 		}
 	}
-	if ctx.Err() != nil && status != JobSucceeded && status != JobBlocked {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			status = JobTimeout
-			err = fmt.Errorf("timed out after %d seconds", run.job.Timeout)
-		} else {
-			status = JobCanceled
-			err = fmt.Errorf("canceled")
-		}
+	if ctx.Err() != nil && status != JobSucceeded && status != JobBlocked && status != JobTimeout {
+		status = JobCanceled
+		err = fmt.Errorf("canceled")
 	}
 	run.endResult(rr, status, err)
 
@@ -474,7 +469,7 @@ func (job *Job) getJobCommandText() string {
 	return job.Content
 }
 
-// matchJobRule checks each line of a command or script against the command rules, a Block rule before an Alert rule.
+// matchJobRule checks each line of a command or script against the command rules, a Block rule before a Review rule before an Alert rule.
 func matchJobRule(user *casdoorsdk.User, asset *Asset, text string) (*CommandRule, error) {
 	var res *CommandRule
 	for _, line := range strings.Split(text, "\n") {
@@ -489,15 +484,13 @@ func matchJobRule(user *casdoorsdk.User, asset *Asset, text string) (*CommandRul
 		if rule != nil && rule.Action == CommandActionBlock {
 			return rule, nil
 		}
-		if res == nil {
-			res = rule
-		}
+		res = MoreSevereRule(res, rule)
 	}
 	return res, nil
 }
 
 // execute runs the job on one asset and returns the status when it is not just success or failure.
-func (run *jobRun) execute(ctx context.Context, rr *jobResultRun, asset *Asset, sessionId string) (string, error) {
+func (run *jobRun) execute(ctx context.Context, rr *jobResultRun, asset *Asset, sessionId string) (status string, resErr error) {
 	job := run.job
 	result := rr.result
 	text := job.getJobCommandText()
@@ -523,17 +516,46 @@ func (run *jobRun) execute(ctx context.Context, rr *jobResultRun, asset *Asset, 
 		command.Rule = rule.GetId()
 		result.Rule = rule.GetId()
 	}
-	err = AddCommand(command)
-	if err != nil {
-		return "", err
+	if rule != nil && rule.Action == CommandActionReview {
+		// the job waits on this asset until another administrator approves it, and canceling
+		// the job withdraws it
+		approved, err := HoldCommand(command, rule, ctx.Done(), func(review *CommandReview) {
+			message := GetHeldMessage(rule, review)
+			rr.logf("%s", strings.ToUpper(message[:1])+message[1:])
+		})
+		addErr := AddCommand(command)
+		if err != nil {
+			return "", err
+		}
+		if addErr != nil {
+			return "", addErr
+		}
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		if !approved {
+			return JobBlocked, fmt.Errorf("%s", command.Error)
+		}
+		_, reviewer := util.GetOwnerAndNameFromIdNoCheck(command.Reviewer)
+		rr.logf("The command is approved by %s", reviewer)
+	} else {
+		err = AddCommand(command)
+		if err != nil {
+			return "", err
+		}
 	}
 	if rule != nil && rule.Action == CommandActionBlock {
-		ruleName := rule.DisplayName
-		if ruleName == "" {
-			ruleName = rule.Name
-		}
-		return JobBlocked, fmt.Errorf("the command is blocked by the rule: %s", ruleName)
+		return JobBlocked, fmt.Errorf("the command is blocked by the rule: %s", rule.GetDisplayName())
 	}
+
+	timeout := time.Duration(job.Timeout) * time.Second
+	ctx, cancelTimeout := context.WithTimeout(ctx, timeout+5*time.Second)
+	defer cancelTimeout()
+	defer func() {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) && (status != "" || resErr != nil) && status != JobBlocked {
+			status, resErr = JobTimeout, fmt.Errorf("timed out after %d seconds", job.Timeout)
+		}
+	}()
 
 	rr.logf("Connecting to %s (%s:%d)", asset.GetId(), asset.Host, asset.Port)
 	client, err := DialSsh(asset)

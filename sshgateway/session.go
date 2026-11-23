@@ -55,6 +55,8 @@ type sessionChannel struct {
 	envs     [][]byte
 	started  bool
 	recorder *terminal.Recorder
+	// done is closed when the client closes the channel
+	done chan struct{}
 }
 
 func (g *gatewayConn) handleSession(newChannel ssh.NewChannel) {
@@ -64,7 +66,8 @@ func (g *gatewayConn) handleSession(newChannel ssh.NewChannel) {
 		return
 	}
 
-	s := &sessionChannel{g: g, down: down}
+	s := &sessionChannel{g: g, down: down, done: make(chan struct{})}
+	defer close(s.done)
 	for req := range reqs {
 		s.mu.Lock()
 		up := s.up
@@ -167,17 +170,28 @@ func (s *sessionChannel) start(req *ssh.Request) {
 			s.fail(req, err.Error())
 			return
 		}
-		rule, err := terminal.CheckCommand(s.g.getSessionId(), s.g.user, s.g.getAsset(), s.g.clientIp, payload.Command)
+		// a command held for review answers the request first, so that the client shows the
+		// message while it waits
+		reqPayload := req.Payload
+		replied := false
+		blocked, err := terminal.CheckCommand(s.g.getSessionId(), s.g.user, s.g.getAsset(), s.g.clientIp, payload.Command, s.done, func(message string) {
+			_ = req.Reply(true, nil)
+			replied = true
+			_, _ = s.down.Stderr().Write([]byte("casvisor: " + message + ", press Ctrl+C to withdraw it\r\n"))
+		})
+		if replied {
+			req = nil
+		}
 		if err != nil {
 			s.fail(req, err.Error())
 			return
 		}
-		if rule != nil {
-			s.fail(req, terminal.GetBlockedMessage(rule))
+		if blocked != "" {
+			s.fail(req, blocked)
 			return
 		}
 
-		s.openUpstream(req.Type, req.Payload, req)
+		s.openUpstream("exec", reqPayload, req)
 	case "shell":
 		if s.g.getAsset() == nil {
 			_ = req.Reply(true, nil)

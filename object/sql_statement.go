@@ -354,7 +354,7 @@ func NormalizeMongoStatement(statement string) string {
 }
 
 // MatchStatementRule matches the command rules against each form of a
-// statement, a Block rule before an Alert rule.
+// statement, a Block rule before a Review rule before an Alert rule.
 func MatchStatementRule(user *casdoorsdk.User, asset *Asset, statement string) (*CommandRule, error) {
 	var res *CommandRule
 	for _, form := range getStatementForms(statement, asset.Protocol) {
@@ -365,9 +365,7 @@ func MatchStatementRule(user *casdoorsdk.User, asset *Asset, statement string) (
 		if rule != nil && rule.Action == CommandActionBlock {
 			return rule, nil
 		}
-		if res == nil {
-			res = rule
-		}
+		res = MoreSevereRule(res, rule)
 	}
 	return res, nil
 }

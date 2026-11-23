@@ -19,7 +19,7 @@ import (
 	"xorm.io/core"
 )
 
-// Command is a command run, or stopped by a rule, in an SSH session, a SQL
+// Command is a command run, held for review or stopped by a rule, in an SSH session, a SQL
 // statement run in a database session, or a request sent in a web session.
 type Command struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
@@ -34,6 +34,9 @@ type Command struct {
 	Text     string `xorm:"mediumtext" json:"text"`
 	Action   string `xorm:"varchar(20)" json:"action"`
 	Rule     string `xorm:"varchar(200)" json:"rule"`
+	// Review and Reviewer are the review of a command a Review rule held, and who decided it
+	Review   string `xorm:"varchar(100)" json:"review"`
+	Reviewer string `xorm:"varchar(200)" json:"reviewer"`
 
 	Protocol string `xorm:"varchar(20)" json:"protocol"`
 	RowCount int64  `json:"rowCount"`

@@ -343,3 +343,35 @@ func notifyLoginReview(review *LoginReview, created bool) {
 	}
 	sendWebhooks(event)
 }
+
+func notifyCommandReview(review *CommandReview, created bool) {
+	// the user of a command is an id, the user of the other events a name
+	user := review.User
+	if strings.Contains(user, "/") {
+		_, user = util.GetOwnerAndNameFromIdNoCheck(user)
+	}
+	event := &WebhookEvent{
+		Type:         WebhookEventCommandReviewReviewed,
+		Title:        "Command " + strings.ToLower(review.Status),
+		Time:         review.ReviewedTime,
+		Organization: review.Owner,
+		User:         user,
+		Fields: []WebhookField{
+			{"review", "Review", review.Name},
+			{"status", "Status", review.Status},
+			{"asset", "Asset", review.Asset},
+			{"command", "Command", review.Text},
+			{"operator", "Operator", review.Operator},
+			{"rule", "Rule", review.Rule},
+			{"clientIp", "Client IP", review.ClientIp},
+			{"session", "Session", review.Session},
+			{"reviewer", "Reviewer", review.Reviewer},
+			{"comment", "Comment", review.Comment},
+		},
+	}
+	if created {
+		event.Type, event.Title, event.Time = WebhookEventCommandReviewCreated, "Command waiting for review", review.CreatedTime
+		event.Fields = append(event.Fields, WebhookField{"expireTime", "Expire time", review.ExpireTime})
+	}
+	sendWebhooks(event)
+}

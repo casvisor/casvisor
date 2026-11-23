@@ -80,7 +80,7 @@ export default function WebhookListPage() {
   return (
     <CrudListPage<Webhook>
       title={i18next.t("general:Webhooks")}
-      description={i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests and sign-ins waiting for review")}
+      description={i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests, and sign-ins and commands waiting for review")}
       columns={columns}
       fetch={fetchWebhooks}
       deps={[owner]}

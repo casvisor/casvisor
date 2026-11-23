@@ -63,6 +63,46 @@ type databaseSession struct {
 
 	mu      sync.Mutex
 	results []*object.SqlResult
+	// reviewCancel is set while a statement waits for review; closed ends the waiting for good
+	reviewCancel chan struct{}
+	closed       bool
+}
+
+// startReview returns the channel that withdraws the statement about to wait for review.
+func (s *databaseSession) startReview() chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cancel := make(chan struct{})
+	if s.closed {
+		close(cancel)
+	} else {
+		s.reviewCancel = cancel
+	}
+	return cancel
+}
+
+// cancelReview withdraws the statement waiting for review, if any, and with close, any later one.
+func (s *databaseSession) cancelReview(closing bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if closing {
+		s.closed = true
+	}
+	if s.reviewCancel != nil {
+		close(s.reviewCancel)
+		s.reviewCancel = nil
+	}
+}
+
+func (s *databaseSession) endReview(cancel chan struct{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.reviewCancel == cancel {
+		s.reviewCancel = nil
+	}
 }
 
 var databaseSessions sync.Map
@@ -91,8 +131,9 @@ func (s *databaseSession) getResult(id string) *object.SqlResult {
 
 // record applies the command rules to a statement and saves it as a command of
 // the session; a blocked statement comes back with the rule in its result. A statement
-// whose rules can't be read is blocked too.
-func (s *databaseSession) record(statement string) (*object.Command, *object.SqlResult) {
+// whose rules can't be read is blocked too. A statement a Review rule matches waits here
+// until it is reviewed, and onHeld is told meanwhile.
+func (s *databaseSession) record(statement string, onHeld func(message string, review *object.CommandReview)) (*object.Command, *object.SqlResult) {
 	rule, ruleErr := object.MatchStatementRule(s.user, s.asset, statement)
 	if ruleErr != nil {
 		logs.Error(fmt.Sprintf("databaseSession.record(): failed to match the command rules: %s", ruleErr.Error()))
@@ -118,12 +159,22 @@ func (s *databaseSession) record(statement string) (*object.Command, *object.Sql
 		command.Action = rule.Action
 		command.Rule = rule.GetId()
 		if rule.Action == object.CommandActionBlock {
-			ruleName := rule.DisplayName
-			if ruleName == "" {
-				ruleName = rule.Name
+			command.Error = fmt.Sprintf("the statement is blocked by the rule: %s", rule.GetDisplayName())
+			blocked = &object.SqlResult{Statement: statement, Error: command.Error, Action: rule.Action, Rule: rule.GetDisplayName()}
+		} else if rule.Action == object.CommandActionReview {
+			cancel := s.startReview()
+			approved, err := object.HoldCommand(command, rule, cancel, func(review *object.CommandReview) {
+				if onHeld != nil {
+					onHeld(object.GetHeldMessage(rule, review), review)
+				}
+			})
+			s.endReview(cancel)
+			if err != nil {
+				logs.Error(fmt.Sprintf("databaseSession.record(): %s", err.Error()))
 			}
-			command.Error = fmt.Sprintf("the statement is blocked by the rule: %s", ruleName)
-			blocked = &object.SqlResult{Statement: statement, Error: command.Error, Action: rule.Action, Rule: ruleName}
+			if !approved {
+				blocked = &object.SqlResult{Statement: statement, Error: command.Error, Action: rule.Action, Rule: rule.GetDisplayName()}
+			}
 		}
 	}
 
@@ -136,8 +187,8 @@ func (s *databaseSession) record(statement string) (*object.Command, *object.Sql
 
 // execute runs a statement after checking it against the command rules; a SQL Server
 // batch may return several results, all recorded on the same command.
-func (s *databaseSession) execute(statement string) []*object.SqlResult {
-	command, blocked := s.record(statement)
+func (s *databaseSession) execute(statement string, onHeld func(message string, review *object.CommandReview)) []*object.SqlResult {
+	command, blocked := s.record(statement, onHeld)
 	if blocked != nil {
 		return []*object.SqlResult{blocked}
 	}
@@ -168,6 +219,14 @@ func (s *databaseSession) execute(statement string) []*object.SqlResult {
 func (s *databaseSession) handle(stream *wsStream, request *databaseRequest) {
 	reply := databaseReply{Type: "reply", Id: request.Id}
 	var err error
+	// a statement held for review is shown as waiting, until a result or the reply comes
+	onHeld := func(message string, review *object.CommandReview) {
+		_ = stream.WriteJSONUnrecorded(databaseReply{Type: "review", Id: request.Id, Message: message, Data: map[string]interface{}{
+			"review":     review.Name,
+			"statement":  review.Text,
+			"expireTime": review.ExpireTime,
+		}})
+	}
 	switch request.Type {
 	case "query":
 		statements := object.SplitDatabaseStatements(request.Sql, s.asset.Protocol)
@@ -178,7 +237,7 @@ func (s *databaseSession) handle(stream *wsStream, request *databaseRequest) {
 		for _, statement := range statements {
 			// the run stops at the first statement that fails
 			failed := false
-			for _, result := range s.execute(statement) {
+			for _, result := range s.execute(statement, onHeld) {
 				if stream.WriteJSONUnrecorded(databaseReply{Type: "result", Id: request.Id, Result: result}) != nil || result.Error != "" {
 					failed = true
 				}
@@ -197,7 +256,7 @@ func (s *databaseSession) handle(stream *wsStream, request *databaseRequest) {
 		reply.Data, err = s.client.GetColumns(request.Database, request.Schema, request.Table)
 	case "use":
 		statement := s.client.GetUseStatement(request.Database)
-		command, blocked := s.record(statement)
+		command, blocked := s.record(statement, onHeld)
 		if blocked != nil {
 			err = fmt.Errorf("%s", blocked.Error)
 			break
@@ -303,9 +362,15 @@ func (c *ApiController) GetAssetDatabase() {
 		if err != nil {
 			continue
 		}
+		// withdrawing a statement waiting for review can't wait behind it
+		if request.Type == "cancel" {
+			s.cancelReview(false)
+			continue
+		}
 		requests <- &request
 	}
 
+	s.cancelReview(true)
 	close(requests)
 	client.Kill()
 	<-done

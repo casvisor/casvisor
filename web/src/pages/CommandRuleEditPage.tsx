@@ -32,8 +32,8 @@ import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 /** "*" grants every user, group or asset, the way the antd page offered it first. */
-function getPrincipalOptions(principals: Principal[]): MultiSelectOption[] {
-  return [{name: "*", displayName: i18next.t("permission:All")}, ...principals].map((item) => ({
+function getPrincipalOptions(principals: Principal[], withAll = true): MultiSelectOption[] {
+  return [...(withAll ? [{name: "*", displayName: i18next.t("permission:All")}] : []), ...principals].map((item) => ({
     value: item.name,
     label: item.displayName && item.displayName !== item.name ? `${item.displayName} (${item.name})` : item.name,
     keywords: item.displayName,
@@ -124,12 +124,20 @@ export default function CommandRuleEditPage() {
         </div>
       </FormRow>
       <FormRow labelKey="command:Action">
-        <SelectField
-          value={rule.action}
-          options={CommandBackend.CommandActions.map((action) => ({id: action, name: i18next.t(`command:${action}`)}))}
-          onChange={(value) => updateField("action", value)}
-        />
+        <div className="flex w-full flex-col gap-1">
+          <SelectField
+            value={rule.action}
+            options={CommandBackend.CommandActions.map((action) => ({id: action, name: i18next.t(`command:${action}`)}))}
+            onChange={(value) => updateField("action", value)}
+          />
+          <span className="text-xs text-muted-foreground">{i18next.t(`command:${rule.action} - Tooltip`)}</span>
+        </div>
       </FormRow>
+      {rule.action === "Review" ? (
+        <FormRow label={i18next.t("command:Reviewers")} tooltip={i18next.t("command:Reviewers - Tooltip")}>
+          <MultiSelect creatable value={rule.reviewers ?? []} options={getPrincipalOptions(users, false)} onChange={(value) => updateField("reviewers", value)} />
+        </FormRow>
+      ) : null}
       <FormRow labelKey="permission:Users">
         <MultiSelect
           creatable

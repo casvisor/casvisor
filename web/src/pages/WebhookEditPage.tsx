@@ -106,7 +106,7 @@ export default function WebhookEditPage() {
   return (
     <EditPageShell
       title={i18next.t(getModeTitleKey("webhook:Edit Webhook", mode))}
-      description={i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests and sign-ins waiting for review")}
+      description={i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests, and sign-ins and commands waiting for review")}
       mode={mode}
       backTo="/webhooks"
       onSave={save}
