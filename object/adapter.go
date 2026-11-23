@@ -266,6 +266,11 @@ func (a *Adapter) createTable() {
 		panic(err)
 	}
 
+	err = a.engine.Sync2(new(AccountBackup))
+	if err != nil {
+		panic(err)
+	}
+
 	err = a.engine.Sync2(new(AssetNode))
 	if err != nil {
 		panic(err)

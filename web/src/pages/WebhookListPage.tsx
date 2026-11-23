@@ -51,6 +51,11 @@ export default function WebhookListPage() {
     type: "JSON",
     url: "https://example.com/casvisor-webhook",
     secret: "",
+    smtpHost: "",
+    smtpPort: 465,
+    smtpUsername: "",
+    smtpFrom: "",
+    recipients: [],
     events: [...WebhookBackend.WebhookEvents],
     isEnabled: false,
   });
@@ -64,7 +69,18 @@ export default function WebhookListPage() {
       width: 110,
       render: (value) => i18next.t(`webhook:${value}`),
     },
-    textColumn<Webhook>({dataIndex: "url", title: i18next.t("webhook:URL"), width: 260, searchable: true}),
+    {
+      dataIndex: "url",
+      title: i18next.t("webhook:URL"),
+      width: 260,
+      searchable: true,
+      render: (value: string, webhook) => (webhook.type === "Email" ? (
+        <div className="text-xs">
+          <div className="break-all">{(webhook.recipients ?? []).join(", ")}</div>
+          <div className="text-muted-foreground">{webhook.smtpHost}{webhook.smtpPort ? `:${webhook.smtpPort}` : ""}</div>
+        </div>
+      ) : <span className="break-all text-xs">{value}</span>),
+    },
     {
       dataIndex: "events",
       title: i18next.t("webhook:Events"),
@@ -80,7 +96,7 @@ export default function WebhookListPage() {
   return (
     <CrudListPage<Webhook>
       title={i18next.t("general:Webhooks")}
-      description={i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests, and sign-ins and commands waiting for review")}
+      description={i18next.t("general:Notify chat groups, mailboxes or your own systems of blocked commands, reviews, jobs and account risks")}
       columns={columns}
       fetch={fetchWebhooks}
       deps={[owner]}

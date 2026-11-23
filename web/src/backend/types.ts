@@ -50,8 +50,43 @@ export interface Webhook {
   type: string;
   url: string;
   secret: string;
+  /** the SMTP server of the Email type, whose password is the secret */
+  smtpHost: string;
+  smtpPort: number;
+  smtpUsername: string;
+  smtpFrom: string;
+  recipients: string[] | null;
   events: string[] | null;
   isEnabled: boolean;
+}
+
+/** Makes zip files of the passwords and private keys Casvisor keeps, encrypted with AES-256, to download or to email on a schedule. */
+export interface AccountBackup {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  includeAssets: boolean;
+  password: string;
+  webhooks: string[] | null;
+  cron: string;
+  timeZone: string;
+  isEnabled: boolean;
+  nextRunTime: string;
+  lastRunTime: string;
+  lastRunStatus: string;
+  lastRunMessage: string;
+  lastAccountCount: number;
+}
+
+/** What a restore of a backup did, or would do, to the assets and to the accounts. */
+export interface AccountRestoreReport {
+  assets: AssetImportResult[] | null;
+  assetSummary: AssetImportSummary;
+  accounts: AssetImportResult[] | null;
+  accountSummary: AssetImportSummary;
 }
 
 /** Decides what happens when the users it covers sign in; the first rule by priority that matches wins. */

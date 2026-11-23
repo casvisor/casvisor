@@ -394,13 +394,15 @@ func runDueJobSchedules(now time.Time) {
 	}
 }
 
-// StartJobScheduler checks the schedules at the start of every minute.
+// StartJobScheduler checks the job schedules and the account backups at the start of every minute.
 func StartJobScheduler() {
 	go func() {
 		for {
 			now := time.Now()
 			time.Sleep(now.Truncate(time.Minute).Add(time.Minute + time.Second).Sub(now))
-			runDueJobSchedules(time.Now())
+			now = time.Now()
+			runDueJobSchedules(now)
+			runDueAccountBackups(now)
 		}
 	}()
 }

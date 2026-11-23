@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {CalendarClock, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, LayoutDashboard, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
+import {ArchiveRestore, CalendarClock, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, LayoutDashboard, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -123,6 +123,12 @@ export function getNavGroups(account: Account | null | undefined): NavGroup[] {
         label: i18next.t("general:Account risks"),
         icon: ShieldQuestion,
         description: i18next.t("general:Weak, old and reused passwords, and accounts on the assets that Casvisor does not manage"),
+      },
+      {
+        key: "/account-backups",
+        label: i18next.t("general:Account backups"),
+        icon: ArchiveRestore,
+        description: i18next.t("general:Zip files of the passwords and private keys, encrypted, to download or to email on a schedule"),
       },
     );
   }
@@ -237,7 +243,7 @@ export function getNavGroups(account: Account | null | undefined): NavGroup[] {
           key: "/webhooks",
           label: i18next.t("general:Webhooks"),
           icon: Webhook,
-          description: i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests, and sign-ins and commands waiting for review"),
+          description: i18next.t("general:Notify chat groups, mailboxes or your own systems of blocked commands, reviews, jobs and account risks"),
         },
         {key: "/swagger", label: i18next.t("general:Swagger"), icon: FileCode, href: "/swagger/"},
       ],

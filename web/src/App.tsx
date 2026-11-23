@@ -103,6 +103,8 @@ export default function App() {
           <Route path="/account-templates" element={page("AccountTemplateListPage")} />
           <Route path="/account-templates/:owner/:name" element={page("AccountTemplateEditPage")} />
           <Route path="/account-risks" element={page("AccountRiskListPage")} />
+          <Route path="/account-backups" element={page("AccountBackupListPage")} />
+          <Route path="/account-backups/:owner/:name" element={page("AccountBackupEditPage")} />
           <Route path="/connect-rules" element={page("ConnectRuleListPage")} />
           <Route path="/connect-rules/:owner/:name" element={page("ConnectRuleEditPage")} />
           <Route path="/command-rules" element={page("CommandRuleListPage")} />

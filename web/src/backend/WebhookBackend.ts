@@ -14,7 +14,7 @@
 
 import {get, listQuery, post, type ListParams} from "@/backend/request";
 
-export const WebhookTypes = ["JSON", "DingTalk", "Feishu", "WeCom", "Slack"];
+export const WebhookTypes = ["JSON", "DingTalk", "Feishu", "WeCom", "Slack", "Email"];
 
 export const WebhookEvents = [
   "command.blocked",
@@ -28,6 +28,8 @@ export const WebhookEvents = [
   "job.succeeded",
   "job.failed",
   "job_schedule.missed",
+  "account_risk.found",
+  "account_backup.failed",
 ];
 
 export function getWebhooks(owner: string, params: ListParams = {}) {

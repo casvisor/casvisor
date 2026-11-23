@@ -272,10 +272,13 @@ func scanAccountRisks(owner string, scan *AccountRiskScan) error {
 	}
 	wg.Wait()
 
-	found, err := saveAccountRisks(owner, c.findings, scanned)
+	found, opened, err := saveAccountRisks(owner, c.findings, scanned)
 	riskScansLock.Lock()
 	scan.Found = found
 	riskScansLock.Unlock()
+	if len(opened) > 0 {
+		notifyAccountRisks(owner, opened, found)
+	}
 	return err
 }
 
@@ -499,12 +502,14 @@ func reportLinuxAccounts(c *riskCollector, asset *Asset, known []string, output 
 var scanOnlyRisks = []string{RiskEmptyPassword, RiskUnmanagedAccount, RiskUnmanagedPrivileged}
 
 // saveAccountRisks keeps what the scan found and resolves the open risks it no longer finds:
-// the ones that only a scan of the asset finds are resolved only when the asset was read.
-func saveAccountRisks(owner string, findings map[string]*AccountRisk, scanned map[string]bool) (int, error) {
+// the ones that only a scan of the asset finds are resolved only when the asset was read. It returns
+// the count of the open risks and the risks it opened: the new ones and the ones that came back.
+func saveAccountRisks(owner string, findings map[string]*AccountRisk, scanned map[string]bool) (int, []*AccountRisk, error) {
+	opened := []*AccountRisk{}
 	old := []*AccountRisk{}
 	err := adapter.engine.Find(&old, &AccountRisk{Owner: owner})
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	now := util.GetCurrentTime()
 
@@ -516,7 +521,7 @@ func saveAccountRisks(owner string, findings map[string]*AccountRisk, scanned ma
 			}
 			_, err = adapter.engine.ID(core.PK{risk.Owner, risk.Name}).Cols("status", "resolved_time").Update(&AccountRisk{Status: RiskResolved, ResolvedTime: now})
 			if err != nil {
-				return 0, err
+				return 0, nil, err
 			}
 			continue
 		}
@@ -524,11 +529,12 @@ func saveAccountRisks(owner string, findings map[string]*AccountRisk, scanned ma
 		finding.Status = risk.Status
 		if risk.Status == RiskResolved {
 			finding.Status = RiskOpen
+			opened = append(opened, finding)
 		}
 		finding.FirstSeenTime, finding.LastSeenTime, finding.Comment = risk.FirstSeenTime, now, risk.Comment
 		_, err = adapter.engine.ID(core.PK{risk.Owner, risk.Name}).Cols("level", "detail", "managed", "status", "last_seen_time", "resolved_time").Update(finding)
 		if err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 		delete(findings, risk.Name)
 	}
@@ -538,12 +544,13 @@ func saveAccountRisks(owner string, findings map[string]*AccountRisk, scanned ma
 		finding.CreatedTime, finding.FirstSeenTime, finding.LastSeenTime = now, now, now
 		_, err = adapter.engine.Insert(finding)
 		if err != nil {
-			return 0, err
+			return 0, nil, err
 		}
+		opened = append(opened, finding)
 	}
 
 	count, err := adapter.engine.Where("owner = ? and status = ?", owner, RiskOpen).Count(&AccountRisk{})
-	return int(count), err
+	return int(count), opened, err
 }
 
 // StartAccountRiskScanner scans the accounts of every organization once a day.

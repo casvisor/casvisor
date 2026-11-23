@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strings"
+	"unicode"
 
 	"github.com/casvisor/casvisor/util"
 	"xorm.io/core"
@@ -29,9 +31,10 @@ const (
 	WebhookTypeFeishu   = "Feishu"
 	WebhookTypeWeCom    = "WeCom"
 	WebhookTypeSlack    = "Slack"
+	WebhookTypeEmail    = "Email"
 )
 
-var webhookTypes = []string{WebhookTypeJson, WebhookTypeDingTalk, WebhookTypeFeishu, WebhookTypeWeCom, WebhookTypeSlack}
+var webhookTypes = []string{WebhookTypeJson, WebhookTypeDingTalk, WebhookTypeFeishu, WebhookTypeWeCom, WebhookTypeSlack, WebhookTypeEmail}
 
 const (
 	WebhookEventCommandBlocked        = "command.blocked"
@@ -45,6 +48,8 @@ const (
 	WebhookEventJobSucceeded          = "job.succeeded"
 	WebhookEventJobFailed             = "job.failed"
 	WebhookEventJobScheduleMissed     = "job_schedule.missed"
+	WebhookEventAccountRiskFound      = "account_risk.found"
+	WebhookEventAccountBackupFailed   = "account_backup.failed"
 	WebhookEventTest                  = "test"
 )
 
@@ -54,10 +59,11 @@ var webhookEvents = []string{
 	WebhookEventLoginReviewCreated, WebhookEventLoginReviewReviewed,
 	WebhookEventCommandReviewCreated, WebhookEventCommandReviewReviewed,
 	WebhookEventJobSucceeded, WebhookEventJobFailed, WebhookEventJobScheduleMissed,
+	WebhookEventAccountRiskFound, WebhookEventAccountBackupFailed,
 }
 
 // Webhook posts the events of its organization that it subscribes to, to a URL: as JSON, or as a
-// text message to a DingTalk, Feishu, WeCom or Slack bot.
+// text message to a DingTalk, Feishu, WeCom or Slack bot, or emails them with an SMTP server.
 type Webhook struct {
 	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
 	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
@@ -66,9 +72,17 @@ type Webhook struct {
 	DisplayName string `xorm:"varchar(100)" json:"displayName"`
 	Description string `xorm:"varchar(500)" json:"description"`
 
-	Type      string   `xorm:"varchar(20)" json:"type"`
-	Url       string   `xorm:"varchar(1000)" json:"url"`
-	Secret    string   `xorm:"varchar(500)" json:"secret"`
+	Type   string `xorm:"varchar(20)" json:"type"`
+	Url    string `xorm:"varchar(1000)" json:"url"`
+	Secret string `xorm:"varchar(500)" json:"secret"`
+
+	// the SMTP server of the Email type, whose password is the secret
+	SmtpHost     string   `xorm:"varchar(200)" json:"smtpHost"`
+	SmtpPort     int      `json:"smtpPort"`
+	SmtpUsername string   `xorm:"varchar(200)" json:"smtpUsername"`
+	SmtpFrom     string   `xorm:"varchar(200)" json:"smtpFrom"`
+	Recipients   []string `xorm:"varchar(2000)" json:"recipients"`
+
 	Events    []string `xorm:"varchar(1000)" json:"events"`
 	IsEnabled bool     `json:"isEnabled"`
 }
@@ -142,9 +156,30 @@ func (webhook *Webhook) check() error {
 		return fmt.Errorf("invalid webhook type: %s", webhook.Type)
 	}
 
-	u, err := url.Parse(webhook.Url)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return fmt.Errorf("invalid webhook URL: %s, it should start with http:// or https://", webhook.Url)
+	if webhook.Type == WebhookTypeEmail {
+		webhook.Url = ""
+		webhook.SmtpHost = strings.TrimSpace(webhook.SmtpHost)
+		webhook.SmtpUsername = strings.TrimSpace(webhook.SmtpUsername)
+		webhook.SmtpFrom = strings.TrimSpace(webhook.SmtpFrom)
+		recipients := []string{}
+		for _, recipient := range webhook.Recipients {
+			for _, address := range strings.FieldsFunc(recipient, func(r rune) bool { return r == ',' || r == ';' || unicode.IsSpace(r) }) {
+				if !slices.Contains(recipients, address) {
+					recipients = append(recipients, address)
+				}
+			}
+		}
+		webhook.Recipients = recipients
+		err := webhook.checkMail()
+		if err != nil {
+			return err
+		}
+	} else {
+		webhook.SmtpHost, webhook.SmtpPort, webhook.SmtpUsername, webhook.SmtpFrom, webhook.Recipients = "", 0, "", "", []string{}
+		u, err := url.Parse(webhook.Url)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return fmt.Errorf("invalid webhook URL: %s, it should start with http:// or https://", webhook.Url)
+		}
 	}
 
 	for _, event := range webhook.Events {

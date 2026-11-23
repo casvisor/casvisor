@@ -106,7 +106,7 @@ export default function WebhookEditPage() {
   return (
     <EditPageShell
       title={i18next.t(getModeTitleKey("webhook:Edit Webhook", mode))}
-      description={i18next.t("general:Notify chat groups or your own systems of blocked commands, access requests, and sign-ins and commands waiting for review")}
+      description={i18next.t("general:Notify chat groups, mailboxes or your own systems of blocked commands, reviews, jobs and account risks")}
       mode={mode}
       backTo="/webhooks"
       onSave={save}
@@ -138,9 +138,42 @@ export default function WebhookEditPage() {
           onChange={(value) => updateField("type", value)}
         />
       </FormRow>
-      <FormRow label={i18next.t("webhook:URL")} tooltip={i18next.t("webhook:URL - Tooltip")}>
-        <Input value={webhook.url} placeholder={urlPlaceholders[webhook.type]} onChange={(e) => updateField("url", e.target.value.trim())} />
-      </FormRow>
+      {webhook.type === "Email" ? (
+        <>
+          <FormRow label={i18next.t("webhook:SMTP server")} tooltip={i18next.t("webhook:SMTP server - Tooltip")}>
+            <div className="flex w-full gap-2">
+              <Input value={webhook.smtpHost ?? ""} placeholder="smtp.example.com" onChange={(e) => updateField("smtpHost", e.target.value.trim())} />
+              <Input
+                className="w-24 shrink-0"
+                type="number"
+                value={webhook.smtpPort || ""}
+                placeholder="465"
+                onChange={(e) => updateField("smtpPort", Number(e.target.value) || 0)}
+              />
+            </div>
+          </FormRow>
+          <FormRow label={i18next.t("webhook:SMTP username")} tooltip={i18next.t("webhook:SMTP username - Tooltip")}>
+            <Input value={webhook.smtpUsername ?? ""} placeholder="casvisor@example.com" onChange={(e) => updateField("smtpUsername", e.target.value.trim())} />
+          </FormRow>
+          <FormRow label={i18next.t("webhook:SMTP password")} tooltip={i18next.t("webhook:SMTP password - Tooltip")}>
+            <Input type="password" autoComplete="new-password" value={webhook.secret} onChange={(e) => updateField("secret", e.target.value.trim())} />
+          </FormRow>
+          <FormRow label={i18next.t("webhook:Sender")} tooltip={i18next.t("webhook:Sender - Tooltip")}>
+            <Input value={webhook.smtpFrom ?? ""} placeholder="Casvisor <casvisor@example.com>" onChange={(e) => updateField("smtpFrom", e.target.value)} />
+          </FormRow>
+          <FormRow label={i18next.t("webhook:Recipients")} tooltip={i18next.t("webhook:Recipients - Tooltip")}>
+            <Input
+              value={(webhook.recipients ?? []).join(", ")}
+              placeholder="ops@example.com, security@example.com"
+              onChange={(e) => updateField("recipients", e.target.value.split(/[,;\s]+/).filter((address, index, all) => address !== "" || index === all.length - 1))}
+            />
+          </FormRow>
+        </>
+      ) : (
+        <FormRow label={i18next.t("webhook:URL")} tooltip={i18next.t("webhook:URL - Tooltip")}>
+          <Input value={webhook.url} placeholder={urlPlaceholders[webhook.type]} onChange={(e) => updateField("url", e.target.value.trim())} />
+        </FormRow>
+      )}
       {secretTip ? (
         <FormRow label={i18next.t("webhook:Secret")} tooltip={i18next.t(secretTip)}>
           <Input type="password" autoComplete="new-password" value={webhook.secret} onChange={(e) => updateField("secret", e.target.value.trim())} />

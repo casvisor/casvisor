@@ -95,6 +95,10 @@ func getHmac(key string, message string) []byte {
 
 // post sends the event in the format of the webhook's type, signed when the webhook has a secret.
 func (webhook *Webhook) post(event *WebhookEvent) error {
+	if webhook.Type == WebhookTypeEmail {
+		return webhook.sendMail("[Casvisor] "+event.Title, event.getText(), nil)
+	}
+
 	target := webhook.Url
 	header := http.Header{}
 	var body interface{}
@@ -442,6 +446,50 @@ func notifyJobScheduleMissed(schedule *JobSchedule, status string, message strin
 		Fields: []WebhookField{
 			{"schedule", "Schedule", schedule.Name},
 			{"status", "Status", status},
+			{"reason", "Reason", message},
+		},
+	})
+}
+
+// notifyAccountRisks tells of the risks a scan of the accounts opened, which the scans before did not find.
+func notifyAccountRisks(owner string, opened []*AccountRisk, open int) {
+	slices.SortFunc(opened, func(a, b *AccountRisk) int {
+		return strings.Compare(a.Asset+"/"+a.Username+"/"+a.Kind, b.Asset+"/"+b.Username+"/"+b.Kind)
+	})
+	lines := []string{}
+	high := 0
+	for _, risk := range opened {
+		if risk.Level == RiskLevelHigh {
+			high++
+		}
+		if len(lines) < 10 {
+			lines = append(lines, fmt.Sprintf("%s/%s: %s", risk.Asset, risk.Username, risk.Kind))
+		} else if len(lines) == 10 {
+			lines = append(lines, "...")
+		}
+	}
+	sendWebhooks(&WebhookEvent{
+		Type:         WebhookEventAccountRiskFound,
+		Title:        "New account risks found",
+		Organization: owner,
+		Fields: []WebhookField{
+			{"new", "New", strconv.Itoa(len(opened))},
+			{"high", "High", strconv.Itoa(high)},
+			{"open", "Open in all", strconv.Itoa(open)},
+			{"risks", "Risks", strings.Join(lines, "; ")},
+		},
+	})
+}
+
+// notifyAccountBackupFailed tells that a backup of the accounts was not made or not sent.
+func notifyAccountBackupFailed(backup *AccountBackup, message string, time string) {
+	sendWebhooks(&WebhookEvent{
+		Type:         WebhookEventAccountBackupFailed,
+		Title:        "Account backup failed",
+		Time:         time,
+		Organization: backup.Owner,
+		Fields: []WebhookField{
+			{"backup", "Backup", backup.Name},
 			{"reason", "Reason", message},
 		},
 	})
