@@ -210,6 +210,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **System accounts** — several accounts per asset, such as `root`, `deploy` and `readonly`; permissions decide which one a user may connect with, and passwords can be changed by hand or on a schedule
 - **Account templates** — give many assets the same system account at once, with one password or a random one for each asset, pushed to the assets and rotated; applying again keeps them in line
 - **Account risks** — weak, old and reused passwords, accounts with no password, and accounts on the assets that Casvisor does not manage, privileged ones first, found by a daily scan; fix them in bulk by changing the password, managing the account, or locking it on the asset
+- **Account backups** — the passwords and private keys of the system accounts and the assets, in a zip file encrypted with AES-256 that 7-Zip, WinRAR and macOS open with its password; download it, or have it emailed on a cron schedule, and restore it into this or a new Casvisor with a preview first
 - **Access requests** — users ask for an asset with a reason and an end time, an administrator approves, and withdrawing it disconnects open sessions
 - **Two-step verification** — for local accounts, with any TOTP authenticator app
 - **Connect rules** — allow or reject ways to connect by user, group, asset, tag and account: the browser, SSH clients, SFTP, scp and rsync, port forwarding, and Remote Desktop Connection; for example only the browser for contractors, or no port forwarding to production
@@ -225,6 +226,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **Command records** — SSH and Telnet commands are read off a virtual screen, so tab completion, history and line edits are captured as they ran; SQL statements are logged too
 - **Operation log** — file transfers and every change made through the API
 - **Export and syslog** — session, command and operation logs export to CSV and can be forwarded to a syslog server as RFC 5424 JSON or CEF
+- **Notifications** — blocked and flagged commands, access requests, sign-ins and commands waiting for review, finished jobs, new account risks and failed backups, sent to DingTalk, Feishu, WeCom and Slack group bots, to your own systems as signed JSON, or by email through your SMTP server
 
 **⚙️ Operate**
 

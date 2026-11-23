@@ -33,6 +33,34 @@
                 }
             }
         },
+        "/add-account-backup": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "add an account backup",
+                "operationId": "ApiController.AddAccountBackup",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the account backup",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountBackup"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-account-template": {
             "post": {
                 "tags": [
@@ -826,6 +854,34 @@
                 }
             }
         },
+        "/delete-account-backup": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "delete an account backup",
+                "operationId": "ApiController.DeleteAccountBackup",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The account backup",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountBackup"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/delete-account-template": {
             "post": {
                 "tags": [
@@ -1333,6 +1389,29 @@
                 }
             }
         },
+        "/download-account-backup": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "download the backup made now: a zip file encrypted with AES-256 and the password of the backup",
+                "operationId": "ApiController.DownloadAccountBackup",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account backup",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{file} file The zip file"
+                    }
+                }
+            }
+        },
         "/download-session-file": {
             "get": {
                 "tags": [
@@ -1632,6 +1711,61 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.AccessRequest"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-account-backup": {
+            "get": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "get an account backup, with its password masked",
+                "operationId": "ApiController.GetAccountBackup",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account backup",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountBackup"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-account-backups": {
+            "get": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "get the account backups, by page, with their passwords masked",
+                "operationId": "ApiController.GetAccountBackups",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the account backups",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.AccountBackup"
+                            }
                         }
                     }
                 }
@@ -3562,6 +3696,51 @@
                 }
             }
         },
+        "/restore-account-backup": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "restore the assets and the accounts of a backup, from its zip file in the form field \"file\"",
+                "operationId": "ApiController.RestoreAccountBackup",
+                "parameters": [
+                    {
+                        "in": "formData",
+                        "name": "owner",
+                        "description": "The organization to restore into",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "formData",
+                        "name": "password",
+                        "description": "The password of the zip file",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "formData",
+                        "name": "overwrite",
+                        "description": "Whether to update the existing assets and accounts as they are in the backup",
+                        "type": "boolean"
+                    },
+                    {
+                        "in": "formData",
+                        "name": "dryRun",
+                        "description": "Whether to only tell what the restore would do",
+                        "type": "boolean"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountRestoreReport"
+                        }
+                    }
+                }
+            }
+        },
         "/review-command": {
             "post": {
                 "tags": [
@@ -3725,6 +3904,32 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.AssetAccount"
+                        }
+                    }
+                }
+            }
+        },
+        "/run-account-backup": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "make the backup now and email it with its webhooks of the Email type",
+                "operationId": "ApiController.RunAccountBackup",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account backup",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
                         }
                     }
                 }
@@ -3979,6 +4184,41 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.Webhook"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/update-account-backup": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "update an account backup; a masked password keeps the saved one",
+                "operationId": "ApiController.UpdateAccountBackup",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account backup",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the account backup",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountBackup"
                         }
                     }
                 ],
@@ -4960,6 +5200,67 @@
                 }
             }
         },
+        "object.AccountBackup": {
+            "title": "AccountBackup",
+            "type": "object",
+            "properties": {
+                "createdTime": {
+                    "type": "string"
+                },
+                "cron": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "includeAssets": {
+                    "type": "boolean"
+                },
+                "isEnabled": {
+                    "type": "boolean"
+                },
+                "lastAccountCount": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "lastRunMessage": {
+                    "type": "string"
+                },
+                "lastRunStatus": {
+                    "type": "string"
+                },
+                "lastRunTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nextRunTime": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "timeZone": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "webhooks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "object.AccountInfo": {
             "title": "AccountInfo",
             "type": "object",
@@ -4972,6 +5273,30 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "object.AccountRestoreReport": {
+            "title": "AccountRestoreReport",
+            "type": "object",
+            "properties": {
+                "accountSummary": {
+                    "$ref": "#/definitions/object.AssetImportSummary"
+                },
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.AssetImportResult"
+                    }
+                },
+                "assetSummary": {
+                    "$ref": "#/definitions/object.AssetImportSummary"
+                },
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.AssetImportResult"
+                    }
                 }
             }
         },
@@ -6848,7 +7173,26 @@
                 "owner": {
                     "type": "string"
                 },
+                "recipients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "secret": {
+                    "type": "string"
+                },
+                "smtpFrom": {
+                    "type": "string"
+                },
+                "smtpHost": {
+                    "type": "string"
+                },
+                "smtpPort": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "smtpUsername": {
                     "type": "string"
                 },
                 "type": {
