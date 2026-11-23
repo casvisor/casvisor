@@ -33,6 +33,34 @@
                 }
             }
         },
+        "/add-account-template": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "add an account template",
+                "operationId": "ApiController.AddAccountTemplate",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the account template",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountTemplate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-asset": {
             "post": {
                 "tags": [
@@ -560,6 +588,38 @@
                 }
             }
         },
+        "/apply-account-template": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "create the template's account on the assets it covers, or bring the accounts it created in line with it; with dryRun nothing is saved or pushed",
+                "operationId": "ApiController.ApplyAccountTemplate",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account template",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "dryRun",
+                        "description": "Only preview what would change",
+                        "type": "boolean"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.TemplateApplyResult"
+                        }
+                    }
+                }
+            }
+        },
         "/approve-access-request": {
             "post": {
                 "tags": [
@@ -753,6 +813,34 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.AccessRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/delete-account-template": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "delete an account template; the accounts it created are kept",
+                "operationId": "ApiController.DeleteAccountTemplate",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The account template",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountTemplate"
                         }
                     }
                 ],
@@ -1544,6 +1632,122 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.AccessRequest"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-account-risk-scan": {
+            "get": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "get how the last scan of the accounts of the organization went",
+                "operationId": "ApiController.GetAccountRiskScan",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The organization",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountRiskScan"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-account-risks": {
+            "get": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "get the risks found in the accounts of the assets, by page",
+                "operationId": "ApiController.GetAccountRisks",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the risks",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "description": "Open, Ignored or Resolved",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.AccountRisk"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/get-account-template": {
+            "get": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "get an account template, with its secrets masked",
+                "operationId": "ApiController.GetAccountTemplate",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account template",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountTemplate"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-account-templates": {
+            "get": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "get the account templates, with their secrets masked",
+                "operationId": "ApiController.GetAccountTemplates",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the account templates",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.AccountTemplate"
+                            }
                         }
                     }
                 }
@@ -3521,6 +3725,60 @@
                 }
             }
         },
+        "/set-account-risk-status": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "ignore a risk with a comment, or open it again",
+                "operationId": "ApiController.SetAccountRiskStatus",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The risk, Open or Ignored, and a comment",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.accountRiskStatusForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/start-account-risk-scan": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "check the passwords of the accounts and read the accounts of the SSH assets, in the background",
+                "operationId": "ApiController.StartAccountRiskScan",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The organization",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/start-job": {
             "post": {
                 "tags": [
@@ -3690,6 +3948,41 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.Webhook"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/update-account-template": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "update an account template, keeping its secrets when they are sent masked; apply it to change the accounts",
+                "operationId": "ApiController.UpdateAccountTemplate",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the account template",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the account template",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.AccountTemplate"
                         }
                     }
                 ],
@@ -4381,6 +4674,21 @@
                 }
             }
         },
+        "controllers.accountRiskStatusForm": {
+            "title": "accountRiskStatusForm",
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.importAssetsForm": {
             "title": "importAssetsForm",
             "type": "object",
@@ -4621,6 +4929,145 @@
                 }
             }
         },
+        "object.AccountRisk": {
+            "title": "AccountRisk",
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "firstSeenTime": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "lastSeenTime": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "managed": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "resolvedTime": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.AccountRiskScan": {
+            "title": "AccountRiskScan",
+            "type": "object",
+            "properties": {
+                "done": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "found": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "running": {
+                    "type": "boolean"
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "object.AccountTemplate": {
+            "title": "AccountTemplate",
+            "type": "object",
+            "properties": {
+                "assetTags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "autoRotate": {
+                    "type": "boolean"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "privateKey": {
+                    "type": "string"
+                },
+                "push": {
+                    "type": "boolean"
+                },
+                "randomPassword": {
+                    "type": "boolean"
+                },
+                "rotateIntervalDays": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "object.Asset": {
             "title": "Asset",
             "type": "object",
@@ -4744,6 +5191,9 @@
                 "rotateStatus": {
                     "type": "string"
                 },
+                "template": {
+                    "type": "string"
+                },
                 "updatedTime": {
                     "type": "string"
                 },
@@ -4772,6 +5222,32 @@
                     "type": "string"
                 },
                 "row": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "object.AssetImportSummary": {
+            "title": "AssetImportSummary",
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "createdNodes": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "failed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "skipped": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "updated": {
                     "type": "integer",
                     "format": "int64"
                 }
@@ -6247,6 +6723,21 @@
                 },
                 "user": {
                     "type": "string"
+                }
+            }
+        },
+        "object.TemplateApplyResult": {
+            "title": "TemplateApplyResult",
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.AssetImportResult"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/object.AssetImportSummary"
                 }
             }
         },
