@@ -3292,6 +3292,37 @@
                 }
             }
         },
+        "/handle-account-risks": {
+            "post": {
+                "tags": [
+                    "Account API"
+                ],
+                "description": "fix risks on the assets: Rotate sets a new random password for a managed account, Manage makes Casvisor manage an account found on the asset with a random password, Lock locks an account found on the asset",
+                "operationId": "ApiController.HandleAccountRisks",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The risks and the action: Rotate, Manage or Lock",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.accountRiskHandleForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.RiskHandleResult"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/import-assets": {
             "post": {
                 "tags": [
@@ -4671,6 +4702,21 @@
                 },
                 "rdGateway": {
                     "type": "boolean"
+                }
+            }
+        },
+        "controllers.accountRiskHandleForm": {
+            "title": "accountRiskHandleForm",
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -6551,6 +6597,27 @@
                     "type": "string"
                 },
                 "tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.RiskHandleResult": {
+            "title": "RiskHandleResult",
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "ok": {
+                    "type": "boolean"
+                },
+                "username": {
                     "type": "string"
                 }
             }

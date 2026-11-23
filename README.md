@@ -209,7 +209,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **Permissions** — on users, groups, assets and asset tags, with the actions `Connect`, `Copy`, `Paste`, `Upload`, `Download` and `Forward`, client IP ranges, a start and end date, and weekly hours such as Monday to Friday 09:00–18:00; open sessions are disconnected when the hours end
 - **System accounts** — several accounts per asset, such as `root`, `deploy` and `readonly`; permissions decide which one a user may connect with, and passwords can be changed by hand or on a schedule
 - **Account templates** — give many assets the same system account at once, with one password or a random one for each asset, pushed to the assets and rotated; applying again keeps them in line
-- **Account risks** — weak, old and reused passwords, accounts with no password, and accounts on the assets that Casvisor does not manage, privileged ones first, found by a daily scan
+- **Account risks** — weak, old and reused passwords, accounts with no password, and accounts on the assets that Casvisor does not manage, privileged ones first, found by a daily scan; fix them in bulk by changing the password, managing the account, or locking it on the asset
 - **Access requests** — users ask for an asset with a reason and an end time, an administrator approves, and withdrawing it disconnects open sessions
 - **Two-step verification** — for local accounts, with any TOTP authenticator app
 - **Connect rules** — allow or reject ways to connect by user, group, asset, tag and account: the browser, SSH clients, SFTP, scp and rsync, port forwarding, and Remote Desktop Connection; for example only the browser for contractors, or no port forwarding to production
@@ -229,7 +229,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 **⚙️ Operate**
 
 - **Jobs** — run a command, a Bash or PowerShell script, or a file copy on many SSH assets at once, with concurrency, timeouts and per-asset output and exit codes
-- **Job schedules** — run a job on a cron schedule in any time zone, such as a backup at 03:00 every day; a run is skipped while the last one is still going
+- **Job schedules** — run a job on a cron schedule in any time zone, such as a backup at 03:00 every day; a run is skipped while the last one is still going, and webhooks tell when a job fails
 - **Patch management** — scan SSH assets for pending system updates, install them and restart, on Windows (Windows Update) and Linux (apt, dnf, yum)
 - **REST API** — every console action is also an API call, with [Swagger docs](swagger)
 - **Prometheus metrics** — `/metrics` reports connected sessions, sessions, commands, assets, access requests and network agents, behind the bearer token in `metricsToken`
