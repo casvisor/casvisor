@@ -32,6 +32,9 @@ export interface Asset {
   networkGateway: string;
   /** the names of the nodes of the asset tree the asset is in */
   nodes?: string[] | null;
+  /** the cloud account the asset is synced from, and its server there */
+  cloudAccount?: string;
+  cloudInstance?: string;
   /** the accounts the signed-in user may connect as, the asset's own account first */
   accounts?: AccountInfo[];
 }
@@ -112,6 +115,54 @@ export interface AssetImportResult {
   action: "create" | "update" | "skip" | "error";
   message: string;
   changes: string[] | null;
+}
+
+/** An account of a cloud provider whose servers Casvisor keeps as assets. */
+export interface CloudAccount {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  provider: string;
+  accessKey: string;
+  accessSecret: string;
+  tenantId: string;
+  subscriptionId: string;
+  projectId: string;
+  regions: string[] | null;
+  addressType: string;
+  linuxUsername: string;
+  windowsUsername: string;
+  nodePath: string;
+  tag: string;
+  networkGateway: string;
+  syncInterval: number;
+  deleteMissing: boolean;
+  isEnabled: boolean;
+  lastSyncTime: string;
+  lastSyncStatus: string;
+  lastSyncMessage: string;
+}
+
+export interface CloudSyncResult {
+  row: number;
+  name: string;
+  action: "create" | "update" | "skip" | "error" | "missing" | "delete";
+  message: string;
+  changes: string[] | null;
+}
+
+export interface CloudSyncSummary {
+  instances: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  missing: number;
+  deleted: number;
+  createdNodes: number;
 }
 
 export interface AssetImportSummary {

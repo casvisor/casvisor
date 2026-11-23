@@ -14,7 +14,7 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {useNavigate, useParams} from "react-router-dom";
+import {Link, useNavigate, useParams} from "react-router-dom";
 import * as AssetBackend from "@/backend/AssetBackend";
 import * as AssetNodeBackend from "@/backend/AssetNodeBackend";
 import * as NetworkGatewayBackend from "@/backend/NetworkGatewayBackend";
@@ -144,6 +144,14 @@ export default function AssetEditPage() {
       <FormRow labelKey="general:Description">
         <Input value={asset.description} onChange={(e) => updateField("description", e.target.value)} />
       </FormRow>
+      {asset.cloudAccount ? (
+        <FormRow label={i18next.t("cloudAccount:Synced from")} tooltip={i18next.t("cloudAccount:Synced from - Tooltip")}>
+          <div className="flex h-9 items-center gap-2 text-sm">
+            <Link to={`/cloud-accounts/${asset.owner}/${asset.cloudAccount}`} className="text-primary underline-offset-4 hover:underline">{asset.cloudAccount}</Link>
+            <span className="font-mono text-xs text-muted-foreground">{asset.cloudInstance}</span>
+          </div>
+        </FormRow>
+      ) : null}
       <FormRow labelKey="general:Protocol">
         <SelectField
           value={asset.protocol}

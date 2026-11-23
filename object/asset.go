@@ -48,6 +48,10 @@ type Asset struct {
 
 	Nodes []string `xorm:"mediumtext" json:"nodes"`
 
+	// CloudAccount and CloudInstance are the cloud account an asset is synced from, and its server there
+	CloudAccount  string `xorm:"varchar(100) index" json:"cloudAccount"`
+	CloudInstance string `xorm:"varchar(200)" json:"cloudInstance"`
+
 	Accounts []*AccountInfo `xorm:"-" json:"accounts,omitempty"`
 }
 

@@ -102,6 +102,8 @@ export default function App() {
           <Route path="/login-rules" element={page("LoginRuleListPage")} />
           <Route path="/login-rules/:owner/:name" element={page("LoginRuleEditPage")} />
           <Route path="/login-reviews" element={page("LoginReviewListPage")} />
+          <Route path="/cloud-accounts" element={page("CloudAccountListPage")} />
+          <Route path="/cloud-accounts/:owner/:name" element={page("CloudAccountEditPage")} />
           <Route path="/webhooks" element={page("WebhookListPage")} />
           <Route path="/webhooks/:owner/:name" element={page("WebhookEditPage")} />
           <Route path="/records" element={page("RecordListPage")} />

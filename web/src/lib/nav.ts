@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ClipboardCheck, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
+import {ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -68,6 +68,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
 
   if (isAdmin) {
     items.push(
+      {
+        key: "/cloud-accounts",
+        label: i18next.t("general:Cloud accounts"),
+        icon: Cloud,
+        description: i18next.t("general:Keep the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure and GCP accounts as assets"),
+      },
       {
         key: "/network-gateways",
         label: i18next.t("general:Network gateways"),
