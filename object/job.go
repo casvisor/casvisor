@@ -73,6 +73,8 @@ type Job struct {
 	Concurrency int    `json:"concurrency"`
 	User        string `xorm:"varchar(200)" json:"user"`
 	ClientIp    string `xorm:"varchar(100)" json:"clientIp"`
+	// Schedule is the job schedule that started the job, if any
+	Schedule string `xorm:"varchar(100) index" json:"schedule"`
 
 	Status    string `xorm:"varchar(20) index" json:"status"`
 	StartTime string `xorm:"varchar(100)" json:"startTime"`

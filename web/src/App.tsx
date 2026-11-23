@@ -95,6 +95,9 @@ export default function App() {
           <Route path="/jobs" element={page("JobListPage")} />
           <Route path="/jobs/new" element={page("JobEditPage")} />
           <Route path="/jobs/:owner/:name" element={page("JobDetailPage")} />
+          <Route path="/job-schedules" element={page("JobScheduleListPage")} />
+          <Route path="/job-schedules/new" element={page("JobScheduleEditPage")} />
+          <Route path="/job-schedules/:owner/:name" element={page("JobScheduleEditPage")} />
           <Route path="/network-gateways" element={page("NetworkGatewayListPage")} />
           <Route path="/network-gateways/:owner/:name" element={page("NetworkGatewayEditPage")} />
           <Route path="/command-rules" element={page("CommandRuleListPage")} />

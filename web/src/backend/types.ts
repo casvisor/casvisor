@@ -558,7 +558,40 @@ export interface Job {
   total: number;
   succeeded: number;
   failed: number;
+  /** the job schedule that started the job, if any */
+  schedule?: string;
   results?: JobResult[] | null;
+}
+
+/** Starts a job on a cron schedule, as the administrator who last saved it. */
+export interface JobSchedule {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  type: string;
+  assets: string[] | null;
+  assetTags: string[] | null;
+  content: string;
+  scriptType: string;
+  fileKey: string;
+  fileName: string;
+  fileSize: number;
+  filePath: string;
+  timeout: number;
+  concurrency: number;
+  cron: string;
+  timeZone: string;
+  isEnabled: boolean;
+  user: string;
+  userGroups: string[] | null;
+  nextRunTime: string;
+  lastRunTime: string;
+  lastJob: string;
+  lastRunStatus: string;
+  lastRunMessage: string;
 }
 
 export interface KubernetesPod {

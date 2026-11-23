@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
+import {CalendarClock, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -109,6 +109,12 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
         label: i18next.t("general:Jobs"),
         icon: ListChecks,
         description: i18next.t("general:Run commands, scripts and file transfers on many SSH assets at once"),
+      },
+      {
+        key: "/job-schedules",
+        label: i18next.t("general:Job schedules"),
+        icon: CalendarClock,
+        description: i18next.t("general:Run jobs at set times, such as backups every night or checks every hour"),
       },
       {
         key: "/sessions",

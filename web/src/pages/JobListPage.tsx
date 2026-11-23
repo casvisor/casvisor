@@ -14,7 +14,7 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {Link, useNavigate} from "react-router-dom";
+import {Link, useNavigate, useSearchParams} from "react-router-dom";
 import {Loader2, Plus} from "lucide-react";
 import * as JobBackend from "@/backend/JobBackend";
 import type {Job} from "@/backend/types";
@@ -71,6 +71,8 @@ export default function JobListPage() {
   const {account} = useAccount();
   const owner = Setting.getRequestOrganization(account);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const schedule = searchParams.get("schedule") ?? "";
 
   const fetchJobs = React.useCallback(
     (query: TableQuery) =>
@@ -126,6 +128,15 @@ export default function JobListPage() {
       ),
     },
     textColumn<Job>({dataIndex: "user", title: i18next.t("general:User"), width: 150, searchable: true}),
+    {
+      dataIndex: "schedule",
+      title: i18next.t("job:Schedule"),
+      width: 150,
+      searchable: true,
+      render: (value, job) => (value ? (
+        <Link to={`/job-schedules/${job.owner}/${value}`} className="underline-offset-4 hover:underline">{value}</Link>
+      ) : null),
+    },
     dateColumn<Job>("createdTime", i18next.t("general:Time")),
     {
       key: "duration",
@@ -140,6 +151,8 @@ export default function JobListPage() {
 
   return (
     <CrudListPage<Job>
+      key={schedule}
+      initialQuery={schedule ? {searchedColumn: "schedule", searchText: schedule} : undefined}
       title={i18next.t("general:Jobs")}
       description={i18next.t("general:Run commands, scripts and file transfers on many SSH assets at once")}
       columns={columns}
