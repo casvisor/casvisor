@@ -37,6 +37,7 @@ import {
   getJdbcUrl,
 } from "@/lib/dbclient";
 import {copyText, getGatewayHost, getSshCommand, getTunnelCommand, getTunnelLocalPort} from "@/lib/gateway";
+import {getLauncherDownloadUrl, openLauncherLink} from "@/lib/launcher";
 import * as Setting from "@/lib/setting";
 
 /** The system account to connect as: none for the asset's own account, as in the SSH command. */
@@ -59,7 +60,7 @@ async function addToken(asset: Asset, kind: string) {
     Setting.showMessage("error", res.msg);
     return null;
   }
-  return res.data as {token: string; username: string; expires: number};
+  return res.data as {token: string; username: string; autoLogon: boolean; certHash: string; expires: number};
 }
 
 /** The database tokens issued on this page, by asset, reused while they have an hour left, so that the menu doesn't add one per click. */
@@ -79,8 +80,12 @@ async function getDbToken(asset: Asset) {
   return res.token;
 }
 
-/** A .rdp file that has mstsc reach the asset through Casvisor's Remote Desktop Gateway, written in UTF-16 as mstsc saves them. */
-function downloadRdpFile(asset: Asset, token: string, username: string) {
+/**
+ * A .rdp file that has mstsc reach the asset through Casvisor's Remote Desktop Gateway, written in UTF-16 as mstsc saves them.
+ * When the gateway signs in with the account's password, mstsc speaks TLS without CredSSP to Casvisor's own certificate,
+ * which it asks to trust the first time.
+ */
+function downloadRdpFile(asset: Asset, token: string, username: string, autoLogon: boolean) {
   const lines = [
     `full address:s:${asset.name}`,
     `username:s:${username}`,
@@ -92,6 +97,7 @@ function downloadRdpFile(asset: Asset, token: string, username: string) {
     "promptcredentialonce:i:0",
     "authentication level:i:2",
     "screen mode id:i:2",
+    ...(autoLogon ? ["enablecredsspsupport:i:0"] : []),
   ];
   const text = `\ufeff${lines.join("\r\n")}\r\n`;
   const units = new Uint16Array(text.length);
@@ -146,7 +152,7 @@ export function LocalClientButton({asset, gateway, account}: {asset: Asset; gate
   const openRdp = async() => {
     const res = await addToken(asset, "rdp");
     if (res) {
-      downloadRdpFile(asset, res.token, res.username);
+      downloadRdpFile(asset, res.token, res.username, res.autoLogon);
       Setting.showMessage("success", i18next.t("asset:Open the downloaded file to connect, within two minutes"));
     }
   };
@@ -155,6 +161,21 @@ export function LocalClientButton({asset, gateway, account}: {asset: Asset; gate
     const token = await getDbToken(asset);
     if (token) {
       action(getDbConnection(gateway, asset, token));
+    }
+  };
+
+  const openInLauncher = async(type: "ssh" | "sftp" | "rdp") => {
+    const res = await addToken(asset, type === "rdp" ? "rdp" : "ssh");
+    if (!res) {
+      return;
+    }
+    if (type === "rdp") {
+      openLauncherLink({
+        type, host: window.location.hostname, port: window.location.port || "443", token: res.token, name: asset.name,
+        username: res.username, autologon: res.autoLogon ? "1" : "0", certhash: res.certHash,
+      });
+    } else {
+      openLauncherLink({type, host, port, user: res.token, name: asset.name});
     }
   };
 
@@ -175,7 +196,7 @@ export function LocalClientButton({asset, gateway, account}: {asset: Asset; gate
               window.location.href = getHelperUrl(c);
             })}>
               <Rocket />
-              {i18next.t("asset:Open with the Casvisor helper")}
+              {i18next.t("asset:Open with Casvisor Launcher")}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => withDb((c) => copyText(getCliCommand(c)))}>
               <Terminal />
@@ -242,6 +263,38 @@ export function LocalClientButton({asset, gateway, account}: {asset: Asset; gate
             <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
               {i18next.t("asset:Keep it running, then connect your client to")} localhost:{getTunnelLocalPort(asset)}
             </DropdownMenuLabel>
+          </>
+        ) : null}
+        {hasRdp || (hasSsh && isSsh) ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
+              {i18next.t("asset:Open with Casvisor Launcher")}
+            </DropdownMenuLabel>
+            {hasRdp ? (
+              <DropdownMenuItem onSelect={() => openInLauncher("rdp")}>
+                <Rocket />
+                {i18next.t("asset:Remote desktop (mstsc)")}
+              </DropdownMenuItem>
+            ) : null}
+            {hasSsh && isSsh ? (
+              <>
+                <DropdownMenuItem onSelect={() => openInLauncher("ssh")}>
+                  <Rocket />
+                  {i18next.t("asset:SSH client (Xshell, SecureCRT, PuTTY, Terminal)")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openInLauncher("sftp")}>
+                  <Rocket />
+                  {i18next.t("asset:SFTP client (WinSCP, FileZilla)")}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            <DropdownMenuItem asChild>
+              <a href={getLauncherDownloadUrl()} target="_blank" rel="noreferrer">
+                <Download />
+                {i18next.t("asset:No Casvisor Launcher yet? Download")}
+              </a>
+            </DropdownMenuItem>
           </>
         ) : null}
       </DropdownMenuContent>

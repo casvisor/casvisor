@@ -16,9 +16,11 @@
 // Connection (mstsc) on the user's machine opens an RDP asset from a .rdp file that the web
 // console hands out. mstsc reaches the gateway over HTTPS, at the same address as the web console,
 // and presents a one-time token as its gateway access token; Casvisor checks it, connects to
-// the asset through the asset's network gateway, and passes the RDP bytes through. The RDP
-// session itself is encrypted between mstsc and the asset, so it is listed and can be stopped,
-// but not recorded, and the user signs in to Windows with an account they know.
+// the asset through the asset's network gateway. When the account has a password, Casvisor signs
+// in to the asset with it while mstsc speaks TLS to Casvisor, so the user never sees the password;
+// otherwise the RDP bytes pass through, encrypted between mstsc and the asset, and the user signs in
+// to Windows with an account they know. Either way the session is listed and can be stopped, but
+// not recorded.
 package rdgateway
 
 import (
@@ -29,6 +31,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/beego/beego"
@@ -49,6 +52,10 @@ const (
 	methodIn  = "RDG_IN_DATA"
 
 	handshakeTimeout = time.Minute
+
+	// a connection that ends this soon, before the asset sent this much, gives its token back
+	retryTime  = 30 * time.Second
+	retryBytes = 16 * 1024
 )
 
 func init() {
@@ -143,6 +150,10 @@ type tunnel struct {
 	conn      net.Conn
 	sessionId string
 
+	token     *object.ClientToken
+	openTime  time.Time
+	received  atomic.Int64
+	started   atomic.Bool
 	closeOnce sync.Once
 }
 
@@ -155,6 +166,12 @@ func (t *tunnel) write(b []byte) error {
 
 func (t *tunnel) close(message string) {
 	t.closeOnce.Do(func() {
+		// mstsc drops the connection when it checks the certificate of the remote computer, and connects
+		// again at once with the same token, which gets a session of its own
+		retry := t.token != nil && !t.started.Load() && time.Since(t.openTime) < retryTime && t.received.Load() < retryBytes
+		if retry {
+			object.RestoreClientToken(t.token)
+		}
 		_ = t.ws.Close()
 		if t.conn != nil {
 			_ = t.conn.Close()
@@ -164,6 +181,12 @@ func (t *tunnel) close(message string) {
 			err := object.CloseSession(t.sessionId, 0, message)
 			if err != nil {
 				logs.Error(fmt.Sprintf("Remote Desktop Gateway: failed to close the session: %s: %s", t.sessionId, err.Error()))
+			}
+			if retry {
+				_, err = object.DeleteSessionById(t.sessionId)
+				if err != nil {
+					logs.Error(fmt.Sprintf("Remote Desktop Gateway: failed to delete the session: %s: %s", t.sessionId, err.Error()))
+				}
 			}
 		}
 	})
@@ -298,6 +321,8 @@ func (t *tunnel) authenticate(cookie string) error {
 	t.asset = asset
 	t.account = account
 	t.actions = actions
+	t.token = token
+	t.openTime = time.Now()
 	return nil
 }
 
@@ -316,9 +341,18 @@ func (t *tunnel) getRedirectionFlags() uint32 {
 
 // openChannel connects to the asset, whichever resource mstsc names, and opens the session.
 func (t *tunnel) openChannel() error {
+	target, err := t.asset.WithAccount(t.account)
+	if err != nil {
+		return err
+	}
 	conn, err := object.DialAsset(t.asset)
 	if err != nil {
 		return err
+	}
+	detail := net.JoinHostPort(t.asset.Host, fmt.Sprintf("%d", t.asset.Port))
+	if SignsIn(target) {
+		conn = startAutoLogon(conn, target, func() { t.started.Store(true) })
+		detail += ", signed in as " + target.Username
 	}
 
 	session := &object.Session{
@@ -346,6 +380,7 @@ func (t *tunnel) openChannel() error {
 	t.conn = conn
 	t.sessionId = session.GetId()
 	object.AddSessionCloser(t.sessionId, func(code int, msg string) {
+		t.started.Store(true)
 		_ = t.ws.Close()
 		_ = conn.Close()
 	})
@@ -371,7 +406,7 @@ func (t *tunnel) openChannel() error {
 		Method:       "RDP",
 		Action:       "rdp-gateway",
 		Asset:        t.asset.GetId(),
-		Detail:       net.JoinHostPort(t.asset.Host, fmt.Sprintf("%d", t.asset.Port)),
+		Detail:       detail,
 	})
 	return nil
 }
@@ -382,6 +417,7 @@ func (t *tunnel) pump() {
 	buf := make([]byte, maxDataSize)
 	for {
 		n, err := t.conn.Read(buf)
+		t.received.Add(int64(n))
 		if n > 0 {
 			if t.write(dataPacket(buf[:n])) != nil {
 				return

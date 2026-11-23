@@ -439,3 +439,11 @@ func RevokeKubernetesTokens(sessionId string) error {
 	_, err := adapter.engine.Where("session = ?", sessionId).Cols("is_revoked").Update(&KubernetesToken{IsRevoked: true})
 	return err
 }
+
+// RestoreClientToken puts back a token whose connection ended before it was of any use, as mstsc connects
+// again at once after it checks the certificate of the remote computer.
+func RestoreClientToken(token *ClientToken) {
+	if time.Now().Before(token.ExpireTime) {
+		clientTokens.Store(token.Token, token)
+	}
+}

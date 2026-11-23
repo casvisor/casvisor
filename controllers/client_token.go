@@ -34,13 +34,19 @@ type ClientToken struct {
 	Kind  string `json:"kind"`
 	// Username is the account on the asset, filled in for mstsc
 	Username string `json:"username"`
+	// AutoLogon tells that the gateway signs in to Windows with the account's password, so mstsc
+	// connects without CredSSP and does not ask for one
+	AutoLogon bool `json:"autoLogon"`
+	// CertHash is the SHA-256 fingerprint of the gateway's certificate that mstsc then sees, which Casvisor
+	// Launcher lets mstsc trust for the connection
+	CertHash string `json:"certHash"`
 	Expires  int    `json:"expires"`
 }
 
 // AddClientToken
 // @Title AddClientToken
 // @Tag Session API
-// @Description issue a one-time token, valid for two minutes, that lets a client on the user's machine open one connection to an asset: kind "ssh" signs in to the SSH gateway on an SSH asset (ssh, Xshell, WinSCP), "tunnel" forwards a local port to an asset through the SSH gateway, and "rdp" lets mstsc reach an RDP asset through Casvisor's Remote Desktop Gateway; "tunnel" and "rdp" pass the traffic through without recording it and need the Forward action. Kind "db" is the user and the password of a database client (DBeaver, Navicat, mysql, psql) on a MySQL or PostgreSQL asset through the database proxy; it lasts dbProxyTokenHours (8 hours by default), opens a session for every connection and can be revoked
+// @Description issue a one-time token, valid for two minutes, that lets a client on the user's machine open one connection to an asset: kind "ssh" signs in to the SSH gateway on an SSH asset (ssh, Xshell, WinSCP), "tunnel" forwards a local port to an asset through the SSH gateway, and "rdp" lets mstsc reach an RDP asset through Casvisor's Remote Desktop Gateway, which signs in to Windows with the account's password when it is stored (autoLogon); "tunnel" and "rdp" are not recorded and need the Forward action. Kind "db" is the user and the password of a database client (DBeaver, Navicat, mysql, psql) on a MySQL or PostgreSQL asset through the database proxy; it lasts dbProxyTokenHours (8 hours by default), opens a session for every connection and can be revoked
 // @Param   assetId    query    string  true     "The id of the asset"
 // @Param   account    query    string  false    "The system account of the asset to connect as"
 // @Param   kind       query    string  true     "ssh, tunnel, rdp or db"
@@ -132,6 +138,8 @@ func (c *ApiController) AddClientToken() {
 	}
 
 	username := ""
+	autoLogon := false
+	certHash := ""
 	if kind == object.ClientTokenRdp || kind == object.ClientTokenDb {
 		target, err := asset.WithAccount(account)
 		if err != nil {
@@ -139,6 +147,14 @@ func (c *ApiController) AddClientToken() {
 			return
 		}
 		username = target.Username
+		autoLogon = kind == object.ClientTokenRdp && rdgateway.SignsIn(target)
+		if autoLogon {
+			_, certHash, err = object.GetRdpGatewayCertificate()
+			if err != nil {
+				c.ResponseError(err.Error())
+				return
+			}
+		}
 	}
 
 	token, err := object.AddClientToken(kind, getUserId(user), asset.GetId(), account, c.getClientIp())
@@ -161,10 +177,12 @@ func (c *ApiController) AddClientToken() {
 	}
 
 	c.ResponseOk(ClientToken{
-		Token:    token.Token,
-		Kind:     kind,
-		Username: username,
-		Expires:  int(time.Until(token.ExpireTime).Seconds()),
+		Token:     token.Token,
+		Kind:      kind,
+		Username:  username,
+		AutoLogon: autoLogon,
+		CertHash:  certHash,
+		Expires:   int(time.Until(token.ExpireTime).Seconds()),
 	})
 }
 
