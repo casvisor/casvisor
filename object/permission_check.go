@@ -150,6 +150,9 @@ func newPermissionEnforcer(user *casdoorsdk.User, assets []*Asset) (*casbin.Enfo
 		if permission.Watermark {
 			actions = append(slices.Clone(actions), actionWatermark)
 		}
+		if slices.Contains(permission.Actions, ActionConnect) {
+			actions = append(slices.Clone(actions), permission.getKubernetesActions()...)
+		}
 
 		for _, sub := range subjects {
 			for _, obj := range objects {
@@ -442,4 +445,114 @@ func GetSessionOperations(actions []string) []string {
 	}
 
 	return res
+}
+
+// the namespaces a permission covers on Kubernetes assets are granted as actions like
+// "Kubernetes:Write:default", along with Connect
+const (
+	actionKubernetesRead  = "Kubernetes:Read:"
+	actionKubernetesWrite = "Kubernetes:Write:"
+)
+
+func (permission *Permission) getKubernetesActions() []string {
+	prefix := actionKubernetesWrite
+	if permission.ReadOnly {
+		prefix = actionKubernetesRead
+	}
+	namespaces := permission.Namespaces
+	if len(namespaces) == 0 {
+		namespaces = []string{"*"}
+	}
+
+	res := []string{}
+	for _, namespace := range namespaces {
+		res = append(res, prefix+namespace)
+	}
+	return res
+}
+
+// KubernetesScope is what a user may do on a Kubernetes asset: the namespaces, "*" for all of
+// them and for what has no namespace, each with whether it may be changed or only read.
+type KubernetesScope struct {
+	Namespaces map[string]bool `json:"namespaces"`
+}
+
+func NewKubernetesScopeAll() *KubernetesScope {
+	return &KubernetesScope{Namespaces: map[string]bool{"*": true}}
+}
+
+func (s *KubernetesScope) CanRead(namespace string) bool {
+	_, ok := s.Namespaces[namespace]
+	_, all := s.Namespaces["*"]
+	return ok || all
+}
+
+func (s *KubernetesScope) CanWrite(namespace string) bool {
+	return s.Namespaces[namespace] || s.Namespaces["*"]
+}
+
+// IsAll tells whether every namespace may be read.
+func (s *KubernetesScope) IsAll() bool {
+	return s.CanRead("*")
+}
+
+// GetNames returns the namespaces named in the scope, without "*".
+func (s *KubernetesScope) GetNames() []string {
+	res := []string{}
+	for namespace := range s.Namespaces {
+		if namespace != "*" {
+			res = append(res, namespace)
+		}
+	}
+	slices.Sort(res)
+	return res
+}
+
+// GetKubernetesAccess returns what the user may do on the asset as the account, and the namespaces
+// the permissions that let the user connect to it cover; an empty scope when none does.
+func GetKubernetesAccess(user *casdoorsdk.User, asset *Asset, account string, clientIp string) ([]string, *KubernetesScope, error) {
+	res := &KubernetesScope{Namespaces: map[string]bool{}}
+	if user == nil || asset == nil {
+		return []string{}, res, nil
+	}
+
+	actions, err := GetAssetAccountActions(user, asset, &account, clientIp)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !slices.Contains(actions, ActionConnect) {
+		return actions, res, nil
+	}
+	if hasAllAssets(user, asset) {
+		return actions, NewKubernetesScopeAll(), nil
+	}
+
+	enforcer, err := newPermissionEnforcer(user, []*Asset{asset})
+	if err != nil {
+		return nil, nil, err
+	}
+	key := getAccountKey(asset, account)
+	for _, action := range enforcer.GetAllActions() {
+		var namespace string
+		write := strings.HasPrefix(action, actionKubernetesWrite)
+		if write {
+			namespace = strings.TrimPrefix(action, actionKubernetesWrite)
+		} else if strings.HasPrefix(action, actionKubernetesRead) {
+			namespace = strings.TrimPrefix(action, actionKubernetesRead)
+		} else {
+			continue
+		}
+		if res.Namespaces[namespace] {
+			continue
+		}
+
+		allowed, err := enforcer.Enforce("user:"+user.Name, "asset:"+asset.Name, action, clientIp, key)
+		if err != nil {
+			return nil, nil, err
+		}
+		if allowed {
+			res.Namespaces[namespace] = write
+		}
+	}
+	return actions, res, nil
 }

@@ -14,7 +14,7 @@
 
 import {get, listQuery, post, type ListParams} from "@/backend/request";
 
-export const ConnectMethods = ["Web", "SSH client", "SFTP client", "Port forwarding", "RDP client"];
+export const ConnectMethods = ["Web", "SSH client", "SFTP client", "Port forwarding", "RDP client", "kubectl"];
 
 export const ConnectActions = ["Reject", "Allow"];
 

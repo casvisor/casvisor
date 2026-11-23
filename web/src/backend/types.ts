@@ -406,6 +406,10 @@ export interface Permission {
   accounts: string[] | null;
   actions: string[] | null;
   clientIps: string[] | null;
+  /** the namespaces of Kubernetes assets the permission covers, all when empty or "*" */
+  namespaces?: string[] | null;
+  /** only get, list and watch on Kubernetes assets */
+  readOnly?: boolean;
   startTime: string;
   endTime: string;
   weekdays?: number[] | null;
@@ -800,6 +804,8 @@ export interface KubernetesPod {
 export interface KubernetesPods {
   namespaces: string[];
   namespace: string;
+  /** set when the user may only read the namespace, without shells or file transfers */
+  readOnly?: boolean;
   pods: KubernetesPod[];
 }
 
@@ -941,4 +947,25 @@ export interface ReportData {
     events: ReportEvent[];
     permissionEvents: ReportEvent[];
   };
+}
+
+/** A kubeconfig for kubectl that is still valid; its requests are listed in its session. */
+export interface KubernetesToken {
+  owner: string;
+  name: string;
+  createdTime: string;
+  user: string;
+  asset: string;
+  account: string;
+  session: string;
+  clientIp: string;
+  expireTime: string;
+}
+
+/** A kubeconfig just issued, with the token in it, which is shown only once. */
+export interface Kubeconfig {
+  name: string;
+  kubeconfig: string;
+  server: string;
+  expireTime: string;
 }

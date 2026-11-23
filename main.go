@@ -28,6 +28,7 @@ import (
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/demo"
+	"github.com/casvisor/casvisor/kubeproxy"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/rbrowser"
 	"github.com/casvisor/casvisor/rdgateway"
@@ -89,6 +90,8 @@ func main() {
 	beego.InsertFilter("*", beego.BeforeStatic, webproxy.Filter)
 	// mstsc reaches the Remote Desktop Gateway with methods of its own, before beego reads the request
 	beego.InsertFilter("*", beego.BeforeStatic, rdgateway.Filter)
+	// kubectl reaches the API servers of Kubernetes assets through the proxy, with streams that beego must not read
+	beego.InsertFilter("*", beego.BeforeStatic, kubeproxy.Filter)
 	beego.InsertFilter("*", beego.BeforeStatic, routers.RejectEncodedBody)
 	beego.SetStaticPath("/swagger", "swagger")
 	beego.InsertFilter("/metrics", beego.BeforeRouter, routers.MetricsFilter)
@@ -119,6 +122,7 @@ func main() {
 	object.StartLiveSessionChecker()
 	webproxy.Start()
 	rbrowser.Init()
+	kubeproxy.Start()
 	object.StartAccountRotator()
 	object.StartCloudSyncer()
 	object.StartJobScheduler()

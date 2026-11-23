@@ -241,6 +241,11 @@ func (a *Adapter) createTable() {
 		panic(err)
 	}
 
+	err = a.engine.Sync2(new(KubernetesToken))
+	if err != nil {
+		panic(err)
+	}
+
 	err = a.engine.Sync2(new(SessionShare))
 	if err != nil {
 		panic(err)

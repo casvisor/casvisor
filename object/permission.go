@@ -57,6 +57,10 @@ type Permission struct {
 	Accounts  []string `xorm:"mediumtext" json:"accounts"`
 	Actions   []string `xorm:"varchar(500)" json:"actions"`
 	ClientIps []string `xorm:"mediumtext" json:"clientIps"`
+	// Namespaces are the namespaces of Kubernetes assets the permission covers, all when empty or "*"
+	Namespaces []string `xorm:"mediumtext" json:"namespaces"`
+	// ReadOnly lets the permission only get, list and watch on Kubernetes assets
+	ReadOnly bool `json:"readOnly"`
 
 	StartTime string `xorm:"varchar(100)" json:"startTime"`
 	EndTime   string `xorm:"varchar(100)" json:"endTime"`
@@ -190,6 +194,12 @@ func (permission *Permission) check() error {
 		}
 		if _, _, err := net.ParseCIDR(clientIp); err != nil {
 			return fmt.Errorf("invalid client IP or CIDR: %s", clientIp)
+		}
+	}
+
+	for _, namespace := range permission.Namespaces {
+		if namespace != "*" && !IsKubernetesName(namespace) {
+			return fmt.Errorf("invalid namespace: %s", namespace)
 		}
 	}
 

@@ -213,6 +213,16 @@ export default function PermissionEditPage() {
           onChange={(value) => updateField("clientIps", value)}
         />
       </FormRow>
+      <FormRow label={i18next.t("permission:Namespaces")} tooltip={i18next.t("permission:Namespaces - Tooltip")}>
+        <TagsInput
+          value={permission.namespaces ?? []}
+          placeholder="*"
+          onChange={(value) => updateField("namespaces", value)}
+        />
+      </FormRow>
+      <FormRow label={i18next.t("permission:Read only")} tooltip={i18next.t("permission:Read only - Tooltip")}>
+        <Switch checked={permission.readOnly ?? false} onCheckedChange={(checked) => updateField("readOnly", checked)} />
+      </FormRow>
       <FormRow labelKey="permission:Start time">
         <TimeInput value={permission.startTime} onChange={(value) => updateField("startTime", value)} />
       </FormRow>

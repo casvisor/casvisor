@@ -163,7 +163,7 @@ export default function SessionListPage() {
       remove={isOnline ? undefined : SessionBackend.deleteSession}
       actionColumnWidth={260}
       rowActions={(session, _index, {refresh}) => [
-        isOnline && (session.mode === "native" || session.mode === "gateway")
+        isOnline && (session.mode === "native" || session.mode === "gateway" || session.mode === "kubectl")
           ? {
             key: "monitor",
             label: i18next.t("session:Monitor"),

@@ -290,6 +290,12 @@ func CloseDBSession(id string, code int, msg string) error {
 	if err != nil {
 		return err
 	}
+	if s.Mode == SessionModeKubeconfig {
+		err = RevokeKubernetesTokens(id)
+		if err != nil {
+			return err
+		}
+	}
 	forwardSession(s, false)
 	return CancelSessionCommandReviews(id)
 }

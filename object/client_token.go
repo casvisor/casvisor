@@ -16,10 +16,14 @@ package object
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base32"
+	"encoding/hex"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/casvisor/casvisor/util"
 )
 
 const (
@@ -30,8 +34,9 @@ const (
 	// ClientTokenRdp lets mstsc reach an RDP asset through Casvisor's Remote Desktop Gateway
 	ClientTokenRdp = "rdp"
 
-	ClientTokenTimeout = 2 * time.Minute
-	clientTokenPrefix  = "cv"
+	ClientTokenTimeout     = 2 * time.Minute
+	KubernetesTokenTimeout = 8 * time.Hour
+	clientTokenPrefix      = "cv"
 )
 
 // ClientToken lets a client on the user's machine open one connection to an asset, with the
@@ -48,16 +53,24 @@ type ClientToken struct {
 
 var clientTokens sync.Map
 
-// AddClientToken issues a token of letters and digits, which fits in an SSH username and a URL.
-func AddClientToken(kind string, userId string, assetId string, account string, clientIp string) (*ClientToken, error) {
+func newClientToken() (string, error) {
 	b := make([]byte, 15)
 	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return clientTokenPrefix + strings.ToLower(base32.StdEncoding.EncodeToString(b)), nil
+}
+
+// AddClientToken issues a token of letters and digits, which fits in an SSH username and a URL.
+func AddClientToken(kind string, userId string, assetId string, account string, clientIp string) (*ClientToken, error) {
+	value, err := newClientToken()
 	if err != nil {
 		return nil, err
 	}
 
 	token := &ClientToken{
-		Token:      clientTokenPrefix + strings.ToLower(base32.StdEncoding.EncodeToString(b)),
+		Token:      value,
 		Kind:       kind,
 		UserId:     userId,
 		AssetId:    assetId,
@@ -98,4 +111,157 @@ func ConsumeClientToken(token string, kinds ...string) *ClientToken {
 		}
 	}
 	return nil
+}
+
+const SessionModeKubeconfig = "kubeconfig"
+
+// KubernetesToken signs kubectl in to the Kubernetes proxy of an asset from a kubeconfig, for
+// many requests until it expires. Only a hash of the token is kept. Its requests are listed in a
+// session of its own, which ends when it expires, and ending the session revokes it.
+type KubernetesToken struct {
+	Owner       string `xorm:"varchar(100) notnull pk" json:"owner"`
+	Name        string `xorm:"varchar(100) notnull pk" json:"name"`
+	CreatedTime string `xorm:"varchar(100)" json:"createdTime"`
+
+	Hash       string `xorm:"varchar(100) index" json:"-"`
+	User       string `xorm:"varchar(200) index" json:"user"`
+	Asset      string `xorm:"varchar(200) index" json:"asset"`
+	Account    string `xorm:"varchar(100)" json:"account"`
+	Session    string `xorm:"varchar(200) index" json:"session"`
+	ClientIp   string `xorm:"varchar(100)" json:"clientIp"`
+	ExpireTime string `xorm:"varchar(100)" json:"expireTime"`
+	IsRevoked  bool   `json:"isRevoked"`
+}
+
+func (token *KubernetesToken) GetId() string {
+	return util.GetIdFromOwnerAndName(token.Owner, token.Name)
+}
+
+func (token *KubernetesToken) IsActive(now time.Time) bool {
+	expireTime, err := time.Parse(time.RFC3339, token.ExpireTime)
+	return !token.IsRevoked && err == nil && now.Before(expireTime)
+}
+
+func getClientTokenHash(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
+}
+
+// AddKubernetesToken issues a token for kubectl, with the session its requests go to, and
+// returns the token itself, which is not kept.
+func AddKubernetesToken(userId string, asset *Asset, account string, clientIp string, userAgent string) (*KubernetesToken, string, error) {
+	value, err := newClientToken()
+	if err != nil {
+		return nil, "", err
+	}
+
+	session := &Session{
+		Account:       account,
+		Creator:       userId,
+		ClientIp:      clientIp,
+		UserAgent:     userAgent,
+		ClientIpDesc:  util.GetDescFromIP(clientIp),
+		UserAgentDesc: userAgent,
+	}
+	_, err = CreateSession(session, asset.GetId(), SessionModeKubeconfig, []string{})
+	if err != nil {
+		return nil, "", err
+	}
+	session.Target = "kubectl"
+	session.Status = Connected
+	session.StartTime = util.GetCurrentTime()
+	session.Reviewed = true
+	_, err = UpdateSession(session.GetId(), session)
+	if err != nil {
+		return nil, "", err
+	}
+
+	token := &KubernetesToken{
+		Owner:       asset.Owner,
+		Name:        util.GenerateId(),
+		CreatedTime: util.GetCurrentTime(),
+		Hash:        getClientTokenHash(value),
+		User:        userId,
+		Asset:       asset.GetId(),
+		Account:     account,
+		Session:     session.GetId(),
+		ClientIp:    clientIp,
+		ExpireTime:  time.Now().Add(KubernetesTokenTimeout).Format(time.RFC3339),
+	}
+	_, err = adapter.engine.Insert(token)
+	if err != nil {
+		return nil, "", err
+	}
+	return token, value, nil
+}
+
+// GetKubernetesTokenByValue returns the active token, nil when it is unknown, revoked or expired.
+func GetKubernetesTokenByValue(value string) (*KubernetesToken, error) {
+	if !IsClientToken(value) {
+		return nil, nil
+	}
+
+	token := &KubernetesToken{}
+	existed, err := adapter.engine.Where("hash = ?", getClientTokenHash(value)).Get(token)
+	if err != nil {
+		return nil, err
+	}
+	if !existed || !token.IsActive(time.Now()) {
+		return nil, nil
+	}
+	return token, nil
+}
+
+func GetKubernetesToken(id string) (*KubernetesToken, error) {
+	owner, name := util.GetOwnerAndNameFromId(id)
+	token := &KubernetesToken{Owner: owner, Name: name}
+	existed, err := adapter.engine.Get(token)
+	if err != nil {
+		return nil, err
+	}
+	if !existed {
+		return nil, nil
+	}
+	return token, nil
+}
+
+// GetKubernetesTokens returns the active tokens of the asset, of all users when userId is empty.
+func GetKubernetesTokens(assetId string, userId string) ([]*KubernetesToken, error) {
+	tokens := []*KubernetesToken{}
+	err := adapter.engine.Desc("created_time").Find(&tokens, &KubernetesToken{Asset: assetId, User: userId})
+	if err != nil {
+		return nil, err
+	}
+
+	res := []*KubernetesToken{}
+	now := time.Now()
+	for _, token := range tokens {
+		if token.IsActive(now) {
+			res = append(res, token)
+		}
+	}
+	return res, nil
+}
+
+// GetExpiredKubernetesTokens returns the tokens that have expired without being revoked.
+func GetExpiredKubernetesTokens() ([]*KubernetesToken, error) {
+	tokens := []*KubernetesToken{}
+	err := adapter.engine.Where("is_revoked = ?", false).Find(&tokens)
+	if err != nil {
+		return nil, err
+	}
+
+	res := []*KubernetesToken{}
+	now := time.Now()
+	for _, token := range tokens {
+		if !token.IsActive(now) {
+			res = append(res, token)
+		}
+	}
+	return res, nil
+}
+
+func RevokeKubernetesTokens(sessionId string) error {
+	_, err := adapter.engine.Where("session = ?", sessionId).Cols("is_revoked").Update(&KubernetesToken{IsRevoked: true})
+	return err
 }

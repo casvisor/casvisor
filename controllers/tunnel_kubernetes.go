@@ -57,52 +57,63 @@ func (c *ApiController) GetKubernetesPods() {
 		}
 	}
 
-	user := c.GetSessionUser()
-	if user == nil {
-		c.ResponseError("please sign in first")
-		return
-	}
-
-	asset, err := object.GetAsset(assetId)
+	asset, _, scope, err := c.getKubernetesAsset(assetId, account, credential.Password, false)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
-	if asset == nil {
-		c.ResponseError(fmt.Sprintf("the asset: %s does not exist", assetId))
-		return
-	}
-	if asset.Protocol != object.ProtocolKubernetes {
-		c.ResponseError(fmt.Sprintf("the asset: %s is not a Kubernetes cluster", assetId))
-		return
-	}
 
-	actions, err := object.GetAssetAccountActions(user, asset, &account, c.getAuthzClientIp())
-	if err != nil {
-		c.ResponseError(err.Error())
-		return
-	}
-	if !slices.Contains(actions, object.ActionConnect) {
-		c.ResponseError(fmt.Sprintf("you have no permission to connect to the asset: %s as the account: %s", assetId, account))
-		return
-	}
-
-	if account != "" && account != asset.Username {
-		asset, err = asset.WithAccount(account)
-		if err != nil {
-			c.ResponseError(err.Error())
-			return
-		}
-	} else if asset.Password == "" {
-		asset.Password = credential.Password
-	}
-
-	pods, err := object.GetKubernetesPods(asset, namespace)
+	pods, err := object.GetKubernetesPods(asset, namespace, scope)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
 	c.ResponseOk(pods)
+}
+
+// getKubernetesAsset returns the Kubernetes asset with the token of the account, the token typed
+// for an asset that keeps none, after checking that the user may connect to it, and in the browser
+// when checkMethod is set, with what the user may do on it and the namespaces the user may reach.
+func (c *ApiController) getKubernetesAsset(assetId string, account string, password string, checkMethod bool) (*object.Asset, []string, *object.KubernetesScope, error) {
+	user := c.GetSessionUser()
+	if user == nil {
+		return nil, nil, nil, fmt.Errorf("please sign in first")
+	}
+
+	asset, err := object.GetAsset(assetId)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if asset == nil {
+		return nil, nil, nil, fmt.Errorf("the asset: %s does not exist", assetId)
+	}
+	if asset.Protocol != object.ProtocolKubernetes {
+		return nil, nil, nil, fmt.Errorf("the asset: %s is not a Kubernetes cluster", assetId)
+	}
+
+	actions, scope, err := object.GetKubernetesAccess(user, asset, account, c.getAuthzClientIp())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if !slices.Contains(actions, object.ActionConnect) {
+		return nil, nil, nil, fmt.Errorf("you have no permission to connect to the asset: %s as the account: %s", assetId, account)
+	}
+	if checkMethod {
+		err = object.CheckConnectMethod(user, asset, account, object.ConnectMethodWeb)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	if account != "" && account != asset.Username {
+		asset, err = asset.WithAccount(account)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	} else if asset.Password == "" {
+		asset.Password = password
+	}
+	return asset, actions, scope, nil
 }
 
 type kubernetesFrame struct {
@@ -216,6 +227,18 @@ func (c *ApiController) GetAssetKubernetes() {
 		return
 	}
 
+	user := c.GetSessionUser()
+	_, scope, err := object.GetKubernetesAccess(user, asset, session.Account, c.getAuthzClientIp())
+	if err != nil {
+		fail(PermissionDenied, err)
+		return
+	}
+	// a shell is created in the pod, which a read-only permission doesn't allow
+	if !scope.CanWrite(namespace) {
+		fail(PermissionDenied, fmt.Errorf("you have no permission to open a shell in the namespace: %s", namespace))
+		return
+	}
+
 	client, err := object.NewKubernetesClient(asset)
 	if err != nil {
 		fail(NewTunnelError, err)
@@ -230,7 +253,7 @@ func (c *ApiController) GetAssetKubernetes() {
 
 	recorder := terminal.NewRecorder(terminal.Options{
 		SessionId: sessionId,
-		User:      c.GetSessionUser(),
+		User:      user,
 		Asset:     asset,
 		ClientIp:  c.getAuthzClientIp(),
 		Cols:      cols,
@@ -249,7 +272,7 @@ func (c *ApiController) GetAssetKubernetes() {
 		fail(SessionUpdateError, err)
 		return
 	}
-	c.addLiveSession(sessionId, asset)
+	c.addKubernetesLiveSession(sessionId, session.Account, namespace)
 	object.AddSessionCloser(sessionId, func(code int, msg string) {
 		_ = stream.WriteJSON(terminalMessage{Type: "error", Code: code, Message: msg})
 		stream.Close(code, msg)
@@ -319,4 +342,39 @@ func (c *ApiController) GetAssetKubernetes() {
 	}
 
 	closeTunnelSession(sessionId, "Normal user exit")
+}
+
+// addKubernetesLiveSession ends a shell once the user may no longer connect to the asset, or no
+// longer open a shell in the namespace.
+func (c *ApiController) addKubernetesLiveSession(sessionId string, account string, namespace string) {
+	session, err := object.GetConnSession(sessionId)
+	if err != nil || session == nil {
+		return
+	}
+	assetId := session.Asset
+	clientIp := c.getAuthzClientIp()
+	liveSession := &object.LiveSession{User: c.GetSessionUser(), AssetId: assetId, Account: account, ClientIp: clientIp}
+	liveSession.OnActions = func(actions []string) {
+		operations := object.GetSessionOperations(actions)
+		for _, operation := range session.Operations {
+			if !slices.Contains(operations, operation) {
+				go func() {
+					_ = object.CloseSession(sessionId, object.PermissionRevokedCode, fmt.Sprintf("The permission to %s on the asset: %s has been revoked, connect again", operation, assetId))
+				}()
+				return
+			}
+		}
+
+		asset, err := object.GetAsset(assetId)
+		if err != nil || asset == nil {
+			return
+		}
+		_, scope, err := object.GetKubernetesAccess(liveSession.User, asset, account, clientIp)
+		if err == nil && !scope.CanWrite(namespace) {
+			go func() {
+				_ = object.CloseSession(sessionId, object.PermissionRevokedCode, fmt.Sprintf("The permission to open a shell in the namespace: %s has been revoked", namespace))
+			}()
+		}
+	}
+	object.AddLiveSession(sessionId, liveSession)
 }

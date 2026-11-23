@@ -37,12 +37,14 @@ const (
 	ConnectMethodForward = "Port forwarding"
 	// ConnectMethodRdp is Remote Desktop Connection (mstsc) through the Remote Desktop Gateway
 	ConnectMethodRdp = "RDP client"
+	// ConnectMethodKubectl is kubectl and other Kubernetes clients through the Kubernetes proxy, from a kubeconfig
+	ConnectMethodKubectl = "kubectl"
 
 	ConnectActionAllow  = "Allow"
 	ConnectActionReject = "Reject"
 )
 
-var connectMethods = []string{ConnectMethodWeb, ConnectMethodSsh, ConnectMethodSftp, ConnectMethodForward, ConnectMethodRdp}
+var connectMethods = []string{ConnectMethodWeb, ConnectMethodSsh, ConnectMethodSftp, ConnectMethodForward, ConnectMethodRdp, ConnectMethodKubectl}
 
 // ConnectRule allows or rejects ways to connect to assets, for the users, assets and accounts it
 // covers. Rules are tried by priority, the smallest first, and the first rule that matches decides;
@@ -229,6 +231,8 @@ func getConnectMethodName(method string) string {
 		return "port forwarding"
 	case ConnectMethodRdp:
 		return "Remote Desktop Connection"
+	case ConnectMethodKubectl:
+		return "kubectl"
 	}
 	return method
 }

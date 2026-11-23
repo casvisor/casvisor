@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,10 +41,12 @@ import (
 const ProtocolKubernetes = "Kubernetes"
 
 const (
-	KubernetesDefaultPort     = 6443
-	KubernetesExecSubprotocol = "v4.channel.k8s.io"
+	KubernetesDefaultPort       = 6443
+	KubernetesExecSubprotocol   = "v4.channel.k8s.io"
+	KubernetesExecSubprotocolV5 = "v5.channel.k8s.io"
 
 	kubernetesRequestTimeout = 30 * time.Second
+	kubernetesMaxMessage     = 256 * 1024
 )
 
 var kubernetesNamePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$`)
@@ -61,9 +64,11 @@ type KubernetesPod struct {
 }
 
 type KubernetesPods struct {
-	Namespaces []string         `json:"namespaces"`
-	Namespace  string           `json:"namespace"`
-	Pods       []*KubernetesPod `json:"pods"`
+	Namespaces []string `json:"namespaces"`
+	Namespace  string   `json:"namespace"`
+	// ReadOnly is set when the user may only read the namespace, without shells or file transfers
+	ReadOnly bool             `json:"readOnly"`
+	Pods     []*KubernetesPod `json:"pods"`
 }
 
 // getKubernetesUrl reads the host of the asset, either an address like
@@ -203,11 +208,7 @@ func (c *KubernetesClient) pinFingerprint() error {
 }
 
 func (c *KubernetesClient) getUrl(scheme string, path string, query url.Values) string {
-	u := *c.baseUrl
-	u.Scheme = scheme
-	u.Path = c.baseUrl.Path + path
-	u.RawQuery = query.Encode()
-	return u.String()
+	return c.GetUrl(scheme, path, query.Encode()).String()
 }
 
 type kubernetesStatus struct {
@@ -233,6 +234,34 @@ func getKubernetesError(statusCode int, body []byte) error {
 		message = http.StatusText(statusCode)
 	}
 	return fmt.Errorf("the API server returned %d: %s", statusCode, message)
+}
+
+// NewTransport returns a transport to the API server, for the proxy of kubectl.
+func (c *KubernetesClient) NewTransport() *http.Transport {
+	return &http.Transport{
+		DialContext:         c.dial,
+		TLSClientConfig:     c.getTlsConfig(),
+		TLSHandshakeTimeout: kubernetesRequestTimeout,
+		IdleConnTimeout:     time.Minute,
+	}
+}
+
+// GetUrl returns the address of a path on the API server, with "https" or "wss".
+func (c *KubernetesClient) GetUrl(scheme string, path string, rawQuery string) *url.URL {
+	u := *c.baseUrl
+	u.Scheme = scheme
+	u.Path = c.baseUrl.Path + path
+	u.RawQuery = rawQuery
+	return &u
+}
+
+func (c *KubernetesClient) GetToken() string {
+	return c.token
+}
+
+// PinFingerprint keeps the public key of the API server once a request has been accepted.
+func (c *KubernetesClient) PinFingerprint() error {
+	return c.pinFingerprint()
 }
 
 func (c *KubernetesClient) get(path string, v interface{}) (int, error) {
@@ -343,10 +372,13 @@ func (c *KubernetesClient) GetPods(namespace string) ([]*KubernetesPod, error) {
 // GetKubernetesPods lists the namespaces the token can see and the pods of one of them. A
 // token that may not list namespaces, like one bound to a single namespace by a Role, is
 // shown the namespace of the asset, or "default".
-func GetKubernetesPods(asset *Asset, namespace string) (*KubernetesPods, error) {
+func GetKubernetesPods(asset *Asset, namespace string, scope *KubernetesScope) (*KubernetesPods, error) {
 	client, err := NewKubernetesClient(asset)
 	if err != nil {
 		return nil, err
+	}
+	if namespace != "" && !scope.CanRead(namespace) {
+		return nil, fmt.Errorf("you have no permission to the namespace: %s", namespace)
 	}
 
 	defaultNamespace := strings.TrimSpace(asset.Database)
@@ -354,14 +386,27 @@ func GetKubernetesPods(asset *Asset, namespace string) (*KubernetesPods, error) 
 		defaultNamespace = "default"
 	}
 
-	namespaces, code, err := client.GetNamespaces()
-	if err != nil {
-		if code != http.StatusForbidden {
-			return nil, err
+	var namespaces []string
+	if scope.IsAll() {
+		var code int
+		namespaces, code, err = client.GetNamespaces()
+		if err != nil {
+			if code != http.StatusForbidden {
+				return nil, err
+			}
+			namespaces = []string{defaultNamespace}
+			if namespace != "" && namespace != defaultNamespace {
+				namespaces = append(namespaces, namespace)
+			}
 		}
-		namespaces = []string{defaultNamespace}
-		if namespace != "" && namespace != defaultNamespace {
-			namespaces = append(namespaces, namespace)
+	} else {
+		// a user kept to some namespaces is shown them, whether the token may list namespaces or not
+		namespaces = scope.GetNames()
+		if len(namespaces) == 0 {
+			return nil, fmt.Errorf("you have no permission to any namespace")
+		}
+		if !slices.Contains(namespaces, defaultNamespace) {
+			defaultNamespace = namespaces[0]
 		}
 	}
 
@@ -380,7 +425,7 @@ func GetKubernetesPods(asset *Asset, namespace string) (*KubernetesPods, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &KubernetesPods{Namespaces: namespaces, Namespace: namespace, Pods: pods}, nil
+	return &KubernetesPods{Namespaces: namespaces, Namespace: namespace, ReadOnly: !scope.CanWrite(namespace), Pods: pods}, nil
 }
 
 // KubernetesExec is a command run in a container with a terminal, over the WebSocket
@@ -388,6 +433,7 @@ func GetKubernetesPods(asset *Asset, namespace string) (*KubernetesPods, error) 
 // 1 for stdout, 2 for stderr, 3 for the status when the command ends and 4 to resize.
 type KubernetesExec struct {
 	conn    *websocket.Conn
+	isV5    bool
 	writeMu sync.Mutex
 }
 
@@ -397,9 +443,48 @@ const (
 	KubernetesChannelStderr = 2
 	KubernetesChannelError  = 3
 	KubernetesChannelResize = 4
+	// KubernetesChannelClose closes the channel in its data, in v5.channel.k8s.io
+	KubernetesChannelClose = 255
 )
 
+// DialWebSocket opens a WebSocket to a path of the API server, offering the subprotocols.
+func (c *KubernetesClient) DialWebSocket(path string, rawQuery string, subprotocols []string) (*websocket.Conn, *http.Response, error) {
+	dialer := websocket.Dialer{
+		NetDialContext:   c.dial,
+		TLSClientConfig:  c.getTlsConfig(),
+		HandshakeTimeout: kubernetesRequestTimeout,
+		Subprotocols:     subprotocols,
+		ReadBufferSize:   32 * 1024,
+		// the API server reads each frame as a message, so that no message may span frames
+		WriteBufferSize: kubernetesMaxMessage,
+	}
+	header := http.Header{}
+	header.Set("Authorization", "Bearer "+c.token)
+
+	conn, resp, err := dialer.Dial(c.GetUrl("wss", path, rawQuery).String(), header)
+	if err != nil {
+		return nil, resp, err
+	}
+	err = c.pinFingerprint()
+	if err != nil {
+		_ = conn.Close()
+		return nil, resp, err
+	}
+	return conn, resp, nil
+}
+
+type KubernetesExecOptions struct {
+	Stdin bool
+	Tty   bool
+}
+
 func (c *KubernetesClient) Exec(namespace string, pod string, container string, command []string) (*KubernetesExec, error) {
+	return c.ExecWith(namespace, pod, container, command, KubernetesExecOptions{Stdin: true, Tty: true})
+}
+
+// ExecWith runs a command in a container with its output, and with stdin and a terminal as asked;
+// without a terminal, stderr comes apart from stdout.
+func (c *KubernetesClient) ExecWith(namespace string, pod string, container string, command []string, options KubernetesExecOptions) (*KubernetesExec, error) {
 	for _, name := range []string{namespace, pod, container} {
 		if !IsKubernetesName(name) {
 			return nil, fmt.Errorf("the name: %s is invalid", name)
@@ -411,22 +496,17 @@ func (c *KubernetesClient) Exec(namespace string, pod string, container string, 
 	for _, arg := range command {
 		query.Add("command", arg)
 	}
-	for _, name := range []string{"stdin", "stdout", "stderr", "tty"} {
-		query.Set(name, "true")
+	query.Set("stdout", "true")
+	if options.Stdin {
+		query.Set("stdin", "true")
+	}
+	if options.Tty {
+		query.Set("tty", "true")
+	} else {
+		query.Set("stderr", "true")
 	}
 
-	dialer := websocket.Dialer{
-		NetDialContext:   c.dial,
-		TLSClientConfig:  c.getTlsConfig(),
-		HandshakeTimeout: kubernetesRequestTimeout,
-		Subprotocols:     []string{KubernetesExecSubprotocol},
-		ReadBufferSize:   32 * 1024,
-		WriteBufferSize:  32 * 1024,
-	}
-	header := http.Header{}
-	header.Set("Authorization", "Bearer "+c.token)
-
-	conn, resp, err := dialer.Dial(c.getUrl("wss", fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/exec", namespace, pod), query), header)
+	conn, resp, err := c.DialWebSocket(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/exec", namespace, pod), query.Encode(), []string{KubernetesExecSubprotocolV5, KubernetesExecSubprotocol})
 	if err != nil {
 		if resp != nil {
 			body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
@@ -437,17 +517,12 @@ func (c *KubernetesClient) Exec(namespace string, pod string, container string, 
 		}
 		return nil, err
 	}
-	if conn.Subprotocol() != KubernetesExecSubprotocol {
+	protocol := conn.Subprotocol()
+	if protocol != KubernetesExecSubprotocol && protocol != KubernetesExecSubprotocolV5 {
 		_ = conn.Close()
 		return nil, fmt.Errorf("the API server does not support the protocol: %s", KubernetesExecSubprotocol)
 	}
-
-	err = c.pinFingerprint()
-	if err != nil {
-		_ = conn.Close()
-		return nil, err
-	}
-	return &KubernetesExec{conn: conn}, nil
+	return &KubernetesExec{conn: conn, isV5: protocol == KubernetesExecSubprotocolV5}, nil
 }
 
 func (e *KubernetesExec) write(channel byte, p []byte) error {
@@ -460,6 +535,14 @@ func (e *KubernetesExec) write(channel byte, p []byte) error {
 
 func (e *KubernetesExec) Write(p []byte) error {
 	return e.write(KubernetesChannelStdin, p)
+}
+
+// CloseStdin tells the command its input has ended, which only v5.channel.k8s.io can tell.
+func (e *KubernetesExec) CloseStdin() error {
+	if !e.isV5 {
+		return nil
+	}
+	return e.write(KubernetesChannelClose, []byte{KubernetesChannelStdin})
 }
 
 func (e *KubernetesExec) Resize(cols int, rows int) error {
@@ -506,4 +589,57 @@ func GetKubernetesExecError(data []byte) error {
 		status.Message = status.Reason
 	}
 	return fmt.Errorf("%s", status.Message)
+}
+
+type KubernetesLogOptions struct {
+	TailLines  int
+	Follow     bool
+	Timestamps bool
+	Previous   bool
+}
+
+// GetLogs streams the log of a container; a log that is followed goes on until the context ends.
+func (c *KubernetesClient) GetLogs(ctx context.Context, namespace string, pod string, container string, options KubernetesLogOptions) (io.ReadCloser, error) {
+	for _, name := range []string{namespace, pod, container} {
+		if !IsKubernetesName(name) {
+			return nil, fmt.Errorf("the name: %s is invalid", name)
+		}
+	}
+
+	query := url.Values{}
+	query.Set("container", container)
+	if options.TailLines > 0 {
+		query.Set("tailLines", strconv.Itoa(options.TailLines))
+	}
+	for name, value := range map[string]bool{"follow": options.Follow, "timestamps": options.Timestamps, "previous": options.Previous} {
+		if value {
+			query.Set(name, "true")
+		}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.getUrl("https", fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/log", namespace, pod), query), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	transport := c.NewTransport()
+	transport.ResponseHeaderTimeout = kubernetesRequestTimeout
+	transport.DisableKeepAlives = true
+	resp, err := (&http.Client{Transport: transport}).Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+		_ = resp.Body.Close()
+		return nil, getKubernetesError(resp.StatusCode, body)
+	}
+
+	err = c.pinFingerprint()
+	if err != nil {
+		_ = resp.Body.Close()
+		return nil, err
+	}
+	return resp.Body, nil
 }
