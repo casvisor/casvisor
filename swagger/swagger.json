@@ -420,6 +420,34 @@
                 }
             }
         },
+        "/add-session-share": {
+            "post": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "share a connected session of yours with other users of the organization, to watch it or, for a terminal, to type in it too; returns the share with its code",
+                "operationId": "ApiController.AddSessionShare",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The session, the names of the users it is for (anyone of the organization when empty), View or Control, and how many minutes it lasts",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sessionShareForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.SessionShare"
+                        }
+                    }
+                }
+            }
+        },
         "/add-ssh-key": {
             "post": {
                 "tags": [
@@ -2583,6 +2611,61 @@
                 ]
             }
         },
+        "/get-session-share": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "get what a share is, for a user it is for, without its code",
+                "operationId": "ApiController.GetSessionShare",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the share",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sessionShareInfo"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-session-shares": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "get the open shares of a session of yours, with their codes",
+                "operationId": "ApiController.GetSessionShares",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "session",
+                        "description": "The id of the session",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.SessionShare"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/get-sessions": {
             "get": {
                 "tags": [
@@ -2774,6 +2857,37 @@
                         }
                     }
                 }
+            }
+        },
+        "/join-session-share": {
+            "get": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "join a shared session over a websocket with the code of the share, to watch it or, when the share allows it and control is true, to type in it too",
+                "operationId": "ApiController.JoinSessionShare",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the share",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "description": "The code of the share",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "control",
+                        "description": "true to type in the session",
+                        "type": "boolean"
+                    }
+                ]
             }
         },
         "/move-assets": {
@@ -3058,6 +3172,32 @@
                         "in": "query",
                         "name": "id",
                         "description": "The id ( owner/name ) of the network gateway",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/revoke-session-share": {
+            "post": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "revoke a share of a session of yours; the users who joined through it are disconnected",
+                "operationId": "ApiController.RevokeSessionShare",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id of the share",
                         "required": true,
                         "type": "string"
                     }
@@ -3996,6 +4136,52 @@
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.sessionShareForm": {
+            "title": "sessionShareForm",
+            "type": "object",
+            "properties": {
+                "expireMinutes": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "session": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "controllers.sessionShareInfo": {
+            "title": "sessionShareInfo",
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "string"
+                },
+                "creator": {
+                    "type": "string"
+                },
+                "expireTime": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
                     "type": "string"
                 }
             }
@@ -5456,6 +5642,56 @@
                 "width": {
                     "type": "integer",
                     "format": "int64"
+                }
+            }
+        },
+        "object.SessionShare": {
+            "title": "SessionShare",
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "creator": {
+                    "type": "string"
+                },
+                "expireTime": {
+                    "type": "string"
+                },
+                "failedAttempts": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "isRevoked": {
+                    "type": "boolean"
+                },
+                "joinCount": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "session": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
