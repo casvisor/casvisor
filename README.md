@@ -226,6 +226,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 **⚙️ Operate**
 
 - **Jobs** — run a command, a Bash or PowerShell script, or a file copy on many SSH assets at once, with concurrency, timeouts and per-asset output and exit codes
+- **Job schedules** — run a job on a cron schedule in any time zone, such as a backup at 03:00 every day; a run is skipped while the last one is still going
 - **Patch management** — scan SSH assets for pending system updates, install them and restart, on Windows (Windows Update) and Linux (apt, dnf, yum)
 - **REST API** — every console action is also an API call, with [Swagger docs](swagger)
 - **Prometheus metrics** — `/metrics` reports connected sessions, sessions, commands, assets, access requests and network agents, behind the bearer token in `metricsToken`

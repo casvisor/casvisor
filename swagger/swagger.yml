@@ -162,6 +162,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /add-job-schedule:
+    post:
+      tags:
+      - Job API
+      description: add a job schedule; its jobs run as the administrator who saves it
+      operationId: ApiController.AddJobSchedule
+      parameters:
+      - in: body
+        name: body
+        description: The details of the job schedule
+        required: true
+        schema:
+          $ref: '#/definitions/object.JobSchedule'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
   /add-local-user:
     post:
       tags:
@@ -561,6 +579,24 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.Job'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /delete-job-schedule:
+    post:
+      tags:
+      - Job API
+      description: delete a job schedule; the jobs it started are kept
+      operationId: ApiController.DeleteJobSchedule
+      parameters:
+      - in: body
+        name: body
+        description: The job schedule
+        required: true
+        schema:
+          $ref: '#/definitions/object.JobSchedule'
       responses:
         "200":
           description: The Response object
@@ -1263,6 +1299,65 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.Job'
+  /get-job-schedule:
+    get:
+      tags:
+      - Job API
+      description: get a job schedule
+      operationId: ApiController.GetJobSchedule
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the job schedule
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.JobSchedule'
+  /get-job-schedule-run-times:
+    get:
+      tags:
+      - Job API
+      description: get the next five times a cron expression fires in a time zone, to check it
+      operationId: ApiController.GetJobScheduleRunTimes
+      parameters:
+      - in: query
+        name: cron
+        description: A cron expression of five fields, such as 0 3 * * *
+        required: true
+        type: string
+      - in: query
+        name: timeZone
+        description: An IANA time zone, the server's when empty
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            type: array
+            items:
+              type: string
+  /get-job-schedules:
+    get:
+      tags:
+      - Job API
+      description: get the job schedules, by page
+      operationId: ApiController.GetJobSchedules
+      parameters:
+      - in: query
+        name: owner
+        description: The owner of the job schedules
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/object.JobSchedule'
   /get-jobs:
     get:
       tags:
@@ -2116,6 +2211,23 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.AssetAccount'
+  /run-job-schedule:
+    post:
+      tags:
+      - Job API
+      description: start a job of the schedule now, unless its last job is still running
+      operationId: ApiController.RunJobSchedule
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the job schedule
+        required: true
+        type: string
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.Job'
   /start-job:
     post:
       tags:
@@ -2344,6 +2456,29 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/object.CommandRule'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /update-job-schedule:
+    post:
+      tags:
+      - Job API
+      description: update a job schedule; its jobs run as the administrator who saves it
+      operationId: ApiController.UpdateJobSchedule
+      parameters:
+      - in: query
+        name: id
+        description: The id ( owner/name ) of the job schedule
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The details of the job schedule
+        required: true
+        schema:
+          $ref: '#/definitions/object.JobSchedule'
       responses:
         "200":
           description: The Response object
@@ -3199,6 +3334,8 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/object.JobResult'
+      schedule:
+        type: string
       scriptType:
         type: string
       startTime:
@@ -3249,6 +3386,73 @@ definitions:
         type: string
       status:
         type: string
+  object.JobSchedule:
+    title: JobSchedule
+    type: object
+    properties:
+      assetTags:
+        type: array
+        items:
+          type: string
+      assets:
+        type: array
+        items:
+          type: string
+      concurrency:
+        type: integer
+        format: int64
+      content:
+        type: string
+      createdTime:
+        type: string
+      cron:
+        type: string
+      description:
+        type: string
+      displayName:
+        type: string
+      fileKey:
+        type: string
+      fileName:
+        type: string
+      filePath:
+        type: string
+      fileSize:
+        type: integer
+        format: int64
+      isEnabled:
+        type: boolean
+      lastJob:
+        type: string
+      lastRunMessage:
+        type: string
+      lastRunStatus:
+        type: string
+      lastRunTime:
+        type: string
+      name:
+        type: string
+      nextRunTime:
+        type: string
+      owner:
+        type: string
+      scriptType:
+        type: string
+      timeZone:
+        type: string
+      timeout:
+        type: integer
+        format: int64
+      type:
+        type: string
+      updatedTime:
+        type: string
+      user:
+        type: string
+      userGroups:
+        type: array
+        items:
+          type: string
   object.KubernetesPod:
     title: KubernetesPod
     type: object
