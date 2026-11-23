@@ -140,7 +140,7 @@ paths:
     post:
       tags:
       - Session API
-      description: 'issue a one-time token, valid for two minutes, that lets a client on the user''s machine open one connection to an asset: kind "ssh" signs in to the SSH gateway on an SSH asset (ssh, Xshell, WinSCP), "tunnel" forwards a local port to an asset through the SSH gateway, and "rdp" lets mstsc reach an RDP asset through Casvisor''s Remote Desktop Gateway; "tunnel" and "rdp" pass the traffic through without recording it and need the Forward action'
+      description: 'issue a one-time token, valid for two minutes, that lets a client on the user''s machine open one connection to an asset: kind "ssh" signs in to the SSH gateway on an SSH asset (ssh, Xshell, WinSCP), "tunnel" forwards a local port to an asset through the SSH gateway, and "rdp" lets mstsc reach an RDP asset through Casvisor''s Remote Desktop Gateway; "tunnel" and "rdp" pass the traffic through without recording it and need the Forward action. Kind "db" is the user and the password of a database client (DBeaver, Navicat, mysql, psql) on a MySQL or PostgreSQL asset through the database proxy; it lasts dbProxyTokenHours (8 hours by default), opens a session for every connection and can be revoked'
       operationId: ApiController.AddClientToken
       parameters:
       - in: query
@@ -154,7 +154,7 @@ paths:
         type: string
       - in: query
         name: kind
-        description: ssh, tunnel or rdp
+        description: ssh, tunnel, rdp or db
         required: true
         type: string
       responses:
@@ -1795,6 +1795,19 @@ paths:
             type: array
             items:
               $ref: '#/definitions/object.ConnectRule'
+  /get-database-tokens:
+    get:
+      tags:
+      - Session API
+      description: 'list the database tokens that are valid: the user''s own, or those of every user of the organization for an administrator; the tokens themselves are not shown'
+      operationId: ApiController.GetDatabaseTokens
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/object.ClientTokenInfo'
   /get-groups:
     get:
       tags:
@@ -2601,7 +2614,7 @@ paths:
     get:
       tags:
       - SSH Key API
-      description: get the address and host key fingerprint of the SSH gateway
+      description: get the address and host key fingerprint of the SSH gateway, whether the Remote Desktop Gateway is on, and the address of the database proxy
       operationId: ApiController.GetSshGateway
       responses:
         "200":
@@ -2943,6 +2956,23 @@ paths:
         description: The comment
         schema:
           $ref: '#/definitions/controllers.AccessReviewForm'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/controllers.Response'
+  /revoke-database-token:
+    post:
+      tags:
+      - Session API
+      description: revoke a database token, which also disconnects the sessions opened with it; users revoke their own tokens, administrators those of their organization
+      operationId: ApiController.RevokeDatabaseToken
+      parameters:
+      - in: query
+        name: tokenId
+        description: The id of the token, from get-database-tokens
+        required: true
+        type: string
       responses:
         "200":
           description: The Response object
@@ -3720,6 +3750,16 @@ definitions:
         type: string
       username:
         type: string
+  controllers.DbProxy:
+    title: DbProxy
+    type: object
+    properties:
+      host:
+        type: string
+      mysqlPort:
+        type: string
+      postgresqlPort:
+        type: string
   controllers.KubernetesToken:
     title: KubernetesToken
     type: object
@@ -3803,6 +3843,8 @@ definitions:
     title: SshGateway
     type: object
     properties:
+      dbProxy:
+        $ref: '#/definitions/controllers.DbProxy'
       enabled:
         type: boolean
       fingerprint:
@@ -4312,6 +4354,35 @@ definitions:
         type: integer
         format: int64
       version:
+        type: string
+  object.ClientTokenInfo:
+    title: ClientTokenInfo
+    type: object
+    properties:
+      account:
+        type: string
+      asset:
+        type: string
+      clientIp:
+        type: string
+      createdTime:
+        type: string
+      expireTime:
+        type: string
+      hint:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      lastUsedIp:
+        type: string
+      lastUsedTime:
+        type: string
+      sessions:
+        type: integer
+        format: int64
+      user:
         type: string
   object.CloudAccount:
     title: CloudAccount
