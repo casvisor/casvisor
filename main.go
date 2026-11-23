@@ -27,6 +27,7 @@ import (
 	"github.com/casvisor/casvisor/authz"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/controllers"
+	"github.com/casvisor/casvisor/dbproxy"
 	"github.com/casvisor/casvisor/demo"
 	"github.com/casvisor/casvisor/kubeproxy"
 	"github.com/casvisor/casvisor/object"
@@ -119,6 +120,7 @@ func main() {
 	task.NewTicker().SetupTicker()
 	demo.StartDemoTargets()
 	sshgateway.Start()
+	dbproxy.Start()
 	object.StartLiveSessionChecker()
 	webproxy.Start()
 	rbrowser.Init()

@@ -29,9 +29,9 @@ const MaxImportAssets = 5000
 // AssetImportColumns are the columns of an asset CSV file, in the order of the template and the export.
 var AssetImportColumns = []string{"name", "displayName", "description", "protocol", "host", "port", "username", "password", "privateKey", "database", "os", "tag", "nodes", "networkGateway", "platform", "elevationPassword"}
 
-var assetProtocols = []string{"SSH", "RDP", "VNC", "Telnet", ProtocolMysql, ProtocolPostgresql, ProtocolSqlServer, ProtocolOracle, ProtocolRedis, ProtocolMongodb, ProtocolKubernetes, ProtocolWeb, ProtocolDesktop}
+var assetProtocols = []string{"SSH", "RDP", "VNC", "Telnet", ProtocolMysql, ProtocolPostgresql, ProtocolSqlServer, ProtocolOracle, ProtocolRedis, ProtocolMongodb, ProtocolClickhouse, ProtocolDameng, ProtocolKubernetes, ProtocolWeb, ProtocolDesktop}
 
-var assetDefaultPorts = map[string]int{"SSH": 22, "RDP": 3389, "VNC": 5900, "Telnet": 23, ProtocolMysql: 3306, ProtocolPostgresql: 5432, ProtocolSqlServer: 1433, ProtocolOracle: 1521, ProtocolRedis: 6379, ProtocolMongodb: 27017, ProtocolKubernetes: KubernetesDefaultPort, ProtocolWeb: 80}
+var assetDefaultPorts = map[string]int{"SSH": 22, "RDP": 3389, "VNC": 5900, "Telnet": 23, ProtocolMysql: 3306, ProtocolPostgresql: 5432, ProtocolSqlServer: 1433, ProtocolOracle: 1521, ProtocolRedis: 6379, ProtocolMongodb: 27017, ProtocolClickhouse: 9000, ProtocolDameng: 5236, ProtocolKubernetes: KubernetesDefaultPort, ProtocolWeb: 80}
 
 const (
 	AssetImportCreate = "create"
@@ -87,7 +87,7 @@ func normalizeAssetProtocol(protocol string) (string, error) {
 			return p, nil
 		}
 	}
-	aliases := map[string]string{"postgres": ProtocolPostgresql, "mssql": ProtocolSqlServer, "sql server": ProtocolSqlServer, "mongo": ProtocolMongodb}
+	aliases := map[string]string{"postgres": ProtocolPostgresql, "mssql": ProtocolSqlServer, "sql server": ProtocolSqlServer, "mongo": ProtocolMongodb, "dm": ProtocolDameng, "dm8": ProtocolDameng}
 	if p, ok := aliases[strings.ToLower(strings.TrimSpace(protocol))]; ok {
 		return p, nil
 	}

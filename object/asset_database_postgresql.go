@@ -36,6 +36,10 @@ func (d *postgresqlDriver) connect() error {
 }
 
 func (d *postgresqlDriver) connectDatabase(database string) (*pgx.Conn, error) {
+	return d.connectDatabaseWithParams(database, map[string]string{"application_name": "casvisor"})
+}
+
+func (d *postgresqlDriver) connectDatabaseWithParams(database string, params map[string]string) (*pgx.Conn, error) {
 	c := d.c
 	config, err := pgx.ParseConfig("")
 	if err != nil {
@@ -49,7 +53,7 @@ func (d *postgresqlDriver) connectDatabase(database string) (*pgx.Conn, error) {
 	config.Password = asset.Password
 	config.Database = database
 	config.ConnectTimeout = 2 * dialTimeout
-	config.RuntimeParams = map[string]string{"application_name": "casvisor"}
+	config.RuntimeParams = params
 	// TLS when the server has it, plain otherwise until a public key is pinned
 	config.TLSConfig = c.getTlsConfig()
 	config.Fallbacks = nil

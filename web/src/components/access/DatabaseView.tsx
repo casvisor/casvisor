@@ -64,6 +64,9 @@ function quoteIdentifier(name: string, protocol: string) {
   if (protocol === "MySQL") {
     return `\`${name.replace(/`/g, "``")}\``;
   }
+  if (protocol === "ClickHouse") {
+    return `\`${name.replace(/[\\`]/g, "\\$&")}\``;
+  }
   if (protocol === "SQLServer") {
     return `[${name.replace(/]/g, "]]")}]`;
   }
@@ -97,6 +100,7 @@ function getEditorPlaceholder(protocol: string) {
   case "SQLServer":
     return i18next.t("database:Type T-SQL here, separate the batches with GO lines, Ctrl+Enter runs the selected text or all of it");
   case "Oracle":
+  case "Dameng":
     return i18next.t("database:Type SQL here, end a PL/SQL block with a line holding a slash, Ctrl+Enter runs the selected text or all of it");
   default:
     return i18next.t("database:Type SQL here, Ctrl+Enter runs the selected text or all of it");
@@ -127,6 +131,9 @@ function getTableQuery(protocol: string, database: string, current: string | und
   if (protocol === "Oracle") {
     return `SELECT * FROM ${quoteIdentifier(table.schema, protocol)}.${name} WHERE ROWNUM <= 100`;
   }
+  if (protocol === "Dameng") {
+    return `SELECT * FROM ${quoteIdentifier(table.schema, protocol)}.${name} LIMIT 100`;
+  }
   if (protocol === "SQLServer") {
     name = `${quoteIdentifier(table.schema, protocol)}.${name}`;
     if (database !== current) {
@@ -134,7 +141,7 @@ function getTableQuery(protocol: string, database: string, current: string | und
     }
     return `SELECT TOP 100 * FROM ${name};`;
   }
-  if (protocol === "MySQL" && database !== current) {
+  if ((protocol === "MySQL" || protocol === "ClickHouse") && database !== current) {
     name = `${quoteIdentifier(database, protocol)}.${name}`;
   } else if (protocol === "PostgreSQL" && table.schema !== "public") {
     name = `${quoteIdentifier(table.schema, protocol)}.${name}`;
@@ -472,7 +479,7 @@ export default function DatabaseView(props: ConnectionProps) {
       <div className="flex min-h-0 flex-1">
         <div className="flex w-64 shrink-0 flex-col border-r">
           <div className="flex h-9 shrink-0 items-center justify-between border-b px-3 text-xs font-medium text-muted-foreground">
-            {protocol === "Oracle" ? i18next.t("database:Schemas") : i18next.t("database:Databases")}
+            {protocol === "Oracle" || protocol === "Dameng" ? i18next.t("database:Schemas") : i18next.t("database:Databases")}
             <Button variant="ghost" size="icon" className="h-6 w-6" disabled={!connected} onClick={loadDatabases} aria-label={i18next.t("general:Refresh")}>
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>

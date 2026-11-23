@@ -19,10 +19,15 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/hex"
+	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/beego/beego/logs"
+	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/util"
 )
 
@@ -33,22 +38,62 @@ const (
 	ClientTokenTunnel = "tunnel"
 	// ClientTokenRdp lets mstsc reach an RDP asset through Casvisor's Remote Desktop Gateway
 	ClientTokenRdp = "rdp"
+	// ClientTokenDb is the user and the password of a database client such as DBeaver, Navicat, mysql or psql
+	// through the database proxy; database clients connect again and again, so it is used many times until it expires
+	ClientTokenDb = "db"
 
 	ClientTokenTimeout     = 2 * time.Minute
 	KubernetesTokenTimeout = 8 * time.Hour
 	clientTokenPrefix      = "cv"
+	// dbTokenDefaultHours is how long a database token lasts unless dbProxyTokenHours says otherwise
+	dbTokenDefaultHours = 8
 )
 
 // ClientToken lets a client on the user's machine open one connection to an asset, with the
-// permissions checked when the user asked for it in the browser. It is used once, within minutes.
+// permissions checked when the user asked for it in the browser. It is used once, within minutes,
+// except a database token, which lasts hours and opens a session for each connection.
 type ClientToken struct {
-	Token      string
-	Kind       string
-	UserId     string
-	AssetId    string
-	Account    string
-	ClientIp   string
-	ExpireTime time.Time
+	Id          string
+	Token       string
+	Kind        string
+	UserId      string
+	AssetId     string
+	Account     string
+	ClientIp    string
+	CreatedTime time.Time
+	ExpireTime  time.Time
+
+	mu           sync.Mutex
+	lastUsedTime time.Time
+	lastUsedIp   string
+	sessionIds   []string
+	// approvedIps are the client IPs whose sign-in a login review approved for the token
+	approvedIps []string
+}
+
+// ClientTokenInfo is a database token as the web console lists it, without the token itself.
+type ClientTokenInfo struct {
+	Id           string `json:"id"`
+	Kind         string `json:"kind"`
+	User         string `json:"user"`
+	Asset        string `json:"asset"`
+	Account      string `json:"account"`
+	ClientIp     string `json:"clientIp"`
+	Hint         string `json:"hint"`
+	CreatedTime  string `json:"createdTime"`
+	ExpireTime   string `json:"expireTime"`
+	LastUsedTime string `json:"lastUsedTime"`
+	LastUsedIp   string `json:"lastUsedIp"`
+	Sessions     int    `json:"sessions"`
+}
+
+// GetDbTokenTimeout is how long a database token lasts, dbProxyTokenHours or 8 hours.
+func GetDbTokenTimeout() time.Duration {
+	hours, err := strconv.ParseFloat(conf.GetConfigString("dbProxyTokenHours"), 64)
+	if err != nil || hours <= 0 {
+		hours = dbTokenDefaultHours
+	}
+	return time.Duration(hours * float64(time.Hour))
 }
 
 var clientTokens sync.Map
@@ -69,14 +114,21 @@ func AddClientToken(kind string, userId string, assetId string, account string, 
 		return nil, err
 	}
 
+	timeout := ClientTokenTimeout
+	if kind == ClientTokenDb {
+		timeout = GetDbTokenTimeout()
+	}
+	now := time.Now()
 	token := &ClientToken{
-		Token:      value,
-		Kind:       kind,
-		UserId:     userId,
-		AssetId:    assetId,
-		Account:    account,
-		ClientIp:   clientIp,
-		ExpireTime: time.Now().Add(ClientTokenTimeout),
+		Id:          util.GenerateId(),
+		Token:       value,
+		Kind:        kind,
+		UserId:      userId,
+		AssetId:     assetId,
+		Account:     account,
+		ClientIp:    clientIp,
+		CreatedTime: now,
+		ExpireTime:  now.Add(timeout),
 	}
 	clientTokens.Store(token.Token, token)
 
@@ -97,7 +149,11 @@ func IsClientToken(name string) bool {
 
 // ConsumeClientToken returns the token of the kind once, and nil when it is unknown, used or expired.
 func ConsumeClientToken(token string, kinds ...string) *ClientToken {
-	value, ok := clientTokens.LoadAndDelete(token)
+	value, ok := clientTokens.Load(token)
+	if !ok || value.(*ClientToken).Kind == ClientTokenDb {
+		return nil
+	}
+	value, ok = clientTokens.LoadAndDelete(token)
 	if !ok {
 		return nil
 	}
@@ -111,6 +167,124 @@ func ConsumeClientToken(token string, kinds ...string) *ClientToken {
 		}
 	}
 	return nil
+}
+
+// GetDbToken returns the database token while it is valid, without using it up; nil means it is unknown, revoked or expired.
+func GetDbToken(token string) *ClientToken {
+	value, ok := clientTokens.Load(token)
+	if !ok {
+		return nil
+	}
+	res := value.(*ClientToken)
+	if res.Kind != ClientTokenDb || time.Now().After(res.ExpireTime) {
+		return nil
+	}
+	return res
+}
+
+// Use records a connection made with the token and the session it opened.
+func (token *ClientToken) Use(clientIp string, sessionId string) {
+	token.mu.Lock()
+	defer token.mu.Unlock()
+	token.lastUsedTime = time.Now()
+	token.lastUsedIp = clientIp
+	if sessionId != "" {
+		token.sessionIds = append(token.sessionIds, sessionId)
+	}
+}
+
+// EndSession forgets a session of the token once it has ended.
+func (token *ClientToken) EndSession(sessionId string) {
+	token.mu.Lock()
+	defer token.mu.Unlock()
+	token.sessionIds = slices.DeleteFunc(token.sessionIds, func(id string) bool { return id == sessionId })
+}
+
+// IsApproved tells whether a login review approved a sign-in with the token from the client IP.
+func (token *ClientToken) IsApproved(clientIp string) bool {
+	token.mu.Lock()
+	defer token.mu.Unlock()
+	return slices.Contains(token.approvedIps, clientIp)
+}
+
+func (token *ClientToken) Approve(clientIp string) {
+	token.mu.Lock()
+	defer token.mu.Unlock()
+	if !slices.Contains(token.approvedIps, clientIp) {
+		token.approvedIps = append(token.approvedIps, clientIp)
+	}
+}
+
+func (token *ClientToken) getInfo() *ClientTokenInfo {
+	token.mu.Lock()
+	defer token.mu.Unlock()
+	res := &ClientTokenInfo{
+		Id:          token.Id,
+		Kind:        token.Kind,
+		User:        token.UserId,
+		Asset:       token.AssetId,
+		Account:     token.Account,
+		ClientIp:    token.ClientIp,
+		Hint:        token.Token[:6] + "...",
+		CreatedTime: token.CreatedTime.Format(time.RFC3339),
+		ExpireTime:  token.ExpireTime.Format(time.RFC3339),
+		LastUsedIp:  token.lastUsedIp,
+		Sessions:    len(token.sessionIds),
+	}
+	if !token.lastUsedTime.IsZero() {
+		res.LastUsedTime = token.lastUsedTime.Format(time.RFC3339)
+	}
+	return res
+}
+
+// GetDbTokens lists the valid database tokens of a user, or of every user of an organization when
+// userId is empty, and of everyone when owner is empty too, the newest first.
+func GetDbTokens(owner string, userId string) []*ClientTokenInfo {
+	res := []*ClientTokenInfo{}
+	now := time.Now()
+	clientTokens.Range(func(key, value interface{}) bool {
+		token := value.(*ClientToken)
+		if token.Kind != ClientTokenDb || now.After(token.ExpireTime) {
+			return true
+		}
+		tokenOwner, _ := util.GetOwnerAndNameFromIdNoCheck(token.UserId)
+		if (userId != "" && token.UserId != userId) || (owner != "" && tokenOwner != owner) {
+			return true
+		}
+		res = append(res, token.getInfo())
+		return true
+	})
+	slices.SortFunc(res, func(a, b *ClientTokenInfo) int { return strings.Compare(b.CreatedTime, a.CreatedTime) })
+	return res
+}
+
+// GetDbTokenById finds a valid database token by its id, which the web console uses instead of the token.
+func GetDbTokenById(id string) *ClientToken {
+	var res *ClientToken
+	clientTokens.Range(func(key, value interface{}) bool {
+		token := value.(*ClientToken)
+		if token.Kind == ClientTokenDb && token.Id == id {
+			res = token
+			return false
+		}
+		return true
+	})
+	return res
+}
+
+// RevokeDbToken removes a database token and ends the sessions opened with it.
+func RevokeDbToken(token *ClientToken, message string) {
+	clientTokens.Delete(token.Token)
+
+	token.mu.Lock()
+	sessionIds := slices.Clone(token.sessionIds)
+	token.mu.Unlock()
+	for _, sessionId := range sessionIds {
+		err := CloseSession(sessionId, PermissionRevokedCode, message)
+		if err != nil {
+			logs.Error(fmt.Sprintf("RevokeDbToken(): failed to close the session: %s: %s", sessionId, err.Error()))
+		}
+	}
 }
 
 const SessionModeKubeconfig = "kubeconfig"

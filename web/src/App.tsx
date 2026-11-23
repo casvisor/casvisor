@@ -126,6 +126,7 @@ export default function App() {
           <Route path="/reports/schedules" element={page("ReportScheduleListPage")} />
           <Route path="/reports/:owner/:name" element={page("ReportEditPage")} />
           <Route path="/ssh-keys" element={page("SshKeyListPage")} />
+          <Route path="/database-tokens" element={page("DatabaseTokenListPage")} />
           <Route path="/account" element={page("AccountPage")} />
           <Route path="/users" element={page("UserListPage")} />
           <Route path="/users/:owner/:name" element={page("UserEditPage")} />

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export const Protocols = ["RDP", "VNC", "SSH", "Telnet", "MySQL", "PostgreSQL", "SQLServer", "Oracle", "Redis", "MongoDB", "Kubernetes", "Web", "Desktop"];
+export const Protocols = ["RDP", "VNC", "SSH", "Telnet", "MySQL", "PostgreSQL", "SQLServer", "Oracle", "Redis", "MongoDB", "ClickHouse", "Dameng", "Kubernetes", "Web", "Desktop"];
 
 /** The API server of a Kubernetes cluster, whose password is a bearer token. */
 export const KubernetesProtocol = "Kubernetes";
@@ -37,7 +37,7 @@ export function isRequestLogProtocol(protocol: string) {
 /** A computer running Casvisor Desktop, reached through its device instead of a host and port. */
 export const DesktopProtocol = "Desktop";
 
-export const DatabaseProtocols = ["MySQL", "PostgreSQL", "SQLServer", "Oracle", "Redis", "MongoDB"];
+export const DatabaseProtocols = ["MySQL", "PostgreSQL", "SQLServer", "Oracle", "Redis", "MongoDB", "ClickHouse", "Dameng"];
 
 export function isDatabaseProtocol(protocol: string) {
   return DatabaseProtocols.includes(protocol);
@@ -56,7 +56,7 @@ export function getDefaultPlatform(protocol: string, os: string) {
 }
 
 export function getDefaultPort(protocol: string) {
-  const ports: Record<string, number> = {RDP: 3389, VNC: 5900, SSH: 22, Telnet: 23, MySQL: 3306, PostgreSQL: 5432, SQLServer: 1433, Oracle: 1521, Redis: 6379, MongoDB: 27017, Kubernetes: 6443, Web: 80};
+  const ports: Record<string, number> = {RDP: 3389, VNC: 5900, SSH: 22, Telnet: 23, MySQL: 3306, PostgreSQL: 5432, SQLServer: 1433, Oracle: 1521, Redis: 6379, MongoDB: 27017, ClickHouse: 9000, Dameng: 5236, Kubernetes: 6443, Web: 80};
   return ports[protocol] ?? 0;
 }
 

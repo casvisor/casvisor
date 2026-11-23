@@ -35,6 +35,8 @@ const (
 	ProtocolOracle     = "Oracle"
 	ProtocolRedis      = "Redis"
 	ProtocolMongodb    = "MongoDB"
+	ProtocolClickhouse = "ClickHouse"
+	ProtocolDameng     = "Dameng"
 
 	SqlMaxRows = 1000
 	// the longest value of a cell that is kept, and all the cells of a result together
@@ -44,7 +46,7 @@ const (
 	sqlMaxBatchResults = 20
 )
 
-var DatabaseProtocols = []string{ProtocolMysql, ProtocolPostgresql, ProtocolSqlServer, ProtocolOracle, ProtocolRedis, ProtocolMongodb}
+var DatabaseProtocols = []string{ProtocolMysql, ProtocolPostgresql, ProtocolSqlServer, ProtocolOracle, ProtocolRedis, ProtocolMongodb, ProtocolClickhouse, ProtocolDameng}
 
 func IsDatabaseProtocol(protocol string) bool {
 	for _, p := range DatabaseProtocols {
@@ -210,6 +212,10 @@ func dialDatabase(asset *Asset, noSave bool) (*DatabaseClient, error) {
 		c.driver = &redisDriver{c: c}
 	case ProtocolMongodb:
 		c.driver = &mongodbDriver{c: c}
+	case ProtocolClickhouse:
+		c.driver = &clickhouseDriver{c: c}
+	case ProtocolDameng:
+		c.driver = &damengDriver{c: c}
 	default:
 		cancel()
 		return nil, fmt.Errorf("the protocol: %s is not a database protocol", asset.Protocol)

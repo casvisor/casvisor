@@ -43,10 +43,23 @@ export function addAssetTunnel(assetId: string, account = "", username = "", pas
   return post("/api/add-asset-tunnel", query, username || password ? {username, password} : undefined);
 }
 
-/** A one-time token, good for two minutes, for a client on the user's machine: "ssh", "tunnel" or "rdp". */
+/**
+ * A token for a client on the user's machine: "ssh", "tunnel" or "rdp", good for two minutes and once, or "db",
+ * the user and the password of a database client, good for hours and many connections.
+ */
 export function addClientToken(assetId: string, kind: string, account = "") {
   const query = account ? {assetId, kind, account} : {assetId, kind};
   return post("/api/add-client-token", query);
+}
+
+/** The valid database tokens: the user's own, or those of the organization for an administrator. */
+export function getDatabaseTokens() {
+  return get("/api/get-database-tokens");
+}
+
+/** Revokes a database token, which also disconnects the sessions opened with it. */
+export function revokeDatabaseToken(tokenId: string) {
+  return post("/api/revoke-database-token", {tokenId});
 }
 
 /** Connects a session of a Web asset, and returns the address that opens the website, once and within a minute. */

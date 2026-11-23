@@ -16,7 +16,7 @@ import {get, listQuery, post, type ListParams} from "@/backend/request";
 
 export const LoginActions = ["Allow", "Reject", "Review", "Mfa"];
 
-export const LoginMethods = ["Web", "SSH"];
+export const LoginMethods = ["Web", "SSH", "Database"];
 
 export function getLoginRules(owner: string, params: ListParams = {}) {
   return get("/api/get-login-rules", listQuery(owner, params));

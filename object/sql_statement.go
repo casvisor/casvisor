@@ -53,6 +53,11 @@ func (s *sqlScanner) isMysql() bool {
 	return s.protocol == ProtocolMysql
 }
 
+// isOracleLike is Oracle and Dameng, whose scripts end a PL/SQL block with a slash line.
+func isOracleLike(protocol string) bool {
+	return protocol == ProtocolOracle || protocol == ProtocolDameng
+}
+
 // next returns the kind and the end of the token at the position.
 func (s *sqlScanner) next() (int, int) {
 	text := s.text
@@ -61,6 +66,8 @@ func (s *sqlScanner) next() (int, int) {
 	rest := text[i:]
 	isMysql := s.isMysql()
 	isPostgresql := s.protocol == ProtocolPostgresql
+	// ClickHouse quotes like MySQL, with backslashes in identifiers too
+	isClickhouse := s.protocol == ProtocolClickhouse
 
 	switch {
 	case s.protocol == ProtocolOracle && (c == 'q' || c == 'Q') && len(rest) > 2 && rest[1] == '\'' && (i == 0 || !isIdentChar(text[i-1])):
@@ -94,8 +101,8 @@ func (s *sqlScanner) next() (int, int) {
 			j++
 		}
 		return sqlTokenQuoted, len(text)
-	case c == '\'' || c == '"' || c == '`' && isMysql:
-		backslash := isMysql && c != '`'
+	case c == '\'' || c == '"' || c == '`' && (isMysql || isClickhouse):
+		backslash := isMysql && c != '`' || isClickhouse
 		if isPostgresql && c == '\'' && i > 0 && (text[i-1] == 'E' || text[i-1] == 'e') && (i == 1 || !isIdentChar(text[i-2])) {
 			backslash = true
 		}
@@ -115,7 +122,7 @@ func (s *sqlScanner) next() (int, int) {
 			j++
 		}
 		return sqlTokenQuoted, len(text)
-	case strings.HasPrefix(rest, "--") && (!isMysql || len(rest) == 2 || rest[2] <= ' '), c == '#' && isMysql:
+	case strings.HasPrefix(rest, "--") && (!isMysql || len(rest) == 2 || rest[2] <= ' '), c == '#' && (isMysql || isClickhouse):
 		j := strings.IndexByte(rest, '\n')
 		if j < 0 {
 			return sqlTokenComment, len(text)
@@ -127,7 +134,7 @@ func (s *sqlScanner) next() (int, int) {
 			kind = sqlTokenExecutableComment
 		}
 		// PostgreSQL and SQL Server nest block comments
-		nested := isPostgresql || s.protocol == ProtocolSqlServer
+		nested := isPostgresql || s.protocol == ProtocolSqlServer || isClickhouse
 		depth := 1
 		j := i + 2
 		for j < len(text) {
@@ -171,7 +178,7 @@ func (s *sqlScanner) getSeparatorLine(start int) int {
 	switch s.protocol {
 	case ProtocolSqlServer:
 		separator = sqlServerBatchSeparator
-	case ProtocolOracle:
+	case ProtocolOracle, ProtocolDameng:
 		separator = oracleBlockSeparator
 	default:
 		return -1
@@ -218,7 +225,7 @@ func SplitSqlStatements(text string, protocol string) []string {
 		if kind == sqlTokenCode {
 			switch text[s.pos] {
 			case ';':
-				if protocol != ProtocolSqlServer && !(protocol == ProtocolOracle && isOraclePlsqlBlock(text[start:s.pos])) {
+				if protocol != ProtocolSqlServer && !(isOracleLike(protocol) && isOraclePlsqlBlock(text[start:s.pos])) {
 					// Oracle wants the semicolon of a statement left out, and takes it only at the end of a block
 					add(s.pos)
 					start = end

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ArchiveRestore, Boxes, CalendarClock, ChartColumn, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, LayoutDashboard, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
+import {ArchiveRestore, Boxes, CalendarClock, ChartColumn, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, DatabaseZap, FileCode, History, House, KeyRound, KeySquare, LayoutDashboard, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -115,6 +115,12 @@ export function getNavGroups(account: Account | null | undefined): NavGroup[] {
     label: i18next.t("general:SSH keys"),
     icon: KeySquare,
     description: i18next.t("general:Connect to SSH assets with ssh, scp, sftp, Xshell or VS Code"),
+  });
+  accountItems.push({
+    key: "/database-tokens",
+    label: i18next.t("general:Database tokens"),
+    icon: DatabaseZap,
+    description: i18next.t("general:Connect to MySQL and PostgreSQL assets with DBeaver, Navicat, DataGrip, mysql or psql"),
   });
   if (isAdmin) {
     accountItems.push(

@@ -39,12 +39,14 @@ const (
 	ConnectMethodRdp = "RDP client"
 	// ConnectMethodKubectl is kubectl and other Kubernetes clients through the Kubernetes proxy, from a kubeconfig
 	ConnectMethodKubectl = "kubectl"
+	// ConnectMethodDatabase is a database client (DBeaver, Navicat, mysql, psql) through the database proxy
+	ConnectMethodDatabase = "Database client"
 
 	ConnectActionAllow  = "Allow"
 	ConnectActionReject = "Reject"
 )
 
-var connectMethods = []string{ConnectMethodWeb, ConnectMethodSsh, ConnectMethodSftp, ConnectMethodForward, ConnectMethodRdp, ConnectMethodKubectl}
+var connectMethods = []string{ConnectMethodWeb, ConnectMethodSsh, ConnectMethodSftp, ConnectMethodForward, ConnectMethodRdp, ConnectMethodKubectl, ConnectMethodDatabase}
 
 // ConnectRule allows or rejects ways to connect to assets, for the users, assets and accounts it
 // covers. Rules are tried by priority, the smallest first, and the first rule that matches decides;
@@ -233,6 +235,8 @@ func getConnectMethodName(method string) string {
 		return "Remote Desktop Connection"
 	case ConnectMethodKubectl:
 		return "kubectl"
+	case ConnectMethodDatabase:
+		return "a database client"
 	}
 	return method
 }

@@ -43,6 +43,8 @@ var userApis = map[string]bool{
 	"/api/get-asset-nodes":         true,
 	"/api/add-asset-tunnel":        true,
 	"/api/add-client-token":        true,
+	"/api/get-database-tokens":     true,
+	"/api/revoke-database-token":   true,
 	"/api/get-asset-ssh":           true,
 	"/api/get-asset-vnc":           true,
 	"/api/get-asset-rdp":           true,

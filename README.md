@@ -7,7 +7,7 @@
 
   <p>
     Casvisor gives your team one place to reach servers, desktops and databases from the browser.<br>
-    It connects over <strong>SSH</strong>, <strong>RDP</strong>, <strong>VNC</strong>, <strong>Telnet</strong>, <strong>MySQL</strong>, <strong>PostgreSQL</strong>, <strong>SQL Server</strong>, <strong>Oracle</strong>, <strong>Redis</strong>, <strong>MongoDB</strong> and <strong>HTTP</strong> for internal websites, with an <strong>SSH gateway</strong> for <code>ssh</code>, <code>scp</code> and VS Code,<br>
+    It connects over <strong>SSH</strong>, <strong>RDP</strong>, <strong>VNC</strong>, <strong>Telnet</strong>, <strong>MySQL</strong>, <strong>PostgreSQL</strong>, <strong>SQL Server</strong>, <strong>Oracle</strong>, <strong>Redis</strong>, <strong>MongoDB</strong>, <strong>ClickHouse</strong>, <strong>Dameng</strong> and <strong>HTTP</strong> for internal websites, with an <strong>SSH gateway</strong> for <code>ssh</code>, <code>scp</code> and VS Code and a <strong>database proxy</strong> for DBeaver, Navicat, <code>mysql</code> and <code>psql</code>,<br>
     and records every session, checks every command and keeps the passwords to itself.
   </p>
 
@@ -89,7 +89,7 @@ Prefer not to install anything? The hosted demo at **[demo.casvisor.com](https:/
 
 Casvisor sits between the people who run your servers and the servers themselves. People open sessions from a browser tab, or with their own `ssh`, `scp` and VS Code through the SSH gateway. They only reach the servers and databases a permission gives them, and never see the stored passwords.
 
-- **One Go binary.** Casvisor speaks SSH, RDP, VNC, Telnet, MySQL, PostgreSQL, SQL Server, Oracle, Redis, MongoDB, HTTP and the Kubernetes API itself, with nothing to install on the servers. It runs on SQLite with its own accounts out of the box.
+- **One Go binary.** Casvisor speaks SSH, RDP, VNC, Telnet, MySQL, PostgreSQL, SQL Server, Oracle, Redis, MongoDB, ClickHouse, Dameng (DM8), HTTP and the Kubernetes API itself, with nothing to install on the servers. It runs on SQLite with its own accounts out of the box.
 - **Apache-2.0, no enterprise edition.** Recording, the SSH gateway, network gateways, system accounts, jobs and everything else in this README are in the open-source project.
 - **Policy you can read.** Permissions are enforced with [Casbin](https://casbin.apache.org), and sign-in can be handed to [Casdoor](https://casdoor.ai) for SSO, MFA, LDAP and social logins.
 - **Audit by default.** Sessions are recorded, commands and SQL statements are checked against your rules and logged, and the logs export to CSV, Excel or a syslog server.
@@ -196,6 +196,8 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **VNC** — noVNC in the browser; Casvisor does the VNC authentication itself, so the password stays on the server
 - **Telnet** — for network gear and old systems, logging in with the asset's account
 - **MySQL, PostgreSQL, SQL Server and Oracle** — a browser SQL console with the databases, tables and columns on the left, one tab per result, and CSV export; SQL Server scripts run batch by batch between `GO` lines, and Oracle PL/SQL blocks end with a `/` line
+- **ClickHouse and Dameng (DM8)** — the same SQL console, over the native protocol of ClickHouse and the pure-Go driver of Dameng, with Dameng's schemas on the left like Oracle's
+- **Database clients on your own machine** — DBeaver, Navicat, DataGrip, `mysql`, `psql` and JDBC reach MySQL and PostgreSQL assets through Casvisor's database proxy, signed in with a database token from the web console as both the user and the password; every statement, prepared ones included, is checked against the command rules and recorded like in the browser, over TLS, and revoking the token or the permission disconnects
 - **Redis and MongoDB** — the same console for Redis commands, with the keys and their types on the left, and for MongoDB shell calls such as `db.users.find({age: {$gt: 18}}).sort({name: 1})`, with the collections and their fields on the left
 - **Websites** — internal web apps such as Grafana, Jenkins or a router's admin page, each opened on a subdomain of its own through Casvisor's reverse proxy, WebSockets included, with optional HTTP basic authentication filled in by Casvisor; uploads and downloads follow the `Upload` and `Download` actions, and pages opened and changing requests are recorded
 - **Remote browser** — or open a website in a headless Chrome, Chromium or Edge that Casvisor runs on its server, shown in the page like a remote desktop: Casvisor fills in the sign-in form, in one or two steps, with the account's password, which the user never sees; the browser reaches only that website, through the network gateway, so pages that hard-code their own address still work; the clipboard, uploads and downloads follow the `Copy`, `Paste`, `Upload` and `Download` actions, every page opened is checked against the command rules, and the screen is recorded, watched live and replayed

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {AppWindow, Cable, Copy, FolderOpen, KeyRound, MonitorUp, Terminal} from "lucide-react";
+import {AppWindow, Cable, Copy, Database, Download, FolderOpen, KeyRound, MonitorUp, Rocket, Terminal} from "lucide-react";
 import * as SessionBackend from "@/backend/SessionBackend";
 import type {Asset, SshGateway} from "@/backend/types";
 import {Button} from "@/components/ui/button";
@@ -26,6 +26,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type {Account} from "@/hooks/use-account";
+import {
+  downloadText,
+  getCliCommand,
+  getDbConnection,
+  getDbeaverConnectionSpec,
+  getDbeaverDataSources,
+  getDbProxyPort,
+  getHelperUrl,
+  getJdbcUrl,
+} from "@/lib/dbclient";
 import {copyText, getGatewayHost, getSshCommand, getTunnelCommand, getTunnelLocalPort} from "@/lib/gateway";
 import * as Setting from "@/lib/setting";
 
@@ -50,6 +60,23 @@ async function addToken(asset: Asset, kind: string) {
     return null;
   }
   return res.data as {token: string; username: string; expires: number};
+}
+
+/** The database tokens issued on this page, by asset, reused while they have an hour left, so that the menu doesn't add one per click. */
+const dbTokens = new Map<string, {token: string; expireTime: number}>();
+
+async function getDbToken(asset: Asset) {
+  const key = `${asset.owner}/${asset.name}/${getAccountName(asset)}`;
+  const cached = dbTokens.get(key);
+  if (cached && cached.expireTime - Date.now() > 3600 * 1000) {
+    return cached.token;
+  }
+  const res = await addToken(asset, "db");
+  if (!res) {
+    return null;
+  }
+  dbTokens.set(key, {token: res.token, expireTime: Date.now() + res.expires * 1000});
+  return res.token;
 }
 
 /** A .rdp file that has mstsc reach the asset through Casvisor's Remote Desktop Gateway, written in UTF-16 as mstsc saves them. */
@@ -87,7 +114,8 @@ export function LocalClientButton({asset, gateway, account}: {asset: Asset; gate
   const isSsh = asset.protocol === "SSH";
   const hasSsh = gateway.enabled;
   const hasRdp = asset.protocol === "RDP" && gateway.rdGateway && window.location.protocol === "https:";
-  if (!hasSsh && !hasRdp) {
+  const hasDb = getDbProxyPort(gateway, asset) !== "";
+  if (!hasSsh && !hasRdp && !hasDb) {
     return null;
   }
 
@@ -123,6 +151,13 @@ export function LocalClientButton({asset, gateway, account}: {asset: Asset; gate
     }
   };
 
+  const withDb = async(action: (connection: ReturnType<typeof getDbConnection>) => void) => {
+    const token = await getDbToken(asset);
+    if (token) {
+      action(getDbConnection(gateway, asset, token));
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -131,9 +166,41 @@ export function LocalClientButton({asset, gateway, account}: {asset: Asset; gate
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-80">
-        <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
-          {i18next.t("asset:Links and commands work once, within two minutes")}
-        </DropdownMenuLabel>
+        {hasDb ? (
+          <>
+            <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
+              {i18next.t("asset:Database clients sign in with a token that lasts hours, as both the user and the password; revoke it on the Database tokens page")}
+            </DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => withDb((c) => {
+              window.location.href = getHelperUrl(c);
+            })}>
+              <Rocket />
+              {i18next.t("asset:Open with the Casvisor helper")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => withDb((c) => copyText(getCliCommand(c)))}>
+              <Terminal />
+              {asset.protocol === "MySQL" ? i18next.t("asset:Copy mysql command") : i18next.t("asset:Copy psql command")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => withDb((c) => copyText(getJdbcUrl(c)))}>
+              <Database />
+              {i18next.t("asset:Copy JDBC URL")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => withDb((c) => copyText(`dbeaver -con "${getDbeaverConnectionSpec(c)}"`))}>
+              <Copy />
+              {i18next.t("asset:Copy DBeaver connection command")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => withDb((c) => downloadText(`${asset.name}-dbeaver-data-sources.json`, getDbeaverDataSources(c)))}>
+              <Download />
+              {i18next.t("asset:Download DBeaver connection")}
+            </DropdownMenuItem>
+            {hasSsh || hasRdp ? <DropdownMenuSeparator /> : null}
+          </>
+        ) : null}
+        {hasSsh || hasRdp ? (
+          <DropdownMenuLabel className="font-normal text-xs text-muted-foreground">
+            {i18next.t("asset:Links and commands work once, within two minutes")}
+          </DropdownMenuLabel>
+        ) : null}
         {hasRdp ? (
           <DropdownMenuItem onSelect={openRdp}>
             <AppWindow />

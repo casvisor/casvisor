@@ -502,6 +502,24 @@ export interface SshGateway {
   fingerprint: string;
   /** whether mstsc can open RDP assets through the Remote Desktop Gateway */
   rdGateway?: boolean;
+  /** where database clients reach MySQL and PostgreSQL assets, a port being "" when it is off */
+  dbProxy?: {host: string; mysqlPort: string; postgresqlPort: string};
+}
+
+/** A database token as it is listed, without the token itself. */
+export interface DatabaseToken {
+  id: string;
+  kind: string;
+  user: string;
+  asset: string;
+  account: string;
+  clientIp: string;
+  hint: string;
+  createdTime: string;
+  expireTime: string;
+  lastUsedTime: string;
+  lastUsedIp: string;
+  sessions: number;
 }
 
 export interface SessionFile {

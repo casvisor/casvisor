@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/casvisor/casvisor/conf"
+	"github.com/casvisor/casvisor/dbproxy"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/rdgateway"
 	"github.com/casvisor/casvisor/sshgateway"
@@ -32,6 +33,14 @@ type SshGateway struct {
 	Fingerprint string `json:"fingerprint"`
 	// RdGateway tells whether mstsc can open RDP assets through the Remote Desktop Gateway
 	RdGateway bool `json:"rdGateway"`
+	// DbProxy is where database clients reach MySQL and PostgreSQL assets, a port being "" when it is off
+	DbProxy DbProxy `json:"dbProxy"`
+}
+
+type DbProxy struct {
+	Host           string `json:"host"`
+	MysqlPort      string `json:"mysqlPort"`
+	PostgresqlPort string `json:"postgresqlPort"`
 }
 
 // GetSshKeys
@@ -125,11 +134,17 @@ func (c *ApiController) DeleteSshKey() {
 // GetSshGateway
 // @Title GetSshGateway
 // @Tag SSH Key API
-// @Description get the address and host key fingerprint of the SSH gateway
+// @Description get the address and host key fingerprint of the SSH gateway, whether the Remote Desktop Gateway is on, and the address of the database proxy
 // @Success 200 {object} controllers.SshGateway The Response object
 // @router /get-ssh-gateway [get]
 func (c *ApiController) GetSshGateway() {
-	res := SshGateway{Enabled: sshgateway.IsEnabled(), RdGateway: rdgateway.IsEnabled()}
+	res := SshGateway{Enabled: sshgateway.IsEnabled(), RdGateway: rdgateway.IsEnabled(), DbProxy: DbProxy{Host: dbproxy.GetHost()}}
+	if dbproxy.IsMysqlEnabled() {
+		res.DbProxy.MysqlPort = conf.GetConfigString("dbProxyMysqlPort")
+	}
+	if dbproxy.IsPostgresqlEnabled() {
+		res.DbProxy.PostgresqlPort = conf.GetConfigString("dbProxyPostgresqlPort")
+	}
 	if res.Enabled {
 		res.Host = conf.GetConfigString("sshGatewayHost")
 		res.Port = conf.GetConfigString("sshGatewayPort")

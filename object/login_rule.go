@@ -39,6 +39,8 @@ var loginActions = []string{LoginActionAllow, LoginActionReject, LoginActionRevi
 const (
 	LoginMethodWeb = "Web"
 	LoginMethodSsh = "SSH"
+	// LoginMethodDatabase is a database client signing in to the database proxy with a database token
+	LoginMethodDatabase = "Database"
 )
 
 // LoginRule decides what happens when the users it covers sign in from the client IPs and in the time
@@ -181,8 +183,8 @@ func (rule *LoginRule) check() error {
 	}
 
 	for _, method := range rule.Methods {
-		if method != LoginMethodWeb && method != LoginMethodSsh {
-			return fmt.Errorf("invalid sign-in method: %s, it should be %s or %s", method, LoginMethodWeb, LoginMethodSsh)
+		if method != LoginMethodWeb && method != LoginMethodSsh && method != LoginMethodDatabase {
+			return fmt.Errorf("invalid sign-in method: %s, it should be %s, %s or %s", method, LoginMethodWeb, LoginMethodSsh, LoginMethodDatabase)
 		}
 	}
 	return nil
