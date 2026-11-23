@@ -1592,6 +1592,41 @@
                 }
             }
         },
+        "/get-command-reviews": {
+            "get": {
+                "tags": [
+                    "Command Rule API"
+                ],
+                "description": "get the commands that Review rules hold, or held, for review",
+                "operationId": "ApiController.GetCommandReviews",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the reviews",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "description": "Pending, Approved, Used, Rejected, Canceled or Expired",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.CommandReview"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/get-command-rule": {
             "get": {
                 "tags": [
@@ -2773,6 +2808,34 @@
                 }
             }
         },
+        "/review-command": {
+            "post": {
+                "tags": [
+                    "Command Rule API"
+                ],
+                "description": "approve or reject a command held for review; an approved command runs right away in the session that waits for it",
+                "operationId": "ApiController.ReviewCommand",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The review id, approve or not, and a comment shown to the user",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.reviewCommandForm"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.CommandReview"
+                        }
+                    }
+                }
+            }
+        },
         "/review-login": {
             "post": {
                 "tags": [
@@ -3692,6 +3755,21 @@
                 }
             }
         },
+        "controllers.reviewCommandForm": {
+            "title": "reviewCommandForm",
+            "type": "object",
+            "properties": {
+                "approve": {
+                    "type": "boolean"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.reviewLoginForm": {
             "title": "reviewLoginForm",
             "type": "object",
@@ -3996,6 +4074,12 @@
                 "protocol": {
                     "type": "string"
                 },
+                "review": {
+                    "type": "string"
+                },
+                "reviewer": {
+                    "type": "string"
+                },
                 "rowCount": {
                     "type": "integer",
                     "format": "int64"
@@ -4011,6 +4095,63 @@
                     "format": "int64"
                 },
                 "text": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.CommandReview": {
+            "title": "CommandReview",
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "type": "string"
+                },
+                "clientIp": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "expireTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "reviewedTime": {
+                    "type": "string"
+                },
+                "reviewer": {
+                    "type": "string"
+                },
+                "rule": {
+                    "type": "string"
+                },
+                "session": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "updatedTime": {
                     "type": "string"
                 },
                 "user": {
@@ -4063,6 +4204,12 @@
                 },
                 "pattern": {
                     "type": "string"
+                },
+                "reviewers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "updatedTime": {
                     "type": "string"

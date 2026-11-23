@@ -185,7 +185,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 2. **[Add an asset](https://casvisor.org/docs/assets/assets)** under **Assets** (a server, a desktop or a database) and click **Connect**. Administrators reach every asset.
 3. **[Let other people in](https://casvisor.org/docs/access-control/permissions)**: add them under **Users** and give them a **Permission** on assets or asset tags.
 4. **[Use the SSH gateway](https://casvisor.org/docs/assets/ssh-gateway)**: users add their public key under **SSH keys** and connect with `ssh -p 2222 <asset>@<your Casvisor host>`.
-5. **[Add command rules](https://casvisor.org/docs/audit/commands)** to block or flag commands such as `rm -rf /` or `DROP DATABASE`.
+5. **[Add command rules](https://casvisor.org/docs/audit/commands)** to block, hold for review or flag commands such as `rm -rf /` or `DROP DATABASE`.
 
 ## ✨ Features
 
@@ -210,6 +210,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **Access requests** — users ask for an asset with a reason and an end time, an administrator approves, and withdrawing it disconnects open sessions
 - **Two-step verification** — for local accounts, with any TOTP authenticator app
 - **Command rules** — block or flag commands matching a regular expression, in the web terminal, the SQL console, website requests and through the SSH gateway alike
+- **Command review** — a command a Review rule matches waits until another administrator approves it, then runs in the same session; the user can withdraw it with Ctrl+C
 - **Revocation takes effect at once** — open sessions are disconnected as soon as their permission or account is edited, deleted or expires
 
 **🔍 Audit**
