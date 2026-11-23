@@ -1348,6 +1348,28 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.AssetAccount'
+  /get-asset-browser:
+    get:
+      tags:
+      - Session API
+      description: open a Web asset in a browser that Casvisor runs, as a WebSocket that streams its screen and takes the user's mouse, keyboard and clipboard
+      operationId: ApiController.GetAssetBrowser
+      parameters:
+      - in: query
+        name: sessionId
+        description: The id of the session, from add-asset-tunnel
+        required: true
+        type: string
+      - in: query
+        name: width
+        description: The width of the screen, in CSS pixels
+        type: integer
+        format: int64
+      - in: query
+        name: height
+        description: The height of the screen, in CSS pixels
+        type: integer
+        format: int64
   /get-asset-database:
     get:
       tags:
@@ -1457,6 +1479,23 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.Asset'
+  /get-browser-download:
+    get:
+      tags:
+      - Session API
+      description: download a file that the browser of a connected session has downloaded from its website, with the Download action
+      operationId: ApiController.GetBrowserDownload
+      parameters:
+      - in: query
+        name: sessionId
+        description: The id of the session
+        required: true
+        type: string
+      - in: query
+        name: download
+        description: The id of the download
+        required: true
+        type: string
   /get-cloud-account:
     get:
       tags:
@@ -2081,6 +2120,17 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/object.Record'
+  /get-remote-browser:
+    get:
+      tags:
+      - Session API
+      description: tell whether Web assets can be opened in Casvisor's browser, which needs Chrome, Chromium or Edge on the server
+      operationId: ApiController.GetRemoteBrowser
+      responses:
+        "200":
+          description: true when they can
+          schema:
+            $ref: '#/definitions/Response'
   /get-report:
     get:
       tags:
@@ -3821,6 +3871,10 @@ definitions:
         type: string
       username:
         type: string
+      webLogin:
+        $ref: '#/definitions/object.WebLogin'
+      webMode:
+        type: string
   object.AssetAccount:
     title: AssetAccount
     type: object
@@ -5300,6 +5354,20 @@ definitions:
       password:
         type: string
       username:
+        type: string
+  object.WebLogin:
+    title: WebLogin
+    type: object
+    properties:
+      loginUrl:
+        type: string
+      nextSelector:
+        type: string
+      passwordSelector:
+        type: string
+      submitSelector:
+        type: string
+      usernameSelector:
         type: string
   object.Webhook:
     title: Webhook
