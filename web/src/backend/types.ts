@@ -341,6 +341,15 @@ export interface NetworkGateway {
   agentIp?: string;
   lastOnlineTime?: string;
   isOnline?: boolean;
+  /** the gateways of a domain reach the same network, the assets using any of them fail over between them */
+  domain: string;
+  priority: number;
+  weight: number;
+  healthStatus?: string;
+  healthCheckTime?: string;
+  latency?: number;
+  lastError?: string;
+  lastErrorTime?: string;
 }
 
 export interface Permission {

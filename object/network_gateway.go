@@ -58,6 +58,18 @@ type NetworkGateway struct {
 	AgentIp         string   `xorm:"varchar(100)" json:"agentIp"`
 	LastOnlineTime  string   `xorm:"varchar(100)" json:"lastOnlineTime"`
 	IsOnline        bool     `xorm:"-" json:"isOnline"`
+
+	// Domain groups the gateways that reach the same network, an asset using any of them goes
+	// through the healthy one of the lowest priority, picked by weight, and fails over to the next
+	Domain   string `xorm:"varchar(100) index" json:"domain"`
+	Priority int    `json:"priority"`
+	Weight   int    `json:"weight"`
+
+	HealthStatus    string `xorm:"-" json:"healthStatus"`
+	HealthCheckTime string `xorm:"-" json:"healthCheckTime"`
+	Latency         int64  `xorm:"-" json:"latency"`
+	LastError       string `xorm:"-" json:"lastError"`
+	LastErrorTime   string `xorm:"-" json:"lastErrorTime"`
 }
 
 func GetNetworkGatewayCount(owner, field, value string) (int64, error) {
@@ -131,6 +143,7 @@ func GetMaskedNetworkGateway(gateway *NetworkGateway, errs ...error) (*NetworkGa
 		gateway.AgentKey = "***"
 	}
 	gateway.IsOnline = getAgent(gateway.GetId()) != nil
+	gateway.fillHealth()
 	return gateway, nil
 }
 
@@ -252,6 +265,7 @@ func DeleteNetworkGateway(gateway *NetworkGateway) (bool, error) {
 	}
 
 	disconnectAgent(gateway.GetId())
+	removeGatewayHealth(gateway.GetId())
 	return affected != 0, nil
 }
 
@@ -280,6 +294,14 @@ func (gateway *NetworkGateway) check() error {
 	}
 	if gateway.Type == "" {
 		gateway.Type = NetworkGatewayTypeSsh
+	}
+
+	gateway.Domain = strings.TrimSpace(gateway.Domain)
+	if gateway.Weight <= 0 {
+		gateway.Weight = 1
+	}
+	if gateway.IsDesktop() && gateway.Domain != "" {
+		return fmt.Errorf("a Casvisor Desktop device can't be in a network domain")
 	}
 
 	allowedNetworks := []string{}

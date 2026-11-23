@@ -183,23 +183,11 @@ func (c *ApiController) TestNetworkGateway() {
 		return
 	}
 
-	if gateway.IsAgent() {
-		version, err := object.PingAgent(gateway)
-		if err != nil {
-			c.ResponseError(err.Error())
-			return
-		}
-		c.ResponseOk(gateway.Fingerprint, version)
-		return
-	}
-
-	client, err := gateway.DialSsh()
+	version, err := object.CheckNetworkGateway(gateway)
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
 	}
-	version := string(client.ServerVersion())
-	_ = client.Close()
 
 	c.ResponseOk(gateway.Fingerprint, version)
 }

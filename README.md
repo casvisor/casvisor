@@ -201,7 +201,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **Remote browser** — or open a website in a headless Chrome, Chromium or Edge that Casvisor runs on its server, shown in the page like a remote desktop: Casvisor fills in the sign-in form, in one or two steps, with the account's password, which the user never sees; the browser reaches only that website, through the network gateway, so pages that hard-code their own address still work; the clipboard, uploads and downloads follow the `Copy`, `Paste`, `Upload` and `Download` actions, every page opened is checked against the command rules, and the screen is recorded, watched live and replayed
 - **SSH gateway** — `ssh -p 2222 web-01@casvisor.example.com`, `scp`, `sftp`, `rsync`, Xshell and VS Code Remote, signed in with the user's public key, or an OpenSSH certificate from a CA you trust (Vault, step-ca, `ssh-keygen -s`), and under the same permissions as the browser; `-L` also forwards Unix sockets such as `/var/run/docker.sock`
 - **Port forwarding to any asset** — `ssh -p 2222 -N -L 13389:win-01:3389 alice@casvisor.example.com`, then mstsc, a VNC viewer or a database client connects to `localhost:13389`
-- **Network gateways** — reach assets in another data center or behind NAT, through an SSH jump host or an agent that connects out over HTTPS
+- **Network gateways** — reach assets in another data center or behind NAT, through an SSH jump host or an agent that connects out over HTTPS; the gateways of a network domain share the connections by priority and weight and fail over to each other, with a health check every minute
 - **Stored credentials** — passwords and private keys are encrypted in the database and filled in by Casvisor; SSH host keys and RDP certificates are pinned on first use
 - **Cloud accounts** — the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure, Google Cloud and Huawei Cloud accounts become assets, Linux as SSH and Windows as RDP, in a node per region of the asset tree; a preview shows what a sync changes, and syncs can run on a schedule
 
@@ -251,6 +251,8 @@ Assets in another data center, or behind NAT in an office, are reached through a
   ```
 
   The agent is the same `casvisor` binary (with Docker: `docker run -d --restart unless-stopped casbin/casvisor agent --server ...`). It connects out to Casvisor's web address over WebSocket, so it works wherever HTTPS gets out, listens on no port, and only connects to the **Allowed networks** set on the gateway.
+
+Gateways with the same **Network domain** reach the same network, and an asset using any of them goes through the domain: the healthy gateways of the smallest **Priority** first, shared among them by **Weight**, and the next gateway when one can't be reached. Casvisor checks every enabled gateway every minute (`networkGatewayCheckInterval` in seconds, `0` to turn it off): a jump host by logging in, an agent by whether it is online. The gateway list shows each one's status, latency and last error. A gateway without a domain is used on its own, as before.
 
 Guide: [Network gateways](https://casvisor.org/docs/assets/network-gateways)
 

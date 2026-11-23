@@ -316,13 +316,13 @@ func (gateway *NetworkGateway) dialAgent(address string) (net.Conn, error) {
 			return nil, err
 		}
 		if !agent.IsAllowed(networks, ip) {
-			return nil, fmt.Errorf("%s is outside the networks the network gateway: %s may reach: %s", address, gateway.GetId(), strings.Join(gateway.AllowedNetworks, ", "))
+			return nil, &gatewayUnreachableError{fmt.Errorf("%s is outside the networks the network gateway: %s may reach: %s", address, gateway.GetId(), strings.Join(gateway.AllowedNetworks, ", "))}
 		}
 	}
 
 	a := getAgent(gateway.GetId())
 	if a == nil {
-		return nil, gateway.getOfflineError()
+		return nil, &gatewayUnreachableError{gateway.getOfflineError()}
 	}
 
 	channel, reqs, err := a.conn.OpenChannel(agent.DialChannelType, ssh.Marshal(agent.DialRequest{Host: host, Port: uint32(port)}))

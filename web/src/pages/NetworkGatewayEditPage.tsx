@@ -56,6 +56,7 @@ export default function NetworkGatewayEditPage() {
   const [testing, setTesting] = React.useState(false);
   const [token, setToken] = React.useState("");
   const [hostKeyFingerprint, setHostKeyFingerprint] = React.useState("");
+  const [domains, setDomains] = React.useState<string[]>([]);
 
   const {record: gateway, updateField, updateFields, loading, notFound, denied, mode} = useEditRecord<NetworkGateway>({
     fetch: () => NetworkGatewayBackend.getNetworkGateway(owner, name),
@@ -77,21 +78,29 @@ export default function NetworkGatewayEditPage() {
     }).catch(() => {});
   }, [isAgent]);
 
-  // Keeps the agent's status current while the page is open.
   React.useEffect(() => {
-    if (!isAgent || mode === "add") {
+    NetworkGatewayBackend.getNetworkGateways(owner).then((res) => {
+      if (res.status === "ok") {
+        setDomains([...new Set(((res.data ?? []) as NetworkGateway[]).map((item) => item.domain).filter(Boolean))].sort());
+      }
+    }).catch(() => {});
+  }, [owner]);
+
+  // Keeps the status current while the page is open.
+  React.useEffect(() => {
+    if (mode === "add") {
       return;
     }
     const timer = window.setInterval(() => {
       NetworkGatewayBackend.getNetworkGateway(owner, name).then((res) => {
         if (res.status === "ok" && res.data) {
-          const {agentKey, agentVersion, agentIp, lastOnlineTime, isOnline} = res.data as NetworkGateway;
-          updateFields({agentKey, agentVersion, agentIp, lastOnlineTime, isOnline});
+          const {agentKey, agentVersion, agentIp, lastOnlineTime, isOnline, healthStatus, healthCheckTime, latency, lastError, lastErrorTime} = res.data as NetworkGateway;
+          updateFields({agentKey, agentVersion, agentIp, lastOnlineTime, isOnline, healthStatus, healthCheckTime, latency, lastError, lastErrorTime});
         }
       }).catch(() => {});
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [isAgent, mode, owner, name, updateFields]);
+  }, [mode, owner, name, updateFields]);
 
   if (loading) {
     return <Loading />;
@@ -215,6 +224,50 @@ export default function NetworkGatewayEditPage() {
           onChange={(type) => updateField("type", type)}
         />
       </FormRow>
+      {!isDesktop ? (
+        <>
+          <FormRow label={i18next.t("networkGateway:Network domain")} tooltip={i18next.t("networkGateway:Network domain - Tooltip")}>
+            <Input
+              value={gateway.domain ?? ""}
+              list="network-domains"
+              placeholder={i18next.t("networkGateway:None, the gateway is used on its own")}
+              onChange={(e) => updateField("domain", e.target.value)}
+            />
+            <datalist id="network-domains">
+              {domains.map((domain) => <option key={domain} value={domain} />)}
+            </datalist>
+          </FormRow>
+          {gateway.domain ? (
+            <>
+              <FormRow label={i18next.t("networkGateway:Priority")} tooltip={i18next.t("networkGateway:Priority - Tooltip")}>
+                <Input type="number" value={gateway.priority ?? 0} onChange={(e) => updateField("priority", Setting.myParseInt(e.target.value))} />
+              </FormRow>
+              <FormRow label={i18next.t("networkGateway:Weight")} tooltip={i18next.t("networkGateway:Weight - Tooltip")}>
+                <Input type="number" min={1} value={gateway.weight || 1} onChange={(e) => updateField("weight", Setting.myParseInt(e.target.value))} />
+              </FormRow>
+            </>
+          ) : null}
+        </>
+      ) : null}
+      {mode !== "add" && !isDesktop ? (
+        <FormRow label={i18next.t("networkGateway:Health")}>
+          <div className="flex w-full flex-col gap-1 text-sm">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {isAgent ? null : <NetworkGatewayStatus gateway={gateway} />}
+              {gateway.healthCheckTime ? (
+                <span className="text-muted-foreground">
+                  {i18next.t("networkGateway:Last checked")}: {Setting.getFormattedDate(gateway.healthCheckTime)}
+                </span>
+              ) : null}
+            </div>
+            {gateway.lastError ? (
+              <span className="break-all text-xs text-destructive">
+                {i18next.t("networkGateway:Last error")} ({Setting.getFormattedDate(gateway.lastErrorTime ?? "")}): {gateway.lastError}
+              </span>
+            ) : null}
+          </div>
+        </FormRow>
+      ) : null}
       {isAgent ? (
         <>
           <FormRow label={i18next.t("general:Status")}>

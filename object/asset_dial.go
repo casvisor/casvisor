@@ -80,14 +80,16 @@ func DialAsset(asset *Asset) (net.Conn, error) {
 	if gateway == nil {
 		return nil, fmt.Errorf("the network gateway: %s of the asset: %s does not exist", asset.NetworkGateway, asset.GetId())
 	}
+	if gateway.Domain != "" {
+		return dialDomain(asset, gateway, address)
+	}
 	if !gateway.IsEnabled {
 		return nil, fmt.Errorf("the network gateway: %s of the asset: %s is disabled", asset.NetworkGateway, asset.GetId())
 	}
 
-	if gateway.IsAgent() {
-		return gateway.dialAgent(address)
-	}
-	return gateway.Dial(address)
+	conn, err := gateway.dial(address)
+	recordGatewayDial(gateway, err)
+	return conn, err
 }
 
 // Dial opens a TCP connection to address from the gateway. The connection has
@@ -95,7 +97,7 @@ func DialAsset(asset *Asset) (net.Conn, error) {
 func (gateway *NetworkGateway) Dial(address string) (net.Conn, error) {
 	client, err := gateway.DialSsh()
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to the network gateway: %s: %s", gateway.GetId(), err.Error())
+		return nil, &gatewayUnreachableError{fmt.Errorf("failed to connect to the network gateway: %s: %s", gateway.GetId(), err.Error())}
 	}
 
 	conn, err := client.Dial("tcp", address)

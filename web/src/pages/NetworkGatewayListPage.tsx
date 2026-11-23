@@ -25,13 +25,25 @@ import {useAccount} from "@/hooks/use-account";
 import * as Setting from "@/lib/setting";
 
 export function NetworkGatewayStatus({gateway}: {gateway: NetworkGateway}) {
-  if (gateway.type !== "Agent") {
+  if (gateway.type === "Agent") {
+    if (gateway.isOnline) {
+      return <Badge variant="success">{i18next.t("networkGateway:Online")}</Badge>;
+    }
+    return <Badge variant="secondary">{i18next.t("networkGateway:Offline")}</Badge>;
+  }
+  if (gateway.type !== "SSH" && gateway.type) {
     return null;
   }
-  if (gateway.isOnline) {
-    return <Badge variant="success">{i18next.t("networkGateway:Online")}</Badge>;
+  if (!gateway.isEnabled) {
+    return <Badge variant="secondary">{i18next.t("networkGateway:Disabled")}</Badge>;
   }
-  return <Badge variant="secondary">{i18next.t("networkGateway:Offline")}</Badge>;
+  if (gateway.healthStatus === "Healthy") {
+    return <Badge variant="success">{i18next.t("networkGateway:Healthy")}{gateway.latency ? ` ${gateway.latency} ms` : ""}</Badge>;
+  }
+  if (gateway.healthStatus === "Unhealthy") {
+    return <Badge variant="destructive">{i18next.t("networkGateway:Unhealthy")}</Badge>;
+  }
+  return <Badge variant="secondary">{i18next.t("networkGateway:Not checked")}</Badge>;
 }
 
 export default function NetworkGatewayListPage() {
@@ -67,6 +79,9 @@ export default function NetworkGatewayListPage() {
     fingerprint: "",
     isEnabled: true,
     allowedNetworks: [],
+    domain: "",
+    priority: 0,
+    weight: 1,
   });
 
   const columns: ColumnDef<NetworkGateway>[] = [
@@ -87,6 +102,26 @@ export default function NetworkGatewayListPage() {
       width: 110,
       sortable: false,
       render: (_, gateway) => <NetworkGatewayStatus gateway={gateway} />,
+    },
+    textColumn<NetworkGateway>({dataIndex: "domain", title: i18next.t("networkGateway:Network domain"), width: 140, searchable: true}),
+    {
+      dataIndex: "priority",
+      title: i18next.t("networkGateway:Priority / weight"),
+      width: 130,
+      sortable: true,
+      render: (_, gateway) => (gateway.domain ? `${gateway.priority} / ${gateway.weight || 1}` : ""),
+    },
+    {
+      dataIndex: "lastError",
+      title: i18next.t("networkGateway:Last error"),
+      width: 240,
+      sortable: false,
+      render: (_, gateway) => (gateway.lastError ? (
+        <div className="line-clamp-2 break-all text-xs text-destructive" title={gateway.lastError}>
+          <span className="text-muted-foreground">{Setting.getFormattedDate(gateway.lastErrorTime ?? "")} </span>
+          {gateway.lastError}
+        </div>
+      ) : ""),
     },
     textColumn<NetworkGateway>({dataIndex: "host", title: i18next.t("asset:Host"), width: 160, searchable: true}),
     {dataIndex: "port", title: i18next.t("general:Port"), width: 90, sortable: true, render: (value) => value || ""},

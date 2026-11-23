@@ -300,7 +300,12 @@ export default function AssetEditPage() {
               {id: directConnection, name: i18next.t("asset:Direct connection")},
               ...gateways
                 .filter((gateway) => gateway.type !== DesktopProtocol)
-                .map((gateway) => ({id: gateway.name, name: gateway.displayName || gateway.name})),
+                .map((gateway) => ({
+                  id: gateway.name,
+                  name: gateway.domain
+                    ? `${gateway.displayName || gateway.name} (${i18next.t("networkGateway:Network domain")}: ${gateway.domain})`
+                    : gateway.displayName || gateway.name,
+                })),
             ]}
             onChange={(value) => updateField("networkGateway", value === directConnection ? "" : value)}
           />
