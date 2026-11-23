@@ -520,6 +520,24 @@ paths:
           description: The Response object
           schema:
             $ref: '#/definitions/controllers.Response'
+  /check-playbook:
+    post:
+      tags:
+      - Job API
+      description: 'check a playbook before it runs: its YAML, keywords, modules and their options, expressions, variables and attached files'
+      operationId: ApiController.CheckPlaybook
+      parameters:
+      - in: body
+        name: body
+        description: The owner, content (the playbook), variables and files
+        required: true
+        schema:
+          $ref: '#/definitions/object.Job'
+      responses:
+        "200":
+          description: The Response object
+          schema:
+            $ref: '#/definitions/object.PlaybookSummary'
   /connect-agent:
     get:
       tags:
@@ -2855,12 +2873,12 @@ paths:
     post:
       tags:
       - Job API
-      description: run a command, a script or a file transfer on SSH assets, picked by name or by tag
+      description: run a command, a script, a file transfer or an Ansible playbook on SSH assets, picked by name, by tag or by node
       operationId: ApiController.StartJob
       parameters:
       - in: body
         name: body
-        description: The owner, displayName, type (Command, Script or File), assets, assetTags, content, scriptType (Bash or PowerShell), fileKey, fileName and filePath, timeout in seconds and concurrency
+        description: The owner, displayName, type (Command, Script, File or Playbook), assets, assetTags, assetNodes, content (the command, script or playbook), scriptType (Bash or PowerShell), fileKey, fileName and filePath, the variables, files and checkMode of a playbook, timeout in seconds and concurrency
         required: true
         schema:
           $ref: '#/definitions/object.Job'
@@ -3341,7 +3359,7 @@ paths:
     post:
       tags:
       - Job API
-      description: upload the file a job sends to its assets, as the form field "file"; the key it returns goes in the fileKey of the job
+      description: upload the file a job sends to its assets, or a file a playbook uses, as the form field "file"; the key it returns goes in the fileKey or the files of the job
       operationId: ApiController.UploadJobFile
       parameters:
       - in: query
@@ -4251,6 +4269,10 @@ definitions:
     title: Job
     type: object
     properties:
+      assetNodes:
+        type: array
+        items:
+          type: string
       assetTags:
         type: array
         items:
@@ -4259,6 +4281,8 @@ definitions:
         type: array
         items:
           type: string
+      checkMode:
+        type: boolean
       clientIp:
         type: string
       concurrency:
@@ -4284,6 +4308,10 @@ definitions:
       fileSize:
         type: integer
         format: int64
+      files:
+        type: array
+        items:
+          $ref: '#/definitions/object.JobFile'
       message:
         type: string
       name:
@@ -4315,6 +4343,19 @@ definitions:
         type: string
       user:
         type: string
+      variables:
+        type: string
+  object.JobFile:
+    title: JobFile
+    type: object
+    properties:
+      key:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
+        format: int64
   object.JobResult:
     title: JobResult
     type: object
@@ -4346,10 +4387,18 @@ definitions:
         type: string
       status:
         type: string
+      tasks:
+        type: array
+        items:
+          $ref: '#/definitions/object.PlaybookTaskResult'
   object.JobSchedule:
     title: JobSchedule
     type: object
     properties:
+      assetNodes:
+        type: array
+        items:
+          type: string
       assetTags:
         type: array
         items:
@@ -4358,6 +4407,8 @@ definitions:
         type: array
         items:
           type: string
+      checkMode:
+        type: boolean
       concurrency:
         type: integer
         format: int64
@@ -4380,6 +4431,10 @@ definitions:
       fileSize:
         type: integer
         format: int64
+      files:
+        type: array
+        items:
+          $ref: '#/definitions/object.JobFile'
       isEnabled:
         type: boolean
       lastJob:
@@ -4413,6 +4468,8 @@ definitions:
         type: array
         items:
           type: string
+      variables:
+        type: string
   object.KubernetesPod:
     title: KubernetesPod
     type: object
@@ -4591,7 +4648,13 @@ definitions:
         type: string
       displayName:
         type: string
+      domain:
+        type: string
       fingerprint:
+        type: string
+      healthCheckTime:
+        type: string
+      healthStatus:
         type: string
       host:
         type: string
@@ -4599,8 +4662,15 @@ definitions:
         type: boolean
       isOnline:
         type: boolean
+      lastError:
+        type: string
+      lastErrorTime:
+        type: string
       lastOnlineTime:
         type: string
+      latency:
+        type: integer
+        format: int64
       name:
         type: string
       owner:
@@ -4608,6 +4678,9 @@ definitions:
       password:
         type: string
       port:
+        type: integer
+        format: int64
+      priority:
         type: integer
         format: int64
       privateKey:
@@ -4618,6 +4691,9 @@ definitions:
         type: string
       username:
         type: string
+      weight:
+        type: integer
+        format: int64
   object.PatchJob:
     title: PatchJob
     type: object
@@ -4780,6 +4856,68 @@ definitions:
         items:
           type: integer
           format: int64
+  object.PlaybookItemResult:
+    title: PlaybookItemResult
+    type: object
+    properties:
+      label:
+        type: string
+      msg:
+        type: string
+      status:
+        type: string
+  object.PlaybookSummary:
+    title: PlaybookSummary
+    type: object
+    properties:
+      files:
+        type: array
+        items:
+          type: string
+      handlers:
+        type: integer
+        format: int64
+      modules:
+        type: array
+        items:
+          type: string
+      plays:
+        type: integer
+        format: int64
+      tasks:
+        type: integer
+        format: int64
+  object.PlaybookTaskResult:
+    title: PlaybookTaskResult
+    type: object
+    properties:
+      endTime:
+        type: string
+      handler:
+        type: boolean
+      ignored:
+        type: boolean
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/object.PlaybookItemResult'
+      module:
+        type: string
+      msg:
+        type: string
+      name:
+        type: string
+      output:
+        type: string
+      play:
+        type: string
+      rc:
+        type: integer
+        format: int64
+      startTime:
+        type: string
+      status:
+        type: string
   object.Record:
     title: Record
     type: object
