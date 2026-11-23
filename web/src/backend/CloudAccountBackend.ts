@@ -14,7 +14,7 @@
 
 import {get, listQuery, post, type ListParams} from "@/backend/request";
 
-export const CloudProviders = ["Aliyun", "AWS", "Tencent", "Azure", "GCP"];
+export const CloudProviders = ["Aliyun", "AWS", "Tencent", "Azure", "GCP", "Huawei"];
 
 export const CloudAddressTypes = ["Public", "Private"];
 

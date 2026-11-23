@@ -41,6 +41,7 @@ const keyLabels: Record<string, [string, string]> = {
   Tencent: ["SecretId", "SecretKey"],
   Azure: ["Client ID", "Client secret"],
   GCP: ["", ""],
+  Huawei: ["Access Key ID (AK)", "Secret Access Key (SK)"],
 };
 
 export default function CloudAccountEditPage() {
@@ -116,7 +117,7 @@ export default function CloudAccountEditPage() {
     <>
       <EditPageShell
         title={i18next.t(getModeTitleKey("cloudAccount:Edit Cloud Account", mode))}
-        description={i18next.t("general:Keep the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure and GCP accounts as assets")}
+        description={i18next.t("general:Keep the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure, GCP and Huawei Cloud accounts as assets")}
         mode={mode}
         backTo="/cloud-accounts"
         onSave={save}

@@ -83,7 +83,7 @@ export function getNavGroups(account: Account | null | undefined): NavGroup[] {
         key: "/cloud-accounts",
         label: i18next.t("general:Cloud accounts"),
         icon: Cloud,
-        description: i18next.t("general:Keep the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure and GCP accounts as assets"),
+        description: i18next.t("general:Keep the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure, GCP and Huawei Cloud accounts as assets"),
       },
       {
         key: "/patches",

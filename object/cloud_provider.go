@@ -48,9 +48,10 @@ const (
 	CloudProviderTencent = "Tencent"
 	CloudProviderAzure   = "Azure"
 	CloudProviderGcp     = "GCP"
+	CloudProviderHuawei  = "Huawei"
 )
 
-var cloudProviders = []string{CloudProviderAliyun, CloudProviderAws, CloudProviderTencent, CloudProviderAzure, CloudProviderGcp}
+var cloudProviders = []string{CloudProviderAliyun, CloudProviderAws, CloudProviderTencent, CloudProviderAzure, CloudProviderGcp, CloudProviderHuawei}
 
 // CloudInstance is a server of a cloud account, as its provider lists it.
 type CloudInstance struct {
@@ -179,6 +180,8 @@ func listCloudInstances(account *CloudAccount) ([]*CloudInstance, error) {
 				instances, err = listAwsInstances(account, region)
 			case CloudProviderTencent:
 				instances, err = listTencentInstances(account, region)
+			case CloudProviderHuawei:
+				instances, err = listHuaweiInstances(account, region)
 			default:
 				err = fmt.Errorf("unknown cloud provider: %s", account.Provider)
 			}
@@ -225,6 +228,8 @@ func listCloudRegions(account *CloudAccount) ([]string, error) {
 		return listAzureRegions(account)
 	case CloudProviderGcp:
 		return listGcpRegions(account)
+	case CloudProviderHuawei:
+		return listHuaweiRegions(account)
 	}
 	return nil, fmt.Errorf("unknown cloud provider: %s", account.Provider)
 }
@@ -1056,5 +1061,230 @@ func listGcpInstances(account *CloudAccount) ([]*CloudInstance, error) {
 			return res, nil
 		}
 		pageToken = resp.NextPageToken
+	}
+}
+
+// Huawei Cloud ECS, with the SDK-HMAC-SHA256 signature of AK/SK.
+
+const huaweiDateFormat = "20060102T150405Z"
+
+// huaweiEncode encodes as RFC 3986 asks, leaving only the unreserved characters.
+func huaweiEncode(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~' {
+			b.WriteByte(c)
+		} else {
+			fmt.Fprintf(&b, "%%%02X", c)
+		}
+	}
+	return b.String()
+}
+
+// getHuaweiCanonicalRequest is the canonical request of a request with the headers it signs, whose
+// names are in lower case; the path always ends with a slash.
+func getHuaweiCanonicalRequest(method string, path string, query url.Values, headers map[string]string, payload []byte) (string, string) {
+	segments := strings.Split(path, "/")
+	for i, segment := range segments {
+		segments[i] = huaweiEncode(segment)
+	}
+	canonicalUri := strings.Join(segments, "/")
+	if !strings.HasSuffix(canonicalUri, "/") {
+		canonicalUri += "/"
+	}
+
+	keys := make([]string, 0, len(query))
+	for key := range query {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	queryParts := []string{}
+	for _, key := range keys {
+		values := append([]string{}, query[key]...)
+		sort.Strings(values)
+		for _, value := range values {
+			queryParts = append(queryParts, huaweiEncode(key)+"="+huaweiEncode(value))
+		}
+	}
+
+	names := make([]string, 0, len(headers))
+	for name := range headers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	canonicalHeaders := ""
+	for _, name := range names {
+		canonicalHeaders += name + ":" + strings.TrimSpace(headers[name]) + "\n"
+	}
+	signedHeaders := strings.Join(names, ";")
+
+	return strings.Join([]string{method, canonicalUri, strings.Join(queryParts, "&"), canonicalHeaders, signedHeaders, sha256Hex(payload)}, "\n"), signedHeaders
+}
+
+func getHuaweiAuthorization(accessKey string, secretKey string, method string, path string, query url.Values, headers map[string]string, payload []byte) string {
+	canonicalRequest, signedHeaders := getHuaweiCanonicalRequest(method, path, query, headers, payload)
+	stringToSign := "SDK-HMAC-SHA256\n" + headers["x-sdk-date"] + "\n" + sha256Hex([]byte(canonicalRequest))
+	signature := hex.EncodeToString(hmacSha256([]byte(secretKey), stringToSign))
+	return fmt.Sprintf("SDK-HMAC-SHA256 Access=%s, SignedHeaders=%s, Signature=%s", accessKey, signedHeaders, signature)
+}
+
+func huaweiCall(account *CloudAccount, host string, path string, query url.Values, v interface{}) error {
+	headers := map[string]string{
+		"host":       host,
+		"x-sdk-date": time.Now().UTC().Format(huaweiDateFormat),
+	}
+	rawUrl := "https://" + host + path
+	if len(query) > 0 {
+		rawUrl += "?" + query.Encode()
+	}
+	req, err := http.NewRequest(http.MethodGet, rawUrl, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("X-Sdk-Date", headers["x-sdk-date"])
+	req.Header.Set("Authorization", getHuaweiAuthorization(account.AccessKey, account.AccessSecret, http.MethodGet, path, query, headers, nil))
+
+	status, body, err := readCloudResponse(req)
+	if err != nil {
+		return err
+	}
+	if status != http.StatusOK {
+		var apiErr struct {
+			ErrorCode string `json:"error_code"`
+			ErrorMsg  string `json:"error_msg"`
+			Error     struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(body, &apiErr) == nil {
+			if apiErr.ErrorCode != "" {
+				return fmt.Errorf("%s: %s", apiErr.ErrorCode, apiErr.ErrorMsg)
+			}
+			if apiErr.Error.Code != "" {
+				return fmt.Errorf("%s: %s", apiErr.Error.Code, apiErr.Error.Message)
+			}
+		}
+		return fmt.Errorf("HTTP %d: %s", status, strings.TrimSpace(string(body)))
+	}
+	return json.Unmarshal(body, v)
+}
+
+type huaweiProject struct {
+	Id      string `json:"id"`
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+}
+
+// listHuaweiProjects lists the projects of the account, one per region it can use, with the
+// region as the name; subprojects have an underscore in the name, and MOS is the marketplace.
+func listHuaweiProjects(account *CloudAccount, region string) ([]*huaweiProject, error) {
+	query := url.Values{}
+	if region != "" {
+		query.Set("name", region)
+	}
+	var resp struct {
+		Projects []*huaweiProject `json:"projects"`
+	}
+	err := huaweiCall(account, "iam.myhuaweicloud.com", "/v3/projects", query, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	res := []*huaweiProject{}
+	for _, project := range resp.Projects {
+		if project.Enabled && project.Name != "MOS" && !strings.Contains(project.Name, "_") {
+			res = append(res, project)
+		}
+	}
+	return res, nil
+}
+
+func listHuaweiRegions(account *CloudAccount) ([]string, error) {
+	projects, err := listHuaweiProjects(account, "")
+	if err != nil {
+		return nil, err
+	}
+
+	res := []string{}
+	for _, project := range projects {
+		res = append(res, project.Name)
+	}
+	sort.Strings(res)
+	return res, nil
+}
+
+func listHuaweiInstances(account *CloudAccount, region string) ([]*CloudInstance, error) {
+	projects, err := listHuaweiProjects(account, region)
+	if err != nil {
+		return nil, err
+	}
+	if len(projects) == 0 {
+		return nil, fmt.Errorf("the account has no project in the region")
+	}
+
+	res := []*CloudInstance{}
+	host := fmt.Sprintf("ecs.%s.myhuaweicloud.com", region)
+	path := fmt.Sprintf("/v1/%s/cloudservers/detail", projects[0].Id)
+	for page := 1; ; page++ {
+		var resp struct {
+			Count   int `json:"count"`
+			Servers []struct {
+				Id     string `json:"id"`
+				Name   string `json:"name"`
+				Status string `json:"status"`
+				Flavor struct {
+					Id string `json:"id"`
+				} `json:"flavor"`
+				Metadata struct {
+					OsType    string `json:"os_type"`
+					ImageName string `json:"image_name"`
+				} `json:"metadata"`
+				Addresses map[string][]struct {
+					Addr    string `json:"addr"`
+					Version string `json:"version"`
+					Type    string `json:"OS-EXT-IPS:type"`
+				} `json:"addresses"`
+			} `json:"servers"`
+		}
+		err = huaweiCall(account, host, path, url.Values{"offset": {strconv.Itoa(page)}, "limit": {"100"}}, &resp)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, item := range resp.Servers {
+			instance := &CloudInstance{
+				Id:         item.Id,
+				Name:       item.Name,
+				Region:     region,
+				Type:       item.Flavor.Id,
+				Status:     item.Status,
+				Os:         getOsFromName(item.Metadata.OsType + " " + item.Metadata.ImageName),
+				PrivateIps: []string{},
+				PublicIps:  []string{},
+			}
+			networks := make([]string, 0, len(item.Addresses))
+			for network := range item.Addresses {
+				networks = append(networks, network)
+			}
+			sort.Strings(networks)
+			for _, network := range networks {
+				for _, address := range item.Addresses[network] {
+					if address.Version == "6" {
+						continue
+					}
+					if address.Type == "floating" {
+						instance.PublicIps = append(instance.PublicIps, address.Addr)
+					} else {
+						instance.PrivateIps = append(instance.PrivateIps, address.Addr)
+					}
+				}
+			}
+			res = append(res, instance)
+		}
+		if len(resp.Servers) < 100 || len(res) >= resp.Count {
+			return res, nil
+		}
 	}
 }

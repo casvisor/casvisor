@@ -113,7 +113,7 @@ export default function CloudAccountListPage() {
     <>
       <CrudListPage<CloudAccount>
         title={i18next.t("general:Cloud accounts")}
-        description={i18next.t("general:Keep the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure and GCP accounts as assets")}
+        description={i18next.t("general:Keep the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure, GCP and Huawei Cloud accounts as assets")}
         columns={columns}
         fetch={fetchAccounts}
         deps={[owner]}
