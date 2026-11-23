@@ -157,6 +157,45 @@
                 }
             }
         },
+        "/add-client-token": {
+            "post": {
+                "tags": [
+                    "Session API"
+                ],
+                "description": "issue a one-time token, valid for two minutes, that lets a client on the user's machine open one connection to an asset: kind \"ssh\" signs in to the SSH gateway on an SSH asset (ssh, Xshell, WinSCP), \"tunnel\" forwards a local port to an asset through the SSH gateway, and \"rdp\" lets mstsc reach an RDP asset through Casvisor's Remote Desktop Gateway; \"tunnel\" and \"rdp\" pass the traffic through without recording it and need the Forward action",
+                "operationId": "ApiController.AddClientToken",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "assetId",
+                        "description": "The id of the asset",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "account",
+                        "description": "The system account of the asset to connect as",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "kind",
+                        "description": "ssh, tunnel or rdp",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ClientToken"
+                        }
+                    }
+                }
+            }
+        },
         "/add-command-rule": {
             "post": {
                 "tags": [
@@ -3431,6 +3470,25 @@
                 }
             }
         },
+        "controllers.ClientToken": {
+            "title": "ClientToken",
+            "type": "object",
+            "properties": {
+                "expires": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.MfaForm": {
             "title": "MfaForm",
             "type": "object",
@@ -3546,6 +3604,9 @@
                 },
                 "port": {
                     "type": "string"
+                },
+                "rdGateway": {
+                    "type": "boolean"
                 }
             }
         },
