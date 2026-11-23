@@ -309,6 +309,7 @@ func (c *ApiController) GetAssetTelnet() {
 	}
 	defer conn.conn.Close()
 
+	charset := object.GetAssetCharset(asset)
 	recorder := terminal.NewRecorder(terminal.Options{
 		SessionId: sessionId,
 		User:      c.GetSessionUser(),
@@ -316,13 +317,15 @@ func (c *ApiController) GetAssetTelnet() {
 		ClientIp:  c.getAuthzClientIp(),
 		Cols:      cols,
 		Rows:      rows,
-		Send:      conn.Write,
+		Send: func(p []byte) error {
+			return conn.Write(encodeTerminalInput(charset, p))
+		},
 		Notify: func(p []byte) {
 			_, _ = stream.Write(p)
 		},
 	})
 	defer recorder.Close()
-	output := recordedWriter{stream: stream, recorder: recorder}
+	output := newTerminalOutput(charset, recordedWriter{stream: stream, recorder: recorder})
 
 	err = setSessionConnected(sessionId, session, cols, rows)
 	if err != nil {

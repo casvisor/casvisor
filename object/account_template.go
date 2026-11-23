@@ -260,10 +260,15 @@ func ApplyAccountTemplate(id string, dryRun bool) (*TemplateApplyResult, error) 
 			summary.Skipped++
 			continue
 		}
-		canPush := strings.EqualFold(asset.Protocol, "SSH")
-		if template.Push && !canPush {
+		platform, err := getAssetPlatform(asset)
+		if err != nil {
+			fail(err)
+			continue
+		}
+		canRotate := platform.canChange() && platform.reaches(asset)
+		if template.Push && (!platform.canPush() || !platform.reaches(asset)) {
 			result.Action = AssetImportSkip
-			result.Message = fmt.Sprintf("accounts can only be pushed to SSH assets, the asset uses %s", asset.Protocol)
+			result.Message = fmt.Sprintf("accounts can't be pushed to this asset of the platform: %s over %s", platform.getDisplayName(), asset.Protocol)
 			summary.Skipped++
 			continue
 		}
@@ -288,14 +293,14 @@ func ApplyAccountTemplate(id string, dryRun bool) (*TemplateApplyResult, error) 
 			Password:           template.Password,
 			PrivateKey:         template.PrivateKey,
 			IsEnabled:          true,
-			AutoRotate:         template.AutoRotate && canPush,
+			AutoRotate:         template.AutoRotate && canRotate,
 			RotateIntervalDays: template.RotateIntervalDays,
 			Template:           template.Name,
 		}
 		if old != nil {
 			*account = *old
 			account.DisplayName = template.DisplayName
-			account.AutoRotate = template.AutoRotate && canPush
+			account.AutoRotate = template.AutoRotate && canRotate
 			account.RotateIntervalDays = template.RotateIntervalDays
 			if !template.RandomPassword {
 				account.Password, account.PrivateKey = template.Password, template.PrivateKey
@@ -305,7 +310,7 @@ func ApplyAccountTemplate(id string, dryRun bool) (*TemplateApplyResult, error) 
 		push := template.Push && (old == nil || !template.RandomPassword && old.Password != template.Password)
 		if template.RandomPassword && old == nil {
 			// the asset's own password is set by the push below
-			account.Password, err = generateAccountPassword()
+			account.Password, err = platform.generatePassword()
 			if err != nil {
 				fail(err)
 				continue

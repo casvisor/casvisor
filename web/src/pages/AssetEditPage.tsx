@@ -18,8 +18,9 @@ import {Link, useNavigate, useParams} from "react-router-dom";
 import * as AssetBackend from "@/backend/AssetBackend";
 import * as AssetNodeBackend from "@/backend/AssetNodeBackend";
 import * as NetworkGatewayBackend from "@/backend/NetworkGatewayBackend";
+import * as PlatformBackend from "@/backend/PlatformBackend";
 import * as SessionBackend from "@/backend/SessionBackend";
-import type {Asset, AssetNode, NetworkGateway, WebLogin} from "@/backend/types";
+import type {Asset, AssetNode, NetworkGateway, Platform, WebLogin} from "@/backend/types";
 import {MultiSelect} from "@/components/common/MultiSelect";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
@@ -32,7 +33,7 @@ import {AssetAccountsPanel} from "@/components/access/AssetAccountsPanel";
 import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
-import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, KubernetesProtocol, OperatingSystems, Protocols, WebModeBrowser, WebProtocol} from "@/lib/asset";
+import {DesktopProtocol, getDefaultPlatform, getDefaultPort, isDatabaseProtocol, KubernetesProtocol, OperatingSystems, Protocols, WebModeBrowser, WebProtocol} from "@/lib/asset";
 import {getNodeOptions} from "@/lib/assetNode";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
@@ -67,7 +68,13 @@ export default function AssetEditPage() {
   React.useEffect(() => {
     SessionBackend.getRemoteBrowser().then((res) => setHasRemoteBrowser(res.status === "ok" && res.data === true));
   }, []);
+  const [platforms, setPlatforms] = React.useState<Platform[]>([]);
   React.useEffect(() => {
+    PlatformBackend.getAllPlatforms(owner).then((res) => {
+      if (res.status === "ok") {
+        setPlatforms(res.data ?? []);
+      }
+    });
     NetworkGatewayBackend.getNetworkGateways(owner).then((res) => {
       if (res.status === "ok") {
         setGateways(res.data ?? []);
@@ -112,6 +119,28 @@ export default function AssetEditPage() {
   const isWeb = asset.protocol === WebProtocol;
   const isBrowser = isWeb && asset.webMode === WebModeBrowser;
   const webLogin = asset.webLogin ?? emptyWebLogin;
+
+  const supports = (platform: Platform | undefined, protocol: string) => Boolean(platform?.protocols?.some((p) => p.name === protocol));
+  const platformName = asset.platform || getDefaultPlatform(asset.protocol, asset.os);
+  const platform = platforms.find((p) => p.name === platformName);
+  const abilities = PlatformBackend.MethodAbilities[platform?.method ?? ""] ?? PlatformBackend.MethodAbilities[""];
+  const reaches = !["Shell", "PowerShell", "CLI"].includes(platform?.method ?? "") || asset.protocol === "SSH";
+  const canRotate = Boolean(platform?.canChangePassword && abilities.change && reaches);
+  const canPush = Boolean(platform?.canPush && abilities.push && reaches);
+
+  const changeProtocol = (protocol: string) => {
+    const keep = supports(platform, protocol) ? platformName : getDefaultPlatform(protocol, asset.os);
+    const next = platforms.find((p) => p.name === keep);
+    const port = next?.protocols?.find((p) => p.name === protocol)?.port || getDefaultPort(protocol);
+    updateFields({protocol, port, platform: keep});
+  };
+
+  const changePlatform = (name: string) => {
+    const next = platforms.find((p) => p.name === name);
+    const port = next?.protocols?.find((p) => p.name === asset.protocol)?.port;
+    const usesDefaultPort = !asset.port || asset.port === getDefaultPort(asset.protocol) || asset.port === platform?.protocols?.find((p) => p.name === asset.protocol)?.port;
+    updateFields(port && usesDefaultPort ? {platform: name, port} : {platform: name});
+  };
 
   // The test connects with what is in the form without saving it; a host key seen for the first time goes into the form.
   const test = async() => {
@@ -173,7 +202,16 @@ export default function AssetEditPage() {
         <SelectField
           value={asset.protocol}
           options={Protocols.map((protocol) => ({id: protocol, name: protocol}))}
-          onChange={(protocol) => updateFields({protocol, port: getDefaultPort(protocol)})}
+          onChange={changeProtocol}
+        />
+      </FormRow>
+      <FormRow label={i18next.t("platform:Platform")} tooltip={i18next.t("platform:Platform - Tooltip")}>
+        <SelectField
+          value={platformName}
+          options={platforms
+            .filter((p) => p.name === platformName || supports(p, asset.protocol))
+            .map((p) => ({id: p.name, name: p.isBuiltIn ? p.displayName : `${p.displayName || p.name} (${p.name})`}))}
+          onChange={changePlatform}
         />
       </FormRow>
       {asset.protocol !== DesktopProtocol ? (
@@ -232,6 +270,16 @@ export default function AssetEditPage() {
           />
         </FormRow>
       )) : null}
+      {platform?.elevation === "su" || platform?.elevation === "enable" ? (
+        <FormRow label={i18next.t("platform:Elevation password")} tooltip={i18next.t("platform:Elevation password - Tooltip")}>
+          <PasswordInput
+            value={asset.elevationPassword ?? ""}
+            autoComplete="new-password"
+            placeholder={platform.elevationCommand}
+            onChange={(e) => updateField("elevationPassword", e.target.value)}
+          />
+        </FormRow>
+      ) : null}
       {asset.protocol === "Oracle" ? (
         <FormRow label={i18next.t("asset:Service name")} tooltip={i18next.t("asset:Service name - Tooltip")}>
           <Input value={asset.database ?? ""} placeholder="ORCLPDB1" onChange={(e) => updateField("database", e.target.value)} />
@@ -326,7 +374,7 @@ export default function AssetEditPage() {
       </FormRow>
       {mode !== "add" ? (
         <FormRow labelKey="account:System accounts" block>
-          <AssetAccountsPanel owner={owner} asset={name} protocol={asset.protocol} ownUsername={asset.username} />
+          <AssetAccountsPanel owner={owner} asset={name} protocol={asset.protocol} ownUsername={asset.username} canRotate={canRotate} canPush={canPush} />
         </FormRow>
       ) : null}
     </EditPageShell>

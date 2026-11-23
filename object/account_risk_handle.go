@@ -118,8 +118,9 @@ func handleAccountRisk(risk *AccountRisk, action string) error {
 	if asset == nil {
 		return fmt.Errorf("the asset: %s does not exist", risk.Asset)
 	}
-	if !strings.EqualFold(asset.Protocol, "SSH") {
-		return fmt.Errorf("only accounts of SSH assets can be handled, the asset uses %s", asset.Protocol)
+	platform, err := getAssetPlatform(asset)
+	if err != nil {
+		return err
 	}
 
 	switch action {
@@ -127,8 +128,8 @@ func handleAccountRisk(risk *AccountRisk, action string) error {
 		if !slices.Contains(passwordRisks, risk.Kind) || !risk.Managed {
 			return fmt.Errorf("only the password of an account that Casvisor manages can be changed, manage the account first")
 		}
-		if risk.Username == asset.Username {
-			return rotateAssetOwnPassword(asset)
+		if risk.Username == asset.Username || asset.Protocol == ProtocolRedis && asset.Username == "" && risk.Username == "default" {
+			return rotateAssetOwnPassword(asset, platform)
 		}
 		account, err := getAssetAccountByUsername(risk.Owner, risk.Asset, risk.Username)
 		if err != nil {
@@ -146,31 +147,31 @@ func handleAccountRisk(risk *AccountRisk, action string) error {
 		if risk.Managed {
 			return fmt.Errorf("Casvisor already manages the account: %s", risk.Username)
 		}
-		return manageAssetAccount(asset, risk.Username)
+		return manageAssetAccount(asset, platform, risk.Username)
 	case RiskActionLock:
 		if risk.Managed {
 			return fmt.Errorf("the account: %s is managed by Casvisor, delete or disable it there instead", risk.Username)
 		}
-		return lockAssetAccount(asset, risk.Username)
+		return lockAssetAccount(asset, platform, risk.Username)
 	}
 	return fmt.Errorf("unknown action: %s", action)
 }
 
 // rotateAssetOwnPassword sets a new random password for the asset's own account, signs in with
 // it, and only then saves it.
-func rotateAssetOwnPassword(asset *Asset) error {
+func rotateAssetOwnPassword(asset *Asset, platform *Platform) error {
 	if asset.Password == "" {
 		return fmt.Errorf("the asset's own account signs in with a private key, which Casvisor does not change")
 	}
-	password, err := generateAccountPassword()
+	password, err := platform.generatePassword()
 	if err != nil {
 		return err
 	}
-	err = setAccountPassword(asset, asset.Username, password, false)
+	_, err = setAccountPassword(asset, platform, asset.Username, password, asset.Password, false)
 	if err != nil {
 		return err
 	}
-	err = verifyAccountPassword(asset, asset.Username, password)
+	err = verifyAccountPassword(asset, platform, asset.Username, password)
 	if err != nil {
 		return fmt.Errorf("the password was changed, but signing in with it failed, the asset now needs its password set by hand: %s", err.Error())
 	}
@@ -185,8 +186,11 @@ func rotateAssetOwnPassword(asset *Asset) error {
 
 // manageAssetAccount makes the account a system account of the asset with a random password,
 // set on the asset, that is rotated every 30 days.
-func manageAssetAccount(asset *Asset, username string) error {
-	password, err := generateAccountPassword()
+func manageAssetAccount(asset *Asset, platform *Platform, username string) error {
+	if !platform.canChange() {
+		return fmt.Errorf("the platform: %s can't change the passwords of accounts", platform.getDisplayName())
+	}
+	password, err := platform.generatePassword()
 	if err != nil {
 		return err
 	}
@@ -204,7 +208,7 @@ func manageAssetAccount(asset *Asset, username string) error {
 	if err != nil {
 		return err
 	}
-	_, err = RotateAssetAccount(account.GetId(), true)
+	_, err = rotateAssetAccount(account.GetId(), true, false)
 	if err != nil {
 		_, _ = DeleteAssetAccount(account)
 		return fmt.Errorf("setting a password on the asset failed, so the account is not managed: %s", err.Error())
@@ -214,11 +218,17 @@ func manageAssetAccount(asset *Asset, username string) error {
 
 // lockAssetAccount locks the password of the account and expires it, which keeps it from
 // signing in with a key too; on Windows it disables the account.
-func lockAssetAccount(asset *Asset, username string) error {
+func lockAssetAccount(asset *Asset, platform *Platform, username string) error {
+	if !platform.canLock() {
+		return fmt.Errorf("the accounts of %s can't be locked from Casvisor", platform.getDisplayName())
+	}
+	if IsDatabaseProtocol(platform.Method) {
+		return lockDatabaseAccount(asset, username)
+	}
 	if username == "root" || username == asset.Username || strings.EqualFold(username, "Administrator") {
 		return fmt.Errorf("the account: %s can't be locked from Casvisor", username)
 	}
-	host, err := connectPatchHost(asset)
+	host, err := connectAccountHost(asset, platform)
 	if err != nil {
 		return err
 	}

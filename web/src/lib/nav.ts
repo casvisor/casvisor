@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ArchiveRestore, CalendarClock, ChartColumn, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, LayoutDashboard, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
+import {ArchiveRestore, Boxes, CalendarClock, ChartColumn, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, LayoutDashboard, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -73,6 +73,12 @@ export function getNavGroups(account: Account | null | undefined): NavGroup[] {
   ];
   if (isAdmin) {
     assetItems.push(
+      {
+        key: "/platforms",
+        label: i18next.t("general:Platforms"),
+        icon: Boxes,
+        description: i18next.t("general:Ports, terminal charsets, elevation and password changes of each kind of system"),
+      },
       {
         key: "/network-gateways",
         label: i18next.t("general:Network gateways"),

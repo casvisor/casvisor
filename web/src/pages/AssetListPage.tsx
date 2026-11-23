@@ -105,6 +105,7 @@ export default function AssetListPage() {
     description: "",
     tag: "",
     os: "Linux",
+    platform: "linux",
     protocol: "SSH",
     host: "127.0.0.1",
     port: 22,
@@ -132,6 +133,7 @@ export default function AssetListPage() {
     dateColumn<Asset>("createdTime"),
     textColumn<Asset>({dataIndex: "description", title: i18next.t("general:Description"), width: 200}),
     textColumn<Asset>({dataIndex: "protocol", title: i18next.t("general:Protocol"), width: 110, filters: valueFilters(Protocols)}),
+    textColumn<Asset>({dataIndex: "platform", title: i18next.t("platform:Platform"), width: 120, searchable: true}),
     textColumn<Asset>({dataIndex: "host", title: i18next.t("asset:Host"), width: 140, searchable: true}),
     textColumn<Asset>({dataIndex: "port", title: i18next.t("general:Port"), width: 90}),
     {

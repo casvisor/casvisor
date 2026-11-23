@@ -32,8 +32,9 @@ type Asset struct {
 	DisplayName string `xorm:"varchar(100)" json:"displayName"`
 	Description string `xorm:"varchar(500)" json:"description"`
 
-	Tag string `xorm:"varchar(100)" json:"tag"`
-	Os  string `xorm:"varchar(100)" json:"os"`
+	Tag      string `xorm:"varchar(100)" json:"tag"`
+	Os       string `xorm:"varchar(100)" json:"os"`
+	Platform string `xorm:"varchar(100) index" json:"platform"`
 
 	Protocol string `xorm:"varchar(100)" json:"protocol"`
 	Host     string `xorm:"varchar(200)" json:"host"`
@@ -42,9 +43,11 @@ type Asset struct {
 	Password string `xorm:"text" json:"password"`
 	Database string `xorm:"varchar(100)" json:"database"`
 
-	PrivateKey     string `xorm:"mediumtext" json:"privateKey"`
-	Fingerprint    string `xorm:"varchar(200)" json:"fingerprint"`
-	NetworkGateway string `xorm:"varchar(100)" json:"networkGateway"`
+	PrivateKey string `xorm:"mediumtext" json:"privateKey"`
+	// ElevationPassword is what the platform's su or enable asks for
+	ElevationPassword string `xorm:"text" json:"elevationPassword"`
+	Fingerprint       string `xorm:"varchar(200)" json:"fingerprint"`
+	NetworkGateway    string `xorm:"varchar(100)" json:"networkGateway"`
 
 	Nodes []string `xorm:"mediumtext" json:"nodes"`
 
@@ -139,6 +142,9 @@ func GetMaskedAsset(asset *Asset, errs ...error) (*Asset, error) {
 	if asset.PrivateKey != "" {
 		asset.PrivateKey = "***"
 	}
+	if asset.ElevationPassword != "" {
+		asset.ElevationPassword = "***"
+	}
 	return asset, nil
 }
 
@@ -163,7 +169,7 @@ func GetMaskedAssets(assets []*Asset, errs ...error) ([]*Asset, error) {
 // another host by editing the asset.
 func (asset *Asset) checkKeptSecrets(saved *Asset, keepPassword bool, keepPrivateKey bool) error {
 	targetChanged := saved.Owner != asset.Owner || saved.Protocol != asset.Protocol || saved.Host != asset.Host || saved.Port != asset.Port || saved.NetworkGateway != asset.NetworkGateway
-	if (keepPassword && saved.Password != "") || (keepPrivateKey && saved.PrivateKey != "") {
+	if (keepPassword && (saved.Password != "" || saved.ElevationPassword != "")) || (keepPrivateKey && saved.PrivateKey != "") {
 		if targetChanged || saved.Username != asset.Username {
 			return fmt.Errorf("the saved password and private key are only used for the saved host, port, username and network gateway, enter them again for the changed asset")
 		}
@@ -190,7 +196,7 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		return false, nil
 	}
 
-	err = asset.checkKeptSecrets(p, asset.Password == "***", asset.PrivateKey == "***")
+	err = asset.checkKeptSecrets(p, asset.Password == "***" || asset.ElevationPassword == "***", asset.PrivateKey == "***")
 	if err != nil {
 		return false, err
 	}
@@ -201,8 +207,16 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 	if asset.PrivateKey == "***" {
 		asset.PrivateKey = p.PrivateKey
 	}
+	if asset.ElevationPassword == "***" {
+		asset.ElevationPassword = p.ElevationPassword
+	}
 
 	err = asset.normalizeAddress()
+	if err != nil {
+		return false, err
+	}
+
+	err = asset.checkPlatform()
 	if err != nil {
 		return false, err
 	}
@@ -239,6 +253,11 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 
 func AddAsset(asset *Asset) (bool, error) {
 	err := asset.normalizeAddress()
+	if err != nil {
+		return false, err
+	}
+
+	err = asset.checkPlatform()
 	if err != nil {
 		return false, err
 	}

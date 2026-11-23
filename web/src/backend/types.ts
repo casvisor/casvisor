@@ -30,6 +30,10 @@ export interface Asset {
   privateKey: string;
   fingerprint: string;
   networkGateway: string;
+  /** the platform, built-in or the organization's own, that tells how to manage the accounts of the asset */
+  platform?: string;
+  /** what the platform's su or enable asks for */
+  elevationPassword?: string;
   /** the names of the nodes of the asset tree the asset is in */
   nodes?: string[] | null;
   /** the cloud account the asset is synced from, and its server there */
@@ -291,6 +295,41 @@ export interface AccountTemplate {
   push: boolean;
   assets: string[] | null;
   assetTags: string[] | null;
+}
+
+export interface PlatformProtocol {
+  name: string;
+  port: number;
+}
+
+/** A kind of system: its protocols, terminal charset, elevation, how its passwords are changed and what they look like. */
+export interface Platform {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  isBuiltIn?: boolean;
+  category: string;
+  protocols: PlatformProtocol[] | null;
+  charset: string;
+  elevation: string;
+  elevationCommand: string;
+  method: string;
+  changeCommands: string;
+  pushCommands: string;
+  promptPattern: string;
+  errorPattern: string;
+  passwordLength: number;
+  passwordUppercase: boolean;
+  passwordLowercase: boolean;
+  passwordDigits: boolean;
+  passwordSymbols: string;
+  passwordExclude: string;
+  canChangePassword: boolean;
+  canPush: boolean;
+  canGather: boolean;
 }
 
 /** Something wrong with an account of an asset. */

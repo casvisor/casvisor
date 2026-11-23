@@ -234,21 +234,28 @@ func scanAccountRisks(owner string, scan *AccountRiskScan) error {
 	c := &riskCollector{owner: owner, findings: map[string]*AccountRisk{}}
 	checkPasswords(c, assets, accounts, time.Now())
 
-	sshAssets := []*Asset{}
+	gatheredAssets := []*Asset{}
+	platforms := map[string]*Platform{}
 	for _, asset := range assets {
-		if strings.EqualFold(asset.Protocol, "SSH") {
-			sshAssets = append(sshAssets, asset)
+		platform, err := getAssetPlatform(asset)
+		if err != nil {
+			scan.Errors = append(scan.Errors, fmt.Sprintf("%s: %s", asset.Name, err.Error()))
+			continue
+		}
+		if platform.canGather() && platform.reaches(asset) {
+			gatheredAssets = append(gatheredAssets, asset)
+			platforms[asset.Name] = platform
 		}
 	}
 	riskScansLock.Lock()
-	scan.Total = len(sshAssets)
+	scan.Total = len(gatheredAssets)
 	riskScansLock.Unlock()
 
 	scanned := map[string]bool{}
 	var scannedLock sync.Mutex
 	limit := make(chan struct{}, riskScanConcurrency)
 	var wg sync.WaitGroup
-	for _, asset := range sshAssets {
+	for _, asset := range gatheredAssets {
 		wg.Add(1)
 		limit <- struct{}{}
 		go func(asset *Asset) {
@@ -256,7 +263,7 @@ func scanAccountRisks(owner string, scan *AccountRiskScan) error {
 			defer func() { <-limit }()
 
 			known := append([]string{asset.Username}, managed[asset.Name]...)
-			err := gatherAssetAccounts(c, asset, known)
+			err := gatherAssetAccounts(c, asset, platforms[asset.Name], known)
 			riskScansLock.Lock()
 			scan.Done++
 			if err != nil {
@@ -288,13 +295,17 @@ func checkPasswords(c *riskCollector, assets []*Asset, accounts []*AssetAccount,
 	byPassword := map[string][]owned{}
 
 	for _, asset := range assets {
-		if asset.Password == "" || asset.Username == "" {
+		username := asset.Username
+		if username == "" && asset.Protocol == ProtocolRedis {
+			username = "default"
+		}
+		if asset.Password == "" || username == "" {
 			continue
 		}
-		if reason := getWeakPasswordReason(asset.Username, asset.Password); reason != "" {
-			c.add(asset.Name, asset.Username, RiskWeakPassword, RiskLevelHigh, "the password of the asset's own account is weak: "+reason, true)
+		if reason := getWeakPasswordReason(username, asset.Password); reason != "" {
+			c.add(asset.Name, username, RiskWeakPassword, RiskLevelHigh, "the password of the asset's own account is weak: "+reason, true)
 		}
-		byPassword[asset.Password] = append(byPassword[asset.Password], owned{asset.Name, asset.Username})
+		byPassword[asset.Password] = append(byPassword[asset.Password], owned{asset.Name, username})
 	}
 
 	for _, account := range accounts {
@@ -356,8 +367,11 @@ var privilegedGroups = []string{"sudo", "wheel", "admin", "root"}
 
 // gatherAssetAccounts reads the accounts on the asset and reports the ones Casvisor does not
 // manage, the privileged ones above all, and the ones with no password.
-func gatherAssetAccounts(c *riskCollector, asset *Asset, known []string) error {
-	host, err := connectPatchHost(asset)
+func gatherAssetAccounts(c *riskCollector, asset *Asset, platform *Platform, known []string) error {
+	if IsDatabaseProtocol(platform.Method) {
+		return gatherDatabaseAccounts(c, asset, known)
+	}
+	host, err := connectAccountHost(asset, platform)
 	if err != nil {
 		return err
 	}
@@ -404,6 +418,41 @@ func gatherAssetAccounts(c *riskCollector, asset *Asset, known []string) error {
 		return nil
 	}
 	return fmt.Errorf("the asset is neither Linux nor Windows")
+}
+
+func gatherDatabaseAccounts(c *riskCollector, asset *Asset, known []string) error {
+	accounts, err := getDatabaseAccounts(asset)
+	if err != nil {
+		return err
+	}
+	if asset.Protocol == ProtocolRedis && asset.Username == "" {
+		known = append(known, "default")
+	}
+	for _, account := range accounts {
+		isKnown := slices.ContainsFunc(known, func(name string) bool {
+			// the user names of Oracle and SQL Server are not case-sensitive
+			if asset.Protocol == ProtocolOracle || asset.Protocol == ProtocolSqlServer {
+				return strings.EqualFold(name, account.username)
+			}
+			return name == account.username
+		})
+		detail := ""
+		if account.detail != "" {
+			detail = " (" + account.detail + ")"
+		}
+		if account.noPassword {
+			c.add(asset.Name, account.username, RiskEmptyPassword, RiskLevelHigh, "the account may sign in without a password"+detail, isKnown)
+		}
+		if isKnown {
+			continue
+		}
+		if account.privileged {
+			c.add(asset.Name, account.username, RiskUnmanagedPrivileged, RiskLevelHigh, "a privileged database account that Casvisor does not manage"+detail, false)
+		} else {
+			c.add(asset.Name, account.username, RiskUnmanagedAccount, RiskLevelLow, "a database account that Casvisor does not manage"+detail, false)
+		}
+	}
+	return nil
 }
 
 const windowsAccountScript = `$admins = @(Get-LocalGroupMember -SID 'S-1-5-32-544' -ErrorAction SilentlyContinue | ForEach-Object { ($_.Name -split '\\')[-1] })

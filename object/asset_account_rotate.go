@@ -16,10 +16,8 @@ package object
 
 import (
 	"bytes"
-	"crypto/rand"
 	"fmt"
 	"io"
-	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -27,53 +25,72 @@ import (
 	"github.com/beego/beego/logs"
 )
 
-const accountPasswordChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!#%+-=_."
-
 var rotatingAccounts sync.Map
-
-func generateAccountPassword() (string, error) {
-	groups := []string{"ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!#%+-=_."}
-	res := []byte{}
-	for _, group := range groups {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(group))))
-		if err != nil {
-			return "", err
-		}
-		res = append(res, group[n.Int64()])
-	}
-	for len(res) < 24 {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(accountPasswordChars))))
-		if err != nil {
-			return "", err
-		}
-		res = append(res, accountPasswordChars[n.Int64()])
-	}
-	for i := len(res) - 1; i > 0; i-- {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
-		if err != nil {
-			return "", err
-		}
-		j := n.Int64()
-		res[i], res[j] = res[j], res[i]
-	}
-	return string(res), nil
-}
 
 func quotePowerShell(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
-// setAccountPassword sets the password of the account on the asset through the asset's own
-// account, which must be root, able to sudo without a password, or a Windows administrator.
-func setAccountPassword(asset *Asset, username string, password string, create bool) error {
+// connectAccountHost signs in to the asset over SSH with its own account, made privileged by the
+// elevation of its platform, to manage the accounts of the system.
+func connectAccountHost(asset *Asset, platform *Platform) (patchHost, error) {
 	if !strings.EqualFold(asset.Protocol, "SSH") {
-		return fmt.Errorf("the passwords of accounts can only be changed on SSH assets, the asset: %s uses %s", asset.Name, asset.Protocol)
+		return nil, fmt.Errorf("the accounts of %s are managed over SSH, the asset: %s uses %s", platform.getDisplayName(), asset.Name, asset.Protocol)
 	}
-	if strings.ContainsAny(password, "\r\n") {
-		return fmt.Errorf("the password cannot contain line breaks")
+	client, err := DialSsh(asset)
+	if err != nil {
+		return nil, err
 	}
 
-	host, err := connectPatchHost(asset)
+	var out bytes.Buffer
+	code, err := runSshCommand(client, "uname -s", "", &out, io.Discard)
+	if err == nil && code == 0 && strings.TrimSpace(out.String()) != "" {
+		host, err := newLinuxHost(client)
+		if err == nil {
+			err = host.elevate(asset, platform)
+		}
+		if err != nil {
+			client.Close()
+			return nil, err
+		}
+		return host, nil
+	}
+
+	out.Reset()
+	_, err = runSshCommand(client, "cmd /c ver", "", &out, io.Discard)
+	if err == nil && strings.Contains(out.String(), "Windows") {
+		return newWindowsHost(client), nil
+	}
+	client.Close()
+	return nil, fmt.Errorf("the SSH server of the asset: %s runs neither a Unix shell nor Windows", asset.GetId())
+}
+
+const shellPasswordScript = `u=%s
+IFS= read -r p <<'CASVISOR_EOF'
+%s
+CASVISOR_EOF
+create=%s
+if [ "$(uname -s)" = Darwin ]; then
+  if ! id -u "$u" >/dev/null 2>&1; then
+    [ "$create" = 1 ] || { echo "the account: $u does not exist" >&2; exit 1; }
+    sysadminctl -addUser "$u" -password "$p" || exit 1
+    exit 0
+  fi
+  dscl . -passwd "/Users/$u" "$p" || exit 1
+elif command -v chpasswd >/dev/null 2>&1; then
+  if [ "$create" = 1 ]; then id -u "$u" >/dev/null 2>&1 || useradd -m "$u" || exit 1; fi
+  printf '%%s:%%s\n' "$u" "$p" | chpasswd || exit 1
+elif command -v pw >/dev/null 2>&1; then
+  if [ "$create" = 1 ]; then id -u "$u" >/dev/null 2>&1 || pw useradd "$u" -m || exit 1; fi
+  printf '%%s\n' "$p" | pw usermod "$u" -h 0 || exit 1
+else
+  echo "neither chpasswd nor pw is found" >&2
+  exit 1
+fi
+`
+
+func setHostAccountPassword(asset *Asset, platform *Platform, username string, password string, create bool) error {
+	host, err := connectAccountHost(asset, platform)
 	if err != nil {
 		return err
 	}
@@ -85,20 +102,17 @@ func setAccountPassword(asset *Asset, username string, password string, create b
 		if err != nil {
 			return err
 		}
-
-		script := ""
+		flag := "0"
 		if create {
-			script += fmt.Sprintf("id -u '%s' >/dev/null 2>&1 || useradd -m '%s' || exit 1\n", username, username)
+			flag = "1"
 		}
-		script += "chpasswd <<'CASVISOR_EOF'\n" + username + ":" + password + "\nCASVISOR_EOF\n"
-
 		var stderr bytes.Buffer
-		code, err := h.runScript(script, io.Discard, &stderr)
+		code, err := h.runScript(fmt.Sprintf(shellPasswordScript, shellQuote(username), password, flag), io.Discard, &stderr)
 		if err != nil {
 			return err
 		}
 		if code != 0 {
-			return fmt.Errorf("failed to set the password of %s (exit code %d): %s", username, code, truncate(strings.TrimSpace(stderr.String()), 500))
+			return fmt.Errorf("failed to set the password of %s (exit code %d): %s", username, code, truncate(strings.TrimSpace(maskSecret(stderr.String(), password)), 500))
 		}
 		return nil
 	case *windowsHost:
@@ -114,16 +128,53 @@ func setAccountPassword(asset *Asset, username string, password string, create b
 			Ok bool `json:"ok"`
 		}
 		return h.runScript(script, &res)
-	default:
-		return fmt.Errorf("the asset: %s is neither Linux nor Windows", asset.GetId())
 	}
+	return fmt.Errorf("the asset: %s is neither Unix nor Windows", asset.GetId())
 }
 
-func verifyAccountPassword(asset *Asset, username string, password string) error {
+func maskSecret(text string, secrets ...string) string {
+	for _, secret := range secrets {
+		if secret != "" {
+			text = strings.ReplaceAll(text, secret, "***")
+		}
+	}
+	return text
+}
+
+// setAccountPassword sets the password of the account on the asset by the method of its platform,
+// through the asset's own account; a database account may also change its own password with its
+// current one, oldPassword. It returns a note on a change that is made but may not last.
+func setAccountPassword(asset *Asset, platform *Platform, username string, password string, oldPassword string, create bool) (string, error) {
+	if create && !platform.canPush() {
+		return "", fmt.Errorf("the platform: %s can't create accounts on the assets", platform.getDisplayName())
+	}
+	if !create && !platform.canChange() {
+		return "", fmt.Errorf("the platform: %s can't change the passwords of accounts", platform.getDisplayName())
+	}
+	err := platform.checkPassword(password)
+	if err != nil {
+		return "", err
+	}
+
+	switch {
+	case platform.Method == PlatformMethodShell || platform.Method == PlatformMethodPowerShell:
+		return "", setHostAccountPassword(asset, platform, username, password, create)
+	case platform.Method == PlatformMethodCli:
+		return "", setCliAccountPassword(asset, platform, username, password, create)
+	case IsDatabaseProtocol(platform.Method):
+		return setDatabaseAccountPassword(asset, platform, username, password, oldPassword, create)
+	}
+	return "", fmt.Errorf("the platform: %s has no way to change passwords", platform.getDisplayName())
+}
+
+func verifyAccountPassword(asset *Asset, platform *Platform, username string, password string) error {
 	target := *asset
 	target.Username = username
 	target.Password = password
 	target.PrivateKey = ""
+	if IsDatabaseProtocol(platform.Method) {
+		return verifyDatabaseLogin(&target)
+	}
 	client, err := DialSsh(&target)
 	if err != nil {
 		return err
@@ -134,6 +185,12 @@ func verifyAccountPassword(asset *Asset, username string, password string) error
 // RotateAssetAccount sets a new random password for the account on the asset, or the account's
 // saved password when isPush is true, creating the account there if it does not exist.
 func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
+	return rotateAssetAccount(id, isPush, isPush)
+}
+
+// rotateAssetAccount sets a new random password, or the saved one when isPush is true; create
+// makes the account on the asset when it is not there.
+func rotateAssetAccount(id string, isPush bool, create bool) (*AssetAccount, error) {
 	if _, loaded := rotatingAccounts.LoadOrStore(id, true); loaded {
 		return nil, fmt.Errorf("the password of the account: %s is being changed", id)
 	}
@@ -154,10 +211,14 @@ func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
 	if asset == nil {
 		return nil, fmt.Errorf("the asset: %s does not exist", account.Asset)
 	}
+	platform, err := getAssetPlatform(asset)
+	if err != nil {
+		return nil, err
+	}
 
 	password := account.Password
 	if !isPush {
-		password, err = generateAccountPassword()
+		password, err = platform.generatePassword()
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +231,7 @@ func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
 		return nil, err
 	}
 
-	err = setAccountPassword(asset, account.Username, password, isPush)
+	note, err := setAccountPassword(asset, platform, account.Username, password, account.Password, create)
 	if err != nil {
 		_ = updateAssetAccountRotation(account, "", AccountRotateFailed, truncate(err.Error(), 1000))
 		auditAccountRotation(account, asset, isPush, AccountRotateFailed, err.Error())
@@ -178,8 +239,8 @@ func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
 	}
 
 	status := AccountRotateSucceeded
-	message := ""
-	err = verifyAccountPassword(asset, account.Username, password)
+	message := note
+	err = verifyAccountPassword(asset, platform, account.Username, password)
 	if err != nil {
 		status = AccountRotateFailed
 		message = truncate(fmt.Sprintf("the password was changed, but signing in with it failed: %s", err.Error()), 1000)

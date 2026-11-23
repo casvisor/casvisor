@@ -212,8 +212,14 @@ func (account *AssetAccount) check() error {
 	if account.AutoRotate && account.RotateIntervalDays == 0 {
 		account.RotateIntervalDays = 30
 	}
-	if account.AutoRotate && !strings.EqualFold(asset.Protocol, "SSH") {
-		return fmt.Errorf("passwords can only be rotated on SSH assets, the asset: %s uses %s", asset.Name, asset.Protocol)
+	if account.AutoRotate {
+		platform, err := getAssetPlatform(asset)
+		if err != nil {
+			return err
+		}
+		if !platform.canChange() || !platform.reaches(asset) {
+			return fmt.Errorf("Casvisor can't change the passwords of the asset: %s, a %s asset over %s, so they can't be rotated", asset.Name, platform.getDisplayName(), asset.Protocol)
+		}
 	}
 	return nil
 }

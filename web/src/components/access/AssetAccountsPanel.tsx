@@ -71,15 +71,14 @@ function RotateStatus({account}: {account: AssetAccount}) {
 
 /**
  * The system accounts of an asset besides its own account. Users connect as them
- * without seeing their passwords, and Casvisor can change those passwords on SSH
- * assets through the asset's own account.
+ * without seeing their passwords, and Casvisor can change those passwords through
+ * the asset's own account where the asset's platform can.
  */
-export function AssetAccountsPanel({owner, asset, protocol, ownUsername}: {owner: string; asset: string; protocol: string; ownUsername: string}) {
+export function AssetAccountsPanel({owner, asset, protocol, ownUsername, canRotate, canPush}: {owner: string; asset: string; protocol: string; ownUsername: string; canRotate: boolean; canPush: boolean}) {
   const [accounts, setAccounts] = React.useState<AssetAccount[]>([]);
   const [editing, setEditing] = React.useState<AssetAccount | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [busy, setBusy] = React.useState("");
-  const canRotate = protocol === "SSH";
 
   const load = React.useCallback(() => {
     AssetAccountBackend.getAssetAccounts(owner, asset).then((res) => {
@@ -199,34 +198,38 @@ export function AssetAccountsPanel({owner, asset, protocol, ownUsername}: {owner
                       <Button size="iconSm" variant="ghost" aria-label={i18next.t("general:Edit")} onClick={() => setEditing({...account})}>
                         <Pencil />
                       </Button>
-                      {canRotate ? (
+                      {canRotate || canPush ? (
                         <>
-                          <ConfirmButton
-                            size="iconSm"
-                            variant="ghost"
-                            destructive={false}
-                            aria-label={i18next.t("account:Change password now")}
-                            title={i18next.t("account:Change password now")}
-                            description={i18next.t("account:Casvisor sets a new random password for this account on the asset and keeps it. Connected sessions are not affected")}
-                            loading={busy === `${account.name}:false`}
-                            disabled={account.password === "" || account.privateKey !== ""}
-                            onConfirm={() => run(account, false)}
-                          >
-                            <RefreshCw />
-                          </ConfirmButton>
-                          <ConfirmButton
-                            size="iconSm"
-                            variant="ghost"
-                            destructive={false}
-                            aria-label={i18next.t("account:Push to asset")}
-                            title={i18next.t("account:Push to asset")}
-                            description={i18next.t("account:Casvisor creates this account on the asset if it does not exist and sets the saved password there")}
-                            loading={busy === `${account.name}:true`}
-                            disabled={account.password === ""}
-                            onConfirm={() => run(account, true)}
-                          >
-                            <Upload />
-                          </ConfirmButton>
+                          {canRotate ? (
+                            <ConfirmButton
+                              size="iconSm"
+                              variant="ghost"
+                              destructive={false}
+                              aria-label={i18next.t("account:Change password now")}
+                              title={i18next.t("account:Change password now")}
+                              description={i18next.t("account:Casvisor sets a new random password for this account on the asset and keeps it. Connected sessions are not affected")}
+                              loading={busy === `${account.name}:false`}
+                              disabled={account.password === "" || account.privateKey !== ""}
+                              onConfirm={() => run(account, false)}
+                            >
+                              <RefreshCw />
+                            </ConfirmButton>
+                          ) : null}
+                          {canPush ? (
+                            <ConfirmButton
+                              size="iconSm"
+                              variant="ghost"
+                              destructive={false}
+                              aria-label={i18next.t("account:Push to asset")}
+                              title={i18next.t("account:Push to asset")}
+                              description={i18next.t("account:Casvisor creates this account on the asset if it does not exist and sets the saved password there")}
+                              loading={busy === `${account.name}:true`}
+                              disabled={account.password === ""}
+                              onConfirm={() => run(account, true)}
+                            >
+                              <Upload />
+                            </ConfirmButton>
+                          ) : null}
                         </>
                       ) : null}
                       <ConfirmButton size="iconSm" variant="ghost" aria-label={i18next.t("general:Delete")} onConfirm={() => remove(account)}>

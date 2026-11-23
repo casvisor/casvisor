@@ -16,12 +16,16 @@ package controllers
 
 import (
 	"encoding/json"
+	"io"
 	"strconv"
+	"sync"
 
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/terminal"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/transform"
 )
 
 type terminalMessage struct {
@@ -84,6 +88,7 @@ func (c *ApiController) GetAssetSsh() {
 		fail(NewTunnelError, err)
 		return
 	}
+	charset := object.GetAssetCharset(asset)
 	recorder := terminal.NewRecorder(terminal.Options{
 		SessionId: sessionId,
 		User:      c.GetSessionUser(),
@@ -92,7 +97,7 @@ func (c *ApiController) GetAssetSsh() {
 		Cols:      cols,
 		Rows:      rows,
 		Send: func(p []byte) error {
-			_, err := stdin.Write(p)
+			_, err := stdin.Write(encodeTerminalInput(charset, p))
 			return err
 		},
 		Notify: func(p []byte) {
@@ -101,7 +106,7 @@ func (c *ApiController) GetAssetSsh() {
 	})
 	defer recorder.Close()
 
-	output := recordedWriter{stream: stream, recorder: recorder}
+	output := newTerminalOutput(charset, recordedWriter{stream: stream, recorder: recorder})
 	sshSession.Stdout = output
 	sshSession.Stderr = output
 
@@ -182,4 +187,35 @@ type recordedWriter struct {
 func (w recordedWriter) Write(p []byte) (int, error) {
 	w.recorder.Output(p)
 	return w.stream.Write(p)
+}
+
+type syncWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (w *syncWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.w.Write(p)
+}
+
+// newTerminalOutput turns the output of an asset whose terminal is not UTF-8 into UTF-8,
+// keeping a character split across writes until its last byte comes.
+func newTerminalOutput(charset encoding.Encoding, w io.Writer) io.Writer {
+	if charset == nil {
+		return w
+	}
+	return &syncWriter{w: transform.NewWriter(w, charset.NewDecoder())}
+}
+
+func encodeTerminalInput(charset encoding.Encoding, p []byte) []byte {
+	if charset == nil {
+		return p
+	}
+	res, err := encoding.ReplaceUnsupported(charset.NewEncoder()).Bytes(p)
+	if err != nil {
+		return p
+	}
+	return res
 }

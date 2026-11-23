@@ -27,7 +27,7 @@ import (
 const MaxImportAssets = 5000
 
 // AssetImportColumns are the columns of an asset CSV file, in the order of the template and the export.
-var AssetImportColumns = []string{"name", "displayName", "description", "protocol", "host", "port", "username", "password", "privateKey", "database", "os", "tag", "nodes", "networkGateway"}
+var AssetImportColumns = []string{"name", "displayName", "description", "protocol", "host", "port", "username", "password", "privateKey", "database", "os", "tag", "nodes", "networkGateway", "platform", "elevationPassword"}
 
 var assetProtocols = []string{"SSH", "RDP", "VNC", "Telnet", ProtocolMysql, ProtocolPostgresql, ProtocolSqlServer, ProtocolOracle, ProtocolRedis, ProtocolMongodb, ProtocolKubernetes, ProtocolWeb, ProtocolDesktop}
 
@@ -266,7 +266,7 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 					return err
 				}
 			}
-			for _, column := range []string{"displayName", "description", "host", "username", "database", "os", "tag", "networkGateway"} {
+			for _, column := range []string{"displayName", "description", "host", "username", "database", "os", "tag", "networkGateway", "platform"} {
 				if !has(column) {
 					continue
 				}
@@ -289,6 +289,8 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 					asset.Os = value
 				case "tag":
 					asset.Tag = value
+				case "platform":
+					asset.Platform = value
 				case "networkGateway":
 					if value != "" && !gatewayNames[value] {
 						return fmt.Errorf("the network gateway: %s does not exist", value)
@@ -298,6 +300,9 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 			}
 			if has("password") && cells["password"] != "" {
 				asset.Password = cells["password"]
+			}
+			if has("elevationPassword") && cells["elevationPassword"] != "" {
+				asset.ElevationPassword = cells["elevationPassword"]
 			}
 			if has("privateKey") && strings.TrimSpace(cells["privateKey"]) != "" {
 				asset.PrivateKey = strings.ReplaceAll(strings.TrimSpace(cells["privateKey"]), `\n`, "\n")
@@ -313,10 +318,24 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 				asset.Port = assetDefaultPorts[asset.Protocol]
 			}
 
+			if !has("platform") || asset.Platform == "" || old != nil && asset.Protocol != old.Protocol && asset.Platform == old.Platform {
+				platform, err := getPlatform(owner, asset.Platform)
+				if err != nil {
+					return err
+				}
+				if platform == nil || !platform.supportsProtocol(asset.Protocol) {
+					asset.Platform = getDefaultPlatformName(asset.Protocol, asset.Os)
+				}
+			}
+			err := asset.checkPlatform()
+			if err != nil {
+				return err
+			}
+
 			if asset.Protocol != ProtocolDesktop && asset.Host == "" {
 				return fmt.Errorf("the host can not be empty")
 			}
-			err := asset.normalizeAddress()
+			err = asset.normalizeAddress()
 			if err != nil {
 				return err
 			}
@@ -348,7 +367,7 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 		}
 
 		if old != nil {
-			err = asset.checkKeptSecrets(old, asset.Password == old.Password, asset.PrivateKey == old.PrivateKey)
+			err = asset.checkKeptSecrets(old, asset.Password == old.Password || asset.ElevationPassword == old.ElevationPassword, asset.PrivateKey == old.PrivateKey)
 			if err != nil {
 				fail(err)
 				continue
@@ -368,6 +387,9 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 			}
 			if asset.PrivateKey == old.PrivateKey && old.PrivateKey != "" {
 				asset.PrivateKey = "***"
+			}
+			if asset.ElevationPassword == old.ElevationPassword && old.ElevationPassword != "" {
+				asset.ElevationPassword = "***"
 			}
 		} else {
 			result.Action = AssetImportCreate
@@ -424,6 +446,7 @@ func getAssetChanges(old *Asset, asset *Asset) []string {
 		{"os", old.Os, asset.Os},
 		{"tag", old.Tag, asset.Tag},
 		{"networkGateway", old.NetworkGateway, asset.NetworkGateway},
+		{"platform", old.Platform, asset.Platform},
 	}
 	for _, field := range fields {
 		if field.old != field.new {
@@ -450,7 +473,7 @@ func GetAssetCsvRow(asset *Asset, nodeMap map[string]*AssetNode) []string {
 	}
 	return []string{
 		asset.Name, asset.DisplayName, asset.Description, asset.Protocol, asset.Host, strconv.Itoa(asset.Port), asset.Username,
-		"", "", asset.Database, asset.Os, asset.Tag, strings.Join(paths, ";"), asset.NetworkGateway,
+		"", "", asset.Database, asset.Os, asset.Tag, strings.Join(paths, ";"), asset.NetworkGateway, asset.Platform, "",
 	}
 }
 

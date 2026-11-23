@@ -143,6 +143,12 @@ type linuxHost struct {
 	client *ssh.Client
 	sudo   bool
 	root   bool
+
+	// sudoPassword is the asset's own password, for a sudo that asks for it
+	sudoPassword string
+	// suCommand and suPassword become root by su
+	suCommand  string
+	suPassword string
 }
 
 func newLinuxHost(client *ssh.Client) (*linuxHost, error) {
@@ -167,8 +173,14 @@ func newLinuxHost(client *ssh.Client) (*linuxHost, error) {
 }
 
 func (h *linuxHost) runScript(script string, stdout io.Writer, stderr io.Writer) (int, error) {
+	if h.suPassword != "" {
+		return h.runSuScript(script, stdout, stderr)
+	}
 	command := "sh -s"
-	if h.sudo {
+	if h.sudoPassword != "" {
+		command = "sudo -k -S -p '' sh -s"
+		script = h.sudoPassword + "\n" + script
+	} else if h.sudo {
 		command = "sudo -n sh -s"
 	}
 	return runSshCommand(h.client, command, script, stdout, stderr)

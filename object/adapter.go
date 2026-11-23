@@ -290,6 +290,16 @@ func (a *Adapter) createTable() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = a.engine.Sync2(new(Platform))
+	if err != nil {
+		panic(err)
+	}
+
+	err = migrateAssetPlatforms(a.engine)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // isSecretField keeps the columns holding credentials out of list searches,

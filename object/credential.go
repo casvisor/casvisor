@@ -39,7 +39,7 @@ var credentialTables = []struct {
 	keys    []string
 	columns []string
 }{
-	{&Asset{}, []string{"owner", "name"}, []string{"password", "private_key"}},
+	{&Asset{}, []string{"owner", "name"}, []string{"password", "private_key", "elevation_password"}},
 	{&AssetAccount{}, []string{"owner", "name"}, []string{"password", "private_key"}},
 	{&NetworkGateway{}, []string{"owner", "name"}, []string{"password", "private_key"}},
 	{&LocalUser{}, []string{"owner", "name"}, []string{"totp_secret"}},
@@ -128,6 +128,10 @@ func (asset *Asset) encryptCredentials() error {
 	if err != nil {
 		return err
 	}
+	asset.ElevationPassword, err = encryptCredential(asset.ElevationPassword)
+	if err != nil {
+		return err
+	}
 	asset.PrivateKey, err = encryptCredential(asset.PrivateKey)
 	return err
 }
@@ -135,6 +139,10 @@ func (asset *Asset) encryptCredentials() error {
 func (asset *Asset) decryptCredentials() error {
 	var err error
 	asset.Password, err = decryptCredential(asset.Password)
+	if err != nil {
+		return err
+	}
+	asset.ElevationPassword, err = decryptCredential(asset.ElevationPassword)
 	if err != nil {
 		return err
 	}

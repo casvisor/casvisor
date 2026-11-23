@@ -308,7 +308,7 @@ func BuildAccountBackup(backup *AccountBackup) ([]byte, int, error) {
 			for j := range row {
 				row[j] = backupCell(row[j])
 			}
-			row[7], row[8] = asset.Password, strings.ReplaceAll(asset.PrivateKey, "\n", `\n`)
+			row[7], row[8], row[15] = asset.Password, strings.ReplaceAll(asset.PrivateKey, "\n", `\n`), asset.ElevationPassword
 			assetRows = append(assetRows, row)
 			if asset.Password != "" || asset.PrivateKey != "" {
 				count++

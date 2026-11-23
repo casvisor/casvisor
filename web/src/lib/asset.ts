@@ -45,6 +45,16 @@ export function isDatabaseProtocol(protocol: string) {
 
 export const OperatingSystems = ["Windows", "Linux"];
 
+/** The built-in platform an asset of the protocol gets, the same as the server picks. */
+export function getDefaultPlatform(protocol: string, os: string) {
+  const isWindows = os === "Windows";
+  const platforms: Record<string, string> = {
+    SSH: isWindows ? "windows" : "linux", VNC: isWindows ? "windows" : "linux", RDP: "windows", Desktop: "windows", Telnet: "linux",
+    MySQL: "mysql", PostgreSQL: "postgresql", SQLServer: "sqlserver", Oracle: "oracle", Redis: "redis", MongoDB: "mongodb", Kubernetes: "kubernetes", Web: "website",
+  };
+  return platforms[protocol] ?? "linux";
+}
+
 export function getDefaultPort(protocol: string) {
   const ports: Record<string, number> = {RDP: 3389, VNC: 5900, SSH: 22, Telnet: 23, MySQL: 3306, PostgreSQL: 5432, SQLServer: 1433, Oracle: 1521, Redis: 6379, MongoDB: 27017, Kubernetes: 6443, Web: 80};
   return ports[protocol] ?? 0;
