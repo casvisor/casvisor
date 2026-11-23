@@ -202,6 +202,7 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **Port forwarding to any asset** — `ssh -p 2222 -N -L 13389:win-01:3389 alice@casvisor.example.com`, then mstsc, a VNC viewer or a database client connects to `localhost:13389`
 - **Network gateways** — reach assets in another data center or behind NAT, through an SSH jump host or an agent that connects out over HTTPS
 - **Stored credentials** — passwords and private keys are encrypted in the database and filled in by Casvisor; SSH host keys and RDP certificates are pinned on first use
+- **Cloud accounts** — the servers of Alibaba Cloud, AWS, Tencent Cloud, Azure and Google Cloud accounts become assets, Linux as SSH and Windows as RDP, in a node per region of the asset tree; a preview shows what a sync changes, and syncs can run on a schedule
 
 **🛡️ Control**
 

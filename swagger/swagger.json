@@ -196,6 +196,34 @@
                 }
             }
         },
+        "/add-cloud-account": {
+            "post": {
+                "tags": [
+                    "Cloud Account API"
+                ],
+                "description": "add a cloud account",
+                "operationId": "ApiController.AddCloudAccount",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the cloud account",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.CloudAccount"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-command-rule": {
             "post": {
                 "tags": [
@@ -725,6 +753,34 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.AssetNode"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/delete-cloud-account": {
+            "post": {
+                "tags": [
+                    "Cloud Account API"
+                ],
+                "description": "delete a cloud account; its assets are kept and no longer synced",
+                "operationId": "ApiController.DeleteCloudAccount",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The cloud account",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.CloudAccount"
                         }
                     }
                 ],
@@ -1587,6 +1643,98 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.Asset"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-cloud-account": {
+            "get": {
+                "tags": [
+                    "Cloud Account API"
+                ],
+                "description": "get a cloud account, with its secret masked",
+                "operationId": "ApiController.GetCloudAccount",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the cloud account",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.CloudAccount"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-cloud-accounts": {
+            "get": {
+                "tags": [
+                    "Cloud Account API"
+                ],
+                "description": "get the cloud accounts, with their secrets masked",
+                "operationId": "ApiController.GetCloudAccounts",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the cloud accounts",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.CloudAccount"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/get-cloud-regions": {
+            "post": {
+                "tags": [
+                    "Cloud Account API"
+                ],
+                "description": "list the regions of a cloud account as it is in the form, without saving it; the secret of the saved account is used when the form has it masked",
+                "operationId": "ApiController.GetCloudRegions",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the saved cloud account",
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the cloud account",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.CloudAccount"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -3006,6 +3154,38 @@
                 }
             }
         },
+        "/sync-cloud-account": {
+            "post": {
+                "tags": [
+                    "Cloud Account API"
+                ],
+                "description": "list the servers of a cloud account and create, update or report the assets for them; with dryRun nothing is saved",
+                "operationId": "ApiController.SyncCloudAccount",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the cloud account",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "dryRun",
+                        "description": "Only preview what would change",
+                        "type": "boolean"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.CloudSyncResult"
+                        }
+                    }
+                }
+            }
+        },
         "/test-asset": {
             "post": {
                 "tags": [
@@ -3192,6 +3372,41 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.AssetNode"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/update-cloud-account": {
+            "post": {
+                "tags": [
+                    "Cloud Account API"
+                ],
+                "description": "update a cloud account, keeping its secret when it is sent masked",
+                "operationId": "ApiController.UpdateCloudAccount",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the cloud account",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the cloud account",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.CloudAccount"
                         }
                     }
                 ],
@@ -3877,6 +4092,12 @@
                         "$ref": "#/definitions/object.AccountInfo"
                     }
                 },
+                "cloudAccount": {
+                    "type": "string"
+                },
+                "cloudInstance": {
+                    "type": "string"
+                },
                 "createdTime": {
                     "type": "string"
                 },
@@ -3992,6 +4213,31 @@
                 }
             }
         },
+        "object.AssetImportResult": {
+            "title": "AssetImportResult",
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "changes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "row": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
         "object.AssetNode": {
             "title": "AssetNode",
             "type": "object",
@@ -4036,6 +4282,144 @@
                 },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "object.CloudAccount": {
+            "title": "CloudAccount",
+            "type": "object",
+            "properties": {
+                "accessKey": {
+                    "type": "string"
+                },
+                "accessSecret": {
+                    "type": "string"
+                },
+                "addressType": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "deleteMissing": {
+                    "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "isEnabled": {
+                    "type": "boolean"
+                },
+                "lastSyncMessage": {
+                    "type": "string"
+                },
+                "lastSyncStatus": {
+                    "type": "string"
+                },
+                "lastSyncTime": {
+                    "type": "string"
+                },
+                "linuxUsername": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "networkGateway": {
+                    "type": "string"
+                },
+                "nodePath": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "projectId": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "subscriptionId": {
+                    "type": "string"
+                },
+                "syncInterval": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "tag": {
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "windowsUsername": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.CloudSyncResult": {
+            "title": "CloudSyncResult",
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.AssetImportResult"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/object.CloudSyncSummary"
+                }
+            }
+        },
+        "object.CloudSyncSummary": {
+            "title": "CloudSyncSummary",
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "createdNodes": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "deleted": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "failed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "instances": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "missing": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "skipped": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "updated": {
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         },
