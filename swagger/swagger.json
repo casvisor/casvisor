@@ -476,6 +476,34 @@
                 }
             }
         },
+        "/add-platform": {
+            "post": {
+                "tags": [
+                    "Platform API"
+                ],
+                "description": "add a platform to the organization, such as a copy of a built-in one",
+                "operationId": "ApiController.AddPlatform",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the platform",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.Platform"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-record": {
             "post": {
                 "tags": [
@@ -1289,6 +1317,34 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/object.Permission"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/delete-platform": {
+            "post": {
+                "tags": [
+                    "Platform API"
+                ],
+                "description": "delete a platform of the organization that no asset uses",
+                "operationId": "ApiController.DeletePlatform",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The platform",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.Platform"
                         }
                     }
                 ],
@@ -3216,6 +3272,67 @@
                 }
             }
         },
+        "/get-platform": {
+            "get": {
+                "tags": [
+                    "Platform API"
+                ],
+                "description": "get a platform, built-in or the organization's own",
+                "operationId": "ApiController.GetPlatform",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the platform",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.Platform"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-platforms": {
+            "get": {
+                "tags": [
+                    "Platform API"
+                ],
+                "description": "get the built-in platforms and the organization's own, by page when pageSize is given",
+                "operationId": "ApiController.GetPlatforms",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the platforms",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "value",
+                        "description": "Only the platforms whose name, display name, category or method contains it",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.Platform"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/get-record": {
             "get": {
                 "tags": [
@@ -5028,6 +5145,41 @@
                 }
             }
         },
+        "/update-platform": {
+            "post": {
+                "tags": [
+                    "Platform API"
+                ],
+                "description": "update a platform of the organization; a built-in one can't be changed, copy it instead. Renaming it renames it in its assets",
+                "operationId": "ApiController.UpdatePlatform",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the platform",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the platform",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.Platform"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/update-report": {
             "post": {
                 "tags": [
@@ -5881,6 +6033,9 @@
                 "displayName": {
                     "type": "string"
                 },
+                "elevationPassword": {
+                    "type": "string"
+                },
                 "fingerprint": {
                     "type": "string"
                 },
@@ -5906,6 +6061,9 @@
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                },
+                "platform": {
                     "type": "string"
                 },
                 "port": {
@@ -7355,6 +7513,107 @@
                         "type": "integer",
                         "format": "int64"
                     }
+                }
+            }
+        },
+        "object.Platform": {
+            "title": "Platform",
+            "type": "object",
+            "properties": {
+                "canChangePassword": {
+                    "type": "boolean"
+                },
+                "canGather": {
+                    "type": "boolean"
+                },
+                "canPush": {
+                    "type": "boolean"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "changeCommands": {
+                    "type": "string"
+                },
+                "charset": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "elevation": {
+                    "type": "string"
+                },
+                "elevationCommand": {
+                    "type": "string"
+                },
+                "errorPattern": {
+                    "type": "string"
+                },
+                "isBuiltIn": {
+                    "type": "boolean"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "passwordDigits": {
+                    "type": "boolean"
+                },
+                "passwordExclude": {
+                    "type": "string"
+                },
+                "passwordLength": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "passwordLowercase": {
+                    "type": "boolean"
+                },
+                "passwordSymbols": {
+                    "type": "string"
+                },
+                "passwordUppercase": {
+                    "type": "boolean"
+                },
+                "promptPattern": {
+                    "type": "string"
+                },
+                "protocols": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.PlatformProtocol"
+                    }
+                },
+                "pushCommands": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.PlatformProtocol": {
+            "title": "PlatformProtocol",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         },
