@@ -80,6 +80,7 @@ export default function App() {
         <Route path="/sessions/:owner/:name/monitor" element={<RequireAuth>{page("SessionMonitorPage")}</RequireAuth>} />
         <Route path="/share/:owner/:name" element={<RequireAuth>{page("SessionSharePage")}</RequireAuth>} />
         <Route path="/sessions/:owner/:name/replay" element={<RequireAuth>{page("SessionReplayPage")}</RequireAuth>} />
+        <Route path="/reports/print" element={<RequireAuth>{page("ReportPrintPage")}</RequireAuth>} />
 
         <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
           <Route path="/" element={page("HomePage")} />
@@ -119,6 +120,9 @@ export default function App() {
           <Route path="/webhooks/:owner/:name" element={page("WebhookEditPage")} />
           <Route path="/records" element={page("RecordListPage")} />
           <Route path="/records/:owner/:name" element={page("RecordEditPage")} />
+          <Route path="/reports" element={page("ReportPage")} />
+          <Route path="/reports/schedules" element={page("ReportScheduleListPage")} />
+          <Route path="/reports/:owner/:name" element={page("ReportEditPage")} />
           <Route path="/ssh-keys" element={page("SshKeyListPage")} />
           <Route path="/account" element={page("AccountPage")} />
           <Route path="/users" element={page("UserListPage")} />

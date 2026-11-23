@@ -57,26 +57,60 @@ func csvCell(s string) string {
 	return s
 }
 
-// exportCsv streams the rows as a CSV file, with a BOM so that Excel reads it as UTF-8, and records the export.
-func (c *ApiController) exportCsv(name string, header []string, iterate func(write func(row []string) error) error) {
+// exportTable streams the rows as a CSV file, with a BOM so that Excel reads it as UTF-8, or as an
+// Excel workbook when the query has format=xlsx, and records the export.
+func (c *ApiController) exportTable(name string, header []string, iterate func(write func(row []string) error) error) {
 	c.EnableRender = false
+	isXlsx := c.Input().Get("format") == "xlsx"
 	fileName := fmt.Sprintf("%s-%s.csv", name, time.Now().Format("20060102-150405"))
-	c.Ctx.Output.Header("Content-Type", "text/csv; charset=utf-8")
+	var write func(row []string) error
+	var finish func() error
+	if isXlsx {
+		fileName = strings.TrimSuffix(fileName, ".csv") + ".xlsx"
+		stream, err := object.NewXlsxStream(name, header)
+		if err != nil {
+			c.ResponseError(err.Error())
+			return
+		}
+		write = stream.WriteRow
+		finish = func() error {
+			return stream.Close(c.Ctx.ResponseWriter)
+		}
+		c.Ctx.Output.Header("Content-Type", object.XlsxContentType)
+	} else {
+		c.Ctx.Output.Header("Content-Type", "text/csv; charset=utf-8")
+	}
 	c.Ctx.Output.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
-	c.Ctx.ResponseWriter.WriteHeader(200)
-	_, _ = c.Ctx.ResponseWriter.Write([]byte("\xEF\xBB\xBF"))
 
-	writer := csv.NewWriter(c.Ctx.ResponseWriter)
-	_ = writer.Write(header)
+	if !isXlsx {
+		c.Ctx.ResponseWriter.WriteHeader(200)
+		_, _ = c.Ctx.ResponseWriter.Write([]byte("\xEF\xBB\xBF"))
+		writer := csv.NewWriter(c.Ctx.ResponseWriter)
+		_ = writer.Write(header)
+		write = func(row []string) error {
+			for i := range row {
+				row[i] = csvCell(row[i])
+			}
+			return writer.Write(row)
+		}
+		finish = func() error {
+			writer.Flush()
+			return writer.Error()
+		}
+	}
+
 	count := 0
 	err := iterate(func(row []string) error {
-		for i := range row {
-			row[i] = csvCell(row[i])
-		}
 		count++
-		return writer.Write(row)
+		return write(row)
 	})
-	writer.Flush()
+	if err != nil {
+		logs.Error("failed to export the %s: %s", name, err.Error())
+	}
+	if isXlsx {
+		c.Ctx.ResponseWriter.WriteHeader(200)
+	}
+	err = finish()
 	if err != nil {
 		logs.Error("failed to export the %s: %s", name, err.Error())
 	}
@@ -103,12 +137,13 @@ func (c *ApiController) exportCsv(name string, header []string, iterate func(wri
 // ExportSessions
 // @Title ExportSessions
 // @Tag Session API
-// @Description download the sessions that match the filter of the session list as CSV, 100,000 at most
+// @Description download the sessions that match the filter of the session list as CSV, or as an Excel workbook with format=xlsx, 100,000 at most
 // @Param   owner     query    string  true        "The owner of the sessions"
 // @Param   status    query    string  false       "connected or disconnected"
 // @Param   field     query    string  false       "The field to filter on"
 // @Param   value     query    string  false       "The value of the filter"
-// @Success 200 {string} string The CSV file
+// @Param   format    query    string  false       "csv (default) or xlsx"
+// @Success 200 {string} string The CSV or xlsx file
 // @router /export-sessions [get]
 func (c *ApiController) ExportSessions() {
 	query, ok := c.getExportQuery()
@@ -118,7 +153,7 @@ func (c *ApiController) ExportSessions() {
 	status := c.Input().Get("status")
 
 	header := []string{"ID", "Asset", "Protocol", "Mode", "User", "Client IP", "Client IP location", "User agent", "Status", "Start time", "End time", "Duration (s)", "Commands", "Code", "Message"}
-	c.exportCsv("sessions", header, func(write func(row []string) error) error {
+	c.exportTable("sessions", header, func(write func(row []string) error) error {
 		return object.IterateSessions(query.owner, status, query.field, query.value, query.sortField, query.sortOrder, func(s *object.Session) error {
 			duration := ""
 			if start, err := time.Parse(time.RFC3339, s.StartTime); err == nil {
@@ -137,11 +172,12 @@ func (c *ApiController) ExportSessions() {
 // ExportCommands
 // @Title ExportCommands
 // @Tag Command API
-// @Description download the commands that match the filter of the command list as CSV, 100,000 at most
+// @Description download the commands that match the filter of the command list as CSV, or as an Excel workbook with format=xlsx, 100,000 at most
 // @Param   owner     query    string  true        "The owner of the commands"
 // @Param   field     query    string  false       "The field to filter on"
 // @Param   value     query    string  false       "The value of the filter"
-// @Success 200 {string} string The CSV file
+// @Param   format    query    string  false       "csv (default) or xlsx"
+// @Success 200 {string} string The CSV or xlsx file
 // @router /export-commands [get]
 func (c *ApiController) ExportCommands() {
 	query, ok := c.getExportQuery()
@@ -150,7 +186,7 @@ func (c *ApiController) ExportCommands() {
 	}
 
 	header := []string{"Time", "Command", "Action", "Rule", "Reviewer", "Error", "User", "Operator", "Asset", "Client IP", "Session"}
-	c.exportCsv("commands", header, func(write func(row []string) error) error {
+	c.exportTable("commands", header, func(write func(row []string) error) error {
 		return object.IterateCommands(query.owner, query.field, query.value, query.sortField, query.sortOrder, func(command *object.Command) error {
 			return write([]string{command.CreatedTime, command.Text, command.Action, command.Rule, command.Reviewer, command.Error, command.User, command.Operator, command.Asset, command.ClientIp, command.Session})
 		})
@@ -160,11 +196,12 @@ func (c *ApiController) ExportCommands() {
 // ExportRecords
 // @Title ExportRecords
 // @Tag Record API
-// @Description download the records that match the filter of the record list as CSV, 100,000 at most
+// @Description download the records that match the filter of the record list as CSV, or as an Excel workbook with format=xlsx, 100,000 at most
 // @Param   owner     query    string  true        "The owner of the records"
 // @Param   field     query    string  false       "The field to filter on"
 // @Param   value     query    string  false       "The value of the filter"
-// @Success 200 {string} string The CSV file
+// @Param   format    query    string  false       "csv (default) or xlsx"
+// @Success 200 {string} string The CSV or xlsx file
 // @router /export-records [get]
 func (c *ApiController) ExportRecords() {
 	query, ok := c.getExportQuery()
@@ -173,7 +210,7 @@ func (c *ApiController) ExportRecords() {
 	}
 
 	header := []string{"ID", "Name", "Time", "Organization", "User", "Client IP", "User agent", "Method", "Request URI", "Action", "Language", "Object", "Response"}
-	c.exportCsv("records", header, func(write func(row []string) error) error {
+	c.exportTable("records", header, func(write func(row []string) error) error {
 		return object.IterateRecords(query.owner, query.field, query.value, query.sortField, query.sortOrder, func(record *object.Record) error {
 			return write([]string{
 				strconv.Itoa(record.Id), record.Name, record.CreatedTime, record.Organization, record.User, record.ClientIp, record.UserAgent,

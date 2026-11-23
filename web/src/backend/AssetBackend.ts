@@ -19,8 +19,9 @@ export function getAssets(owner: string, params: ListParams = {}, node = "") {
   return get("/api/get-assets", {...listQuery(owner, params), node});
 }
 
-export function importAssets(owner: string, csv: string, update: boolean, dryRun: boolean) {
-  return post("/api/import-assets", {}, {owner, csv, update, dryRun});
+/** xlsx is an Excel workbook in base64, read instead of csv when it is set. */
+export function importAssets(owner: string, csv: string, update: boolean, dryRun: boolean, xlsx = "") {
+  return post("/api/import-assets", {}, {owner, csv, xlsx, update, dryRun});
 }
 
 /** "add" puts the assets in the nodes as well, "remove" takes them out, "set" leaves them in exactly the nodes. */

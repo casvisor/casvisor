@@ -179,6 +179,9 @@ func (c *ApiController) signinLocal() {
 		return
 	}
 	if err != nil {
+		if username := strings.TrimSpace(form.Username); username != "" && len(username) <= 100 && !strings.Contains(username, "/") {
+			c.Ctx.Input.SetParam("recordUserId", organization+"/"+username)
+		}
 		c.ResponseError(err.Error())
 		return
 	}

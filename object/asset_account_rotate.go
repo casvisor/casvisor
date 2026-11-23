@@ -173,6 +173,7 @@ func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
 	err = setAccountPassword(asset, account.Username, password, isPush)
 	if err != nil {
 		_ = updateAssetAccountRotation(account, "", AccountRotateFailed, truncate(err.Error(), 1000))
+		auditAccountRotation(account, asset, isPush, AccountRotateFailed, err.Error())
 		return nil, err
 	}
 
@@ -197,6 +198,15 @@ func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
 		return nil, err
 	}
 
+	auditAccountRotation(account, asset, isPush, status, message)
+
+	if status == AccountRotateFailed {
+		return nil, fmt.Errorf("%s", message)
+	}
+	return GetMaskedAssetAccount(GetAssetAccount(id))
+}
+
+func auditAccountRotation(account *AssetAccount, asset *Asset, isPush bool, status string, message string) {
 	action := "rotate-asset-account"
 	if isPush {
 		action = "push-asset-account"
@@ -209,11 +219,6 @@ func RotateAssetAccount(id string, isPush bool) (*AssetAccount, error) {
 		Asset:        asset.GetId(),
 		Detail:       fmt.Sprintf("%s: %s %s", account.Username, status, message),
 	})
-
-	if status == AccountRotateFailed {
-		return nil, fmt.Errorf("%s", message)
-	}
-	return GetMaskedAssetAccount(GetAssetAccount(id))
 }
 
 func isAccountRotationDue(account *AssetAccount, now time.Time) bool {

@@ -15,6 +15,7 @@
 package controllers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -183,8 +184,10 @@ func (c *ApiController) MoveAssets() {
 }
 
 type importAssetsForm struct {
-	Owner  string `json:"owner"`
-	Csv    string `json:"csv"`
+	Owner string `json:"owner"`
+	Csv   string `json:"csv"`
+	// Xlsx is an Excel workbook in base64, read from its first sheet, instead of the CSV file
+	Xlsx   string `json:"xlsx"`
 	Update bool   `json:"update"`
 	DryRun bool   `json:"dryRun"`
 }
@@ -192,8 +195,8 @@ type importAssetsForm struct {
 // ImportAssets
 // @Title ImportAssets
 // @Tag Asset API
-// @Description add assets from a CSV file, and update the existing ones when update is true; with dryRun it only tells what it would do
-// @Param   body    body   controllers.importAssetsForm  true        "The CSV file and the options"
+// @Description add assets from a CSV file or the first sheet of an Excel workbook, and update the existing ones when update is true; with dryRun it only tells what it would do
+// @Param   body    body   controllers.importAssetsForm  true        "The CSV file or the workbook in base64, and the options"
 // @Success 200 {object} controllers.Response The Response object
 // @router /import-assets [post]
 func (c *ApiController) ImportAssets() {
@@ -207,7 +210,18 @@ func (c *ApiController) ImportAssets() {
 		return
 	}
 
-	columns, rows, err := object.ParseAssetCsv(form.Csv)
+	var columns []string
+	var rows [][]string
+	if form.Xlsx != "" {
+		data, decodeErr := base64.StdEncoding.DecodeString(form.Xlsx)
+		if decodeErr != nil {
+			c.ResponseError(decodeErr.Error())
+			return
+		}
+		columns, rows, err = object.ParseAssetXlsx(data)
+	} else {
+		columns, rows, err = object.ParseAssetCsv(form.Csv)
+	}
 	if err != nil {
 		c.ResponseError(err.Error())
 		return
@@ -246,12 +260,13 @@ func (c *ApiController) ImportAssets() {
 // ExportAssets
 // @Title ExportAssets
 // @Tag Asset API
-// @Description download the assets that match the filter of the asset list as CSV, without passwords and private keys, in the format of the import
+// @Description download the assets that match the filter of the asset list as CSV, or as an Excel workbook with format=xlsx, without passwords and private keys, in the format of the import
 // @Param   owner     query    string  true        "The owner of the assets"
 // @Param   node      query    string  false       "Only the assets in this node or below it, @none for the assets in no node"
 // @Param   field     query    string  false       "The field to filter on"
 // @Param   value     query    string  false       "The value of the filter"
-// @Success 200 {string} string The CSV file
+// @Param   format    query    string  false       "csv (default) or xlsx"
+// @Success 200 {string} string The CSV or xlsx file
 // @router /export-assets [get]
 func (c *ApiController) ExportAssets() {
 	query, ok := c.getExportQuery()
@@ -270,7 +285,7 @@ func (c *ApiController) ExportAssets() {
 		return
 	}
 
-	c.exportCsv("assets", object.AssetImportColumns, func(write func(row []string) error) error {
+	c.exportTable("assets", object.AssetImportColumns, func(write func(row []string) error) error {
 		for _, asset := range assets {
 			err := write(object.GetAssetCsvRow(asset, nodeMap))
 			if err != nil {

@@ -27,7 +27,7 @@ import {MoveAssetsDialog} from "@/components/asset/MoveAssetsDialog";
 import {Button} from "@/components/ui/button";
 import {LocalClientButton} from "@/components/access/LocalClientButton";
 import {CrudListPage} from "@/components/crud/CrudListPage";
-import {ExportCsvButton} from "@/components/crud/ExportCsvButton";
+import {ExportButton} from "@/components/crud/ExportButton";
 import {dateColumn, linkColumn, textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
@@ -178,7 +178,7 @@ export default function AssetListPage() {
               <FileUp />
               {i18next.t("assetImport:Import")}
             </Button>
-            <ExportCsvButton path="/api/export-assets" owner={owner} query={query} params={{node}} />
+            <ExportButton path="/api/export-assets" owner={owner} query={query} params={{node}} />
             <AssetImportDialog
               owner={owner}
               open={importing}

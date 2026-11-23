@@ -92,7 +92,7 @@ Casvisor sits between the people who run your servers and the servers themselves
 - **One Go binary.** Casvisor speaks SSH, RDP, VNC, Telnet, MySQL, PostgreSQL, SQL Server, Oracle, Redis, MongoDB and HTTP itself, with nothing to install on the servers. It runs on SQLite with its own accounts out of the box.
 - **Apache-2.0, no enterprise edition.** Recording, the SSH gateway, network gateways, system accounts, jobs and everything else in this README are in the open-source project.
 - **Policy you can read.** Permissions are enforced with [Casbin](https://casbin.apache.org), and sign-in can be handed to [Casdoor](https://casdoor.ai) for SSO, MFA, LDAP and social logins.
-- **Audit by default.** Sessions are recorded, commands and SQL statements are checked against your rules and logged, and the logs export to CSV or a syslog server.
+- **Audit by default.** Sessions are recorded, commands and SQL statements are checked against your rules and logged, and the logs export to CSV, Excel or a syslog server.
 
 Coming from another bastion host? See how Casvisor [compares with JumpServer, Teleport and others](https://casvisor.org/docs/more/comparison).
 
@@ -225,8 +225,9 @@ At this point you have a running bastion host with nothing behind it yet. Next:
 - **Live monitoring** — watch online sessions and stop any of them; an administrator can take part in a terminal session and type in it, the user is told who joined, and the commands are logged with the administrator as the operator
 - **Command records** — SSH and Telnet commands are read off a virtual screen, so tab completion, history and line edits are captured as they ran; SQL statements are logged too
 - **Operation log** — file transfers and every change made through the API
-- **Export and syslog** — session, command and operation logs export to CSV and can be forwarded to a syslog server as RFC 5424 JSON or CEF
-- **Notifications** — blocked and flagged commands, access requests, sign-ins and commands waiting for review, finished jobs, new account risks and failed backups, sent to DingTalk, Feishu, WeCom and Slack group bots, to your own systems as signed JSON, or by email through your SMTP server
+- **Audit reports** — sign-ins (failed, off-hours and rejected by login rules), sessions and their duration by user, asset and protocol, blocked, flagged and reviewed commands with the rules they hit, file transfers, access requests and reviews, password changes and account risks, and asset and permission changes, for this week, last month or any dates; print it to PDF, download it as an Excel workbook with a sheet for each part, or have it emailed on a cron schedule
+- **Export and syslog** — session, command and operation logs and the assets export to CSV or Excel, assets import from either, and the logs can be forwarded to a syslog server as RFC 5424 JSON or CEF
+- **Notifications** — blocked and flagged commands, access requests, sign-ins and commands waiting for review, finished jobs, new account risks and failed backups and reports, sent to DingTalk, Feishu, WeCom and Slack group bots, to your own systems as signed JSON, or by email through your SMTP server
 
 **⚙️ Operate**
 

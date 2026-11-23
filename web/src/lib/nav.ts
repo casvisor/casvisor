@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {ArchiveRestore, CalendarClock, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, LayoutDashboard, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
+import {ArchiveRestore, CalendarClock, ChartColumn, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, LayoutDashboard, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, Settings, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -231,6 +231,12 @@ export function getNavGroups(account: Account | null | undefined): NavGroup[] {
           label: i18next.t("general:Records"),
           icon: ScrollText,
           description: i18next.t("general:Audit logs"),
+        },
+        {
+          key: "/reports",
+          label: i18next.t("general:Reports"),
+          icon: ChartColumn,
+          description: i18next.t("general:Sign-ins, sessions, commands, file transfers, approvals and changes of a period, to print or export"),
         },
       ],
     },

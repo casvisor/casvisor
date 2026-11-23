@@ -181,7 +181,7 @@ func (record *Record) getId() string {
 	return fmt.Sprintf("%s/%s", record.Owner, record.Name)
 }
 
-var maskedRecordFields = []string{"password", "privateKey", "oldPassword", "newPassword", "code", "secret", "csv", "url", "token", "accessKey", "accessSecret", "clientSecret"}
+var maskedRecordFields = []string{"password", "privateKey", "oldPassword", "newPassword", "code", "secret", "csv", "xlsx", "url", "token", "accessKey", "accessSecret", "clientSecret"}
 
 // maxRecordObjectLength keeps one request from filling the record table.
 const maxRecordObjectLength = 10000

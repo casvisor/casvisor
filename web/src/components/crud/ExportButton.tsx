@@ -14,12 +14,14 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {FileDown} from "lucide-react";
+import {ChevronDown, FileDown} from "lucide-react";
 import type {TableQuery} from "@/components/crud/types";
 import {Button} from "@/components/ui/button";
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
+import {downloadFile, XlsxContentType} from "@/lib/download";
 import * as Setting from "@/lib/setting";
 
-interface ExportCsvButtonProps {
+interface ExportButtonProps {
   /** the export API, such as /api/export-commands */
   path: string;
   owner: string;
@@ -28,16 +30,11 @@ interface ExportCsvButtonProps {
   params?: Record<string, string>;
 }
 
-function getFileName(disposition: string | null, fallback: string) {
-  const match = /filename="?([^";]+)"?/.exec(disposition ?? "");
-  return match ? match[1] : fallback;
-}
-
-/** Downloads every row that matches the list's filter as a CSV file. */
-export function ExportCsvButton({path, owner, query, params = {}}: ExportCsvButtonProps) {
+/** Downloads every row that matches the list's filter as a CSV file or an Excel workbook. */
+export function ExportButton({path, owner, query, params = {}}: ExportButtonProps) {
   const [loading, setLoading] = React.useState(false);
 
-  const download = async() => {
+  const download = async(format: "csv" | "xlsx") => {
     const search = new URLSearchParams({
       owner,
       field: query.searchText ? query.searchedColumn : "",
@@ -45,24 +42,14 @@ export function ExportCsvButton({path, owner, query, params = {}}: ExportCsvButt
       sortField: query.sortField,
       sortOrder: query.sortOrder,
       ...params,
+      format,
     });
     setLoading(true);
     try {
-      const res = await fetch(`${Setting.ServerUrl}${path}?${search.toString()}`, {credentials: "include"});
-      if (!res.ok || !(res.headers.get("Content-Type") ?? "").includes("text/csv")) {
-        const data = await Setting.handleFetchResponse(res);
-        Setting.showMessage("error", data?.msg || `HTTP ${res.status}`);
-        return;
+      const error = await downloadFile(path, search, format === "xlsx" ? XlsxContentType : "text/csv", `export.${format}`);
+      if (error) {
+        Setting.showMessage("error", error);
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = getFileName(res.headers.get("Content-Disposition"), "export.csv");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (error) {
       Setting.showMessage("error", `${i18next.t("general:Failed to connect to server")}: ${error}`);
     } finally {
@@ -71,9 +58,18 @@ export function ExportCsvButton({path, owner, query, params = {}}: ExportCsvButt
   };
 
   return (
-    <Button variant="outline" onClick={download} loading={loading}>
-      <FileDown />
-      {i18next.t("general:Export CSV")}
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" loading={loading}>
+          <FileDown />
+          {i18next.t("general:Export")}
+          <ChevronDown />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => download("csv")}>CSV (.csv)</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => download("xlsx")}>Excel (.xlsx)</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

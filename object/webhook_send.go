@@ -494,3 +494,16 @@ func notifyAccountBackupFailed(backup *AccountBackup, message string, time strin
 		},
 	})
 }
+
+func notifyReportFailed(report *Report, message string, time string) {
+	sendWebhooks(&WebhookEvent{
+		Type:         WebhookEventReportFailed,
+		Title:        "Report failed",
+		Time:         time,
+		Organization: report.Owner,
+		Fields: []WebhookField{
+			{"report", "Report", report.Name},
+			{"reason", "Reason", message},
+		},
+	})
+}

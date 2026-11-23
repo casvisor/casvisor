@@ -50,6 +50,7 @@ const (
 	WebhookEventJobScheduleMissed     = "job_schedule.missed"
 	WebhookEventAccountRiskFound      = "account_risk.found"
 	WebhookEventAccountBackupFailed   = "account_backup.failed"
+	WebhookEventReportFailed          = "report.failed"
 	WebhookEventTest                  = "test"
 )
 
@@ -59,7 +60,7 @@ var webhookEvents = []string{
 	WebhookEventLoginReviewCreated, WebhookEventLoginReviewReviewed,
 	WebhookEventCommandReviewCreated, WebhookEventCommandReviewReviewed,
 	WebhookEventJobSucceeded, WebhookEventJobFailed, WebhookEventJobScheduleMissed,
-	WebhookEventAccountRiskFound, WebhookEventAccountBackupFailed,
+	WebhookEventAccountRiskFound, WebhookEventAccountBackupFailed, WebhookEventReportFailed,
 }
 
 // Webhook posts the events of its organization that it subscribes to, to a URL: as JSON, or as a

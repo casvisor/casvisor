@@ -117,6 +117,19 @@ func ParseAssetCsv(text string) ([]string, [][]string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	return parseAssetRecords(records)
+}
+
+// ParseAssetXlsx reads the first sheet of an Excel workbook of assets, with the columns of the CSV file.
+func ParseAssetXlsx(data []byte) ([]string, [][]string, error) {
+	records, err := ReadXlsxRows(data)
+	if err != nil {
+		return nil, nil, err
+	}
+	return parseAssetRecords(records)
+}
+
+func parseAssetRecords(records [][]string) ([]string, [][]string, error) {
 	if len(records) == 0 {
 		return nil, nil, fmt.Errorf("the file is empty")
 	}

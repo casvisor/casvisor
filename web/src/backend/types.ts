@@ -709,3 +709,143 @@ export interface KubernetesPods {
   namespace: string;
   pods: KubernetesPod[];
 }
+
+export type ReportSection = "login" | "session" | "command" | "file" | "approval" | "account" | "asset";
+
+/** An audit report kept to be downloaded or emailed on a schedule. */
+export interface Report {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  period: string;
+  sections: ReportSection[] | null;
+  language: string;
+  weekdays: number[] | null;
+  workStartTime: string;
+  workEndTime: string;
+  webhooks: string[] | null;
+  cron: string;
+  timeZone: string;
+  isEnabled: boolean;
+  nextRunTime: string;
+  lastRunTime: string;
+  lastRunStatus: string;
+  lastRunMessage: string;
+}
+
+export interface ReportItem {
+  name: string;
+  count: number;
+  failed?: number;
+  blocked?: number;
+  uploads?: number;
+  downloads?: number;
+  seconds?: number;
+}
+
+export interface ReportEvent {
+  time: string;
+  user: string;
+  clientIp?: string;
+  asset?: string;
+  action: string;
+  detail?: string;
+  seconds?: number;
+}
+
+export interface ReportReviews {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  cancelled: number;
+  expired: number;
+  revoked: number;
+}
+
+export interface ReportData {
+  owner: string;
+  period: string;
+  startTime: string;
+  endTime: string;
+  timeZone: string;
+  workingHours: string;
+  weekdays: number[];
+  workStartTime: string;
+  workEndTime: string;
+  generatedTime: string;
+  sections: ReportSection[];
+  login?: {
+    succeeded: number;
+    failed: number;
+    offHours: number;
+    rejected: number;
+    reviewed: number;
+    mfaRequired: number;
+    users: ReportItem[];
+    clientIps: ReportItem[];
+    events: ReportEvent[];
+  };
+  session?: {
+    total: number;
+    active: number;
+    users: number;
+    assets: number;
+    seconds: number;
+    byUser: ReportItem[];
+    byAsset: ReportItem[];
+    byProtocol: ReportItem[];
+    longest: ReportEvent[];
+  };
+  command?: {
+    total: number;
+    blocked: number;
+    alerted: number;
+    reviewed: number;
+    rules: ReportItem[];
+    byUser: ReportItem[];
+    events: ReportEvent[];
+  };
+  file?: {
+    uploads: number;
+    downloads: number;
+    byUser: ReportItem[];
+    byAsset: ReportItem[];
+    events: ReportEvent[];
+  };
+  approval?: {
+    accessRequests: ReportReviews;
+    loginReviews: ReportReviews;
+    commandReviews: ReportReviews;
+    requesters: ReportItem[];
+    reviewers: ReportItem[];
+    events: ReportEvent[];
+  };
+  account?: {
+    rotated: number;
+    rotateFailed: number;
+    pushed: number;
+    pushFailed: number;
+    newRisks: number;
+    resolvedRisks: number;
+    openRisks: number;
+    ignoredRisks: number;
+    riskKinds: ReportItem[];
+    events: ReportEvent[];
+  };
+  asset?: {
+    total: number;
+    added: number;
+    deleted: number;
+    byProtocol: ReportItem[];
+    permissions: number;
+    permissionsAdded: number;
+    permissionsUpdated: number;
+    permissionsDeleted: number;
+    events: ReportEvent[];
+    permissionEvents: ReportEvent[];
+  };
+}

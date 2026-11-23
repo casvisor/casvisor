@@ -30,6 +30,7 @@ export const WebhookEvents = [
   "job_schedule.missed",
   "account_risk.found",
   "account_backup.failed",
+  "report.failed",
 ];
 
 export function getWebhooks(owner: string, params: ListParams = {}) {

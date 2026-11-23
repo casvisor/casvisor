@@ -37,9 +37,19 @@ function ActionBadge({action}: {action: AssetImportResult["action"]}) {
   return <Badge variant={actionVariants[action]}>{i18next.t(`assetImport:${action}`)}</Badge>;
 }
 
-/** Adds or updates assets from a CSV file: a preview first, then the import. */
+function readBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Adds or updates assets from a CSV file or an Excel workbook: a preview first, then the import. */
 export function AssetImportDialog({owner, open, onOpenChange, onImported}: {owner: string; open: boolean; onOpenChange: (open: boolean) => void; onImported: () => void}) {
   const [csv, setCsv] = React.useState("");
+  const [xlsx, setXlsx] = React.useState("");
   const [fileName, setFileName] = React.useState("");
   const [update, setUpdate] = React.useState(false);
   const [results, setResults] = React.useState<AssetImportResult[] | null>(null);
@@ -51,6 +61,7 @@ export function AssetImportDialog({owner, open, onOpenChange, onImported}: {owne
   React.useEffect(() => {
     if (open) {
       setCsv("");
+      setXlsx("");
       setFileName("");
       setUpdate(false);
       setResults(null);
@@ -70,7 +81,13 @@ export function AssetImportDialog({owner, open, onOpenChange, onImported}: {owne
       return;
     }
     try {
-      setCsv(await readCsvFile(file));
+      if (/\.xlsx$/i.test(file.name)) {
+        setXlsx(await readBase64(file));
+        setCsv("");
+      } else {
+        setCsv(await readCsvFile(file));
+        setXlsx("");
+      }
       setFileName(file.name);
       resetPreview();
     } catch (error) {
@@ -81,7 +98,7 @@ export function AssetImportDialog({owner, open, onOpenChange, onImported}: {owne
   const run = async(dryRun: boolean) => {
     setBusy(true);
     try {
-      const res = await AssetBackend.importAssets(owner, csv, update, dryRun);
+      const res = await AssetBackend.importAssets(owner, csv, update, dryRun, xlsx);
       if (res.status !== "ok") {
         Setting.showMessage("error", res.msg);
         return;
@@ -108,7 +125,7 @@ export function AssetImportDialog({owner, open, onOpenChange, onImported}: {owne
         <DialogHeader>
           <DialogTitle>{i18next.t("assetImport:Import assets")}</DialogTitle>
           <DialogDescription>
-            {i18next.t("assetImport:A CSV file whose first line is the header. Only the name column is required; the protocol defaults to SSH and the port to the protocol's. Nodes are paths such as Beijing/Production, separated by \";\", and missing ones are created")}
+            {i18next.t("assetImport:A CSV file or an Excel workbook whose first line is the header. Only the name column is required; the protocol defaults to SSH and the port to the protocol's. Nodes are paths such as Beijing/Production, separated by \";\", and missing ones are created")}
           </DialogDescription>
         </DialogHeader>
 
@@ -117,7 +134,7 @@ export function AssetImportDialog({owner, open, onOpenChange, onImported}: {owne
             <input
               ref={fileRef}
               type="file"
-              accept=".csv,.txt,text/csv"
+              accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="hidden"
               onChange={(e) => {
                 pickFile(e.target.files?.[0]);
@@ -126,24 +143,30 @@ export function AssetImportDialog({owner, open, onOpenChange, onImported}: {owne
             />
             <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
               <FileUp />
-              {i18next.t("assetImport:Choose a CSV file")}
+              {i18next.t("assetImport:Choose a CSV or Excel file")}
             </Button>
             <Button variant="link" size="sm" onClick={() => downloadText("casvisor-assets-template.csv", AssetCsvTemplate)}>
               {i18next.t("assetImport:Download the template")}
             </Button>
             {fileName ? <span className="truncate text-xs text-muted-foreground">{fileName}</span> : null}
           </div>
-          <Textarea
-            value={csv}
-            rows={7}
-            spellCheck={false}
-            className="font-mono text-xs"
-            placeholder={AssetCsvColumns.join(",")}
-            onChange={(e) => {
-              setCsv(e.target.value);
-              resetPreview();
-            }}
-          />
+          {xlsx ? (
+            <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed px-3 text-center text-sm text-muted-foreground">
+              {i18next.t("assetImport:The first sheet of the Excel workbook is imported, with the same columns as the CSV file")}
+            </div>
+          ) : (
+            <Textarea
+              value={csv}
+              rows={7}
+              spellCheck={false}
+              className="font-mono text-xs"
+              placeholder={AssetCsvColumns.join(",")}
+              onChange={(e) => {
+                setCsv(e.target.value);
+                resetPreview();
+              }}
+            />
+          )}
           <label className="flex items-center gap-2 text-sm">
             <Switch
               checked={update}
@@ -202,7 +225,7 @@ export function AssetImportDialog({owner, open, onOpenChange, onImported}: {owne
           <Button variant="ghost" onClick={() => onOpenChange(false)}>{i18next.t(imported ? "general:Close" : "general:Cancel")}</Button>
           {imported ? null : (
             <>
-              <Button variant="outline" loading={busy && !summary} disabled={!csv.trim()} onClick={() => run(true)}>
+              <Button variant="outline" loading={busy && !summary} disabled={!csv.trim() && !xlsx} onClick={() => run(true)}>
                 {i18next.t("assetImport:Preview")}
               </Button>
               <Button loading={busy && Boolean(summary)} disabled={!summary || toApply === 0} onClick={() => run(false)}>
