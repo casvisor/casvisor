@@ -29,13 +29,13 @@ function fetchSshGateway() {
   return gatewayPromise;
 }
 
-/** The SSH gateway's address, null while loading or when the gateway is off. */
-export function useSshGateway() {
+/** The gateways for clients on the user's machine, null while loading; enabled tells whether the SSH gateway is on. */
+export function useGateways() {
   const [gateway, setGateway] = React.useState<SshGateway | null>(null);
   React.useEffect(() => {
     let active = true;
     fetchSshGateway().then((res) => {
-      if (active && res?.enabled) {
+      if (active && res) {
         setGateway(res);
       }
     });
@@ -44,6 +44,12 @@ export function useSshGateway() {
     };
   }, []);
   return gateway;
+}
+
+/** The SSH gateway's address, null while loading or when the gateway is off. */
+export function useSshGateway() {
+  const gateway = useGateways();
+  return gateway?.enabled ? gateway : null;
 }
 
 export function getGatewayHost(gateway: SshGateway) {

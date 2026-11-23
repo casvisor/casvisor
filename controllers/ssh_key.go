@@ -20,6 +20,7 @@ import (
 
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/rdgateway"
 	"github.com/casvisor/casvisor/sshgateway"
 	"golang.org/x/crypto/ssh"
 )
@@ -29,6 +30,8 @@ type SshGateway struct {
 	Host        string `json:"host"`
 	Port        string `json:"port"`
 	Fingerprint string `json:"fingerprint"`
+	// RdGateway tells whether mstsc can open RDP assets through the Remote Desktop Gateway
+	RdGateway bool `json:"rdGateway"`
 }
 
 // GetSshKeys
@@ -126,7 +129,7 @@ func (c *ApiController) DeleteSshKey() {
 // @Success 200 {object} controllers.SshGateway The Response object
 // @router /get-ssh-gateway [get]
 func (c *ApiController) GetSshGateway() {
-	res := SshGateway{Enabled: sshgateway.IsEnabled()}
+	res := SshGateway{Enabled: sshgateway.IsEnabled(), RdGateway: rdgateway.IsEnabled()}
 	if res.Enabled {
 		res.Host = conf.GetConfigString("sshGatewayHost")
 		res.Port = conf.GetConfigString("sshGatewayPort")

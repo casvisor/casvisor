@@ -56,6 +56,10 @@ func (g *gatewayConn) handleTunnel(newChannel ssh.NewChannel) {
 		_ = newChannel.Reject(ssh.ConnectionFailed, fmt.Sprintf("the asset: %s does not exist, forward ports to assets with \"ssh -p <port> -N -L <local port>:<asset>:<asset port> %s@<host>\"", payload.Host, g.user.Name))
 		return
 	}
+	if g.tunnelAssetId != "" && asset.GetId() != g.tunnelAssetId {
+		_ = newChannel.Reject(ssh.Prohibited, fmt.Sprintf("this token only forwards ports to the asset: %s", g.tunnelAssetId))
+		return
+	}
 	if int(payload.Port) != asset.Port {
 		_ = newChannel.Reject(ssh.ConnectionFailed, fmt.Sprintf("the asset: %s can only be reached on its port %d", asset.Name, asset.Port))
 		return

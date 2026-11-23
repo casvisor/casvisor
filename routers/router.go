@@ -153,6 +153,7 @@ func initAPI() {
 	beego.Router("/api/upload-job-file", &controllers.ApiController{}, "POST:UploadJobFile")
 
 	beego.Router("/api/add-asset-tunnel", &controllers.ApiController{}, "POST:AddAssetTunnel")
+	beego.Router("/api/add-client-token", &controllers.ApiController{}, "POST:AddClientToken")
 	beego.Router("/api/get-asset-ssh", &controllers.ApiController{}, "GET:GetAssetSsh")
 	beego.Router("/api/get-asset-vnc", &controllers.ApiController{}, "GET:GetAssetVnc")
 	beego.Router("/api/get-asset-rdp", &controllers.ApiController{}, "GET:GetAssetRdp")

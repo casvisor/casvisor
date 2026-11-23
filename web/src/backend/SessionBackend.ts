@@ -43,6 +43,12 @@ export function addAssetTunnel(assetId: string, account = "", username = "", pas
   return post("/api/add-asset-tunnel", query, username || password ? {username, password} : undefined);
 }
 
+/** A one-time token, good for two minutes, for a client on the user's machine: "ssh", "tunnel" or "rdp". */
+export function addClientToken(assetId: string, kind: string, account = "") {
+  const query = account ? {assetId, kind, account} : {assetId, kind};
+  return post("/api/add-client-token", query);
+}
+
 /** Connects a session of a Web asset, and returns the address that opens the website, once and within a minute. */
 export function getWebAssetUrl(sessionId: string) {
   return post("/api/get-web-asset-url", {sessionId});

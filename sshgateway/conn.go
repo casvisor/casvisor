@@ -45,6 +45,8 @@ type gatewayConn struct {
 	// isUserLogin is "ssh <user>@<casvisor host>": port forwards then go to assets themselves
 	isUserLogin bool
 	tunnels     map[string]string
+	// tunnelAssetId is the only asset that a one-time token for port forwarding reaches
+	tunnelAssetId string
 }
 
 func (g *gatewayConn) signIn() error {
@@ -64,6 +66,9 @@ func (g *gatewayConn) signIn() error {
 	}
 	if certId := g.conn.Permissions.Extensions[certIdExtension]; certId != "" {
 		g.audit("ssh-certificate", certId)
+	}
+	if kind := g.conn.Permissions.Extensions[tokenKindExtension]; kind != "" {
+		return g.signInWithToken(kind)
 	}
 
 	userName, accountName, assetName := parseUsername(g.conn.User())
@@ -94,6 +99,9 @@ func (g *gatewayConn) getSignedInUserId() (string, error) {
 	if userId := extensions[certUserExtension]; userId != "" {
 		return userId, nil
 	}
+	if userId := extensions[tokenUserExtension]; userId != "" {
+		return userId, nil
+	}
 
 	sshKey, err := object.GetSshKey(extensions[sshKeyExtension])
 	if err != nil {
@@ -108,6 +116,27 @@ func (g *gatewayConn) getSignedInUserId() (string, error) {
 		logs.Error(fmt.Sprintf("SSH gateway: failed to update the last used time of the key: %s: %s", sshKey.GetId(), err.Error()))
 	}
 	return sshKey.GetUserId(), nil
+}
+
+// signInWithToken opens the asset that the one-time token was issued for, with the account chosen in the
+// web console; the permissions are checked again here, as they may have changed since.
+func (g *gatewayConn) signInWithToken(kind string) error {
+	extensions := g.conn.Permissions.Extensions
+	asset, err := object.GetAsset(extensions[tokenAssetExtension])
+	if err != nil {
+		return err
+	}
+	if asset == nil {
+		return fmt.Errorf("the asset has been deleted")
+	}
+
+	if kind == object.ClientTokenTunnel {
+		g.isUserLogin = true
+		g.tunnelAssetId = asset.GetId()
+		return nil
+	}
+	account := extensions[tokenAccountExtension]
+	return g.selectAsset(asset, account, account != "")
 }
 
 // parseUsername splits "<user>@<account>@<asset>", "<user>@<asset>" or just "<asset>"; ssh itself

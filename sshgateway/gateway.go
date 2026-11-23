@@ -31,6 +31,7 @@ import (
 	"github.com/casvisor/casvisor/agent"
 	"github.com/casvisor/casvisor/conf"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/util"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -38,6 +39,12 @@ const (
 	sshKeyExtension   = "casvisor-ssh-key"
 	agentExtension    = "casvisor-agent"
 	agentKeyExtension = "casvisor-agent-key"
+
+	// a one-time token from the web console, for clients launched from it
+	tokenKindExtension    = "casvisor-token-kind"
+	tokenUserExtension    = "casvisor-token-user"
+	tokenAssetExtension   = "casvisor-token-asset"
+	tokenAccountExtension = "casvisor-token-account"
 )
 
 func IsEnabled() bool {
@@ -66,7 +73,10 @@ func listen(port string) error {
 
 	config := &ssh.ServerConfig{
 		PublicKeyCallback: checkPublicKey,
-		ServerVersion:     "SSH-2.0-Casvisor",
+		// "none" only lets in a one-time token from the web console, given as the username
+		NoClientAuth:         true,
+		NoClientAuthCallback: checkClientToken,
+		ServerVersion:        "SSH-2.0-Casvisor",
 	}
 	config.AddHostKey(signer)
 
@@ -157,6 +167,33 @@ func checkPublicKey(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions,
 	return checkLoginRules(meta, user, &ssh.Permissions{Extensions: map[string]string{sshKeyExtension: sshKey.GetId()}})
 }
 
+// checkClientToken signs in a client launched from the web console, such as Xshell opening
+// "ssh://<token>@<host>:2222" or WinSCP opening "sftp://...", with the one-time token as the username.
+func checkClientToken(meta ssh.ConnMetadata) (*ssh.Permissions, error) {
+	if !object.IsClientToken(meta.User()) {
+		return nil, fmt.Errorf("sign in with a public key")
+	}
+	token := object.ConsumeClientToken(meta.User(), object.ClientTokenSsh, object.ClientTokenTunnel)
+	if token == nil {
+		return nil, fmt.Errorf("the token is unknown, used or expired")
+	}
+
+	owner, name := util.GetOwnerAndNameFromId(token.UserId)
+	user, err := object.GetCasdoorUser(owner, name)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, fmt.Errorf("the user: %s does not exist", token.UserId)
+	}
+	return checkLoginRules(meta, user, &ssh.Permissions{Extensions: map[string]string{
+		tokenKindExtension:    token.Kind,
+		tokenUserExtension:    token.UserId,
+		tokenAssetExtension:   token.AssetId,
+		tokenAccountExtension: token.Account,
+	}})
+}
+
 // recoverPanic keeps a panic in one connection from taking the whole server down.
 func recoverPanic(where string) {
 	if err := recover(); err != nil {
@@ -199,6 +236,10 @@ func handleConn(conn net.Conn, config *ssh.ServerConfig) {
 	for newChannel := range chans {
 		switch newChannel.ChannelType() {
 		case "session":
+			if g.tunnelAssetId != "" {
+				_ = newChannel.Reject(ssh.Prohibited, "this token only forwards a port, connect with \"ssh -N -L ...\"")
+				continue
+			}
 			go g.handleSession(newChannel)
 		case "direct-tcpip", "direct-streamlocal@openssh.com":
 			go g.handleForward(newChannel)

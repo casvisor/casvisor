@@ -25,8 +25,7 @@ import {AssetImportDialog} from "@/components/asset/AssetImportDialog";
 import {AssetTree} from "@/components/asset/AssetTree";
 import {MoveAssetsDialog} from "@/components/asset/MoveAssetsDialog";
 import {Button} from "@/components/ui/button";
-import {SshCommandButton} from "@/components/access/SshCommandButton";
-import {TunnelCommandButton} from "@/components/access/TunnelCommandButton";
+import {LocalClientButton} from "@/components/access/LocalClientButton";
 import {CrudListPage} from "@/components/crud/CrudListPage";
 import {ExportCsvButton} from "@/components/crud/ExportCsvButton";
 import {dateColumn, linkColumn, textColumn, valueFilters} from "@/components/crud/columns";
@@ -34,14 +33,15 @@ import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
 import {Protocols} from "@/lib/asset";
 import {NoNode, getNodePath} from "@/lib/assetNode";
-import {useSshGateway} from "@/lib/gateway";
+import {useGateways} from "@/lib/gateway";
 import * as Setting from "@/lib/setting";
 
 export default function AssetListPage() {
   const {account} = useAccount();
   const isAdmin = Setting.isAdminUser(account);
   const owner = Setting.getRequestOrganization(account);
-  const gateway = useSshGateway();
+  const gateway = useGateways();
+  const hasLocalClients = gateway !== null && (gateway.enabled || gateway.rdGateway === true);
   const [searchParams, setSearchParams] = useSearchParams();
   const node = searchParams.get("node") ?? "";
   const [nodes, setNodes] = React.useState<AssetNode[]>([]);
@@ -223,12 +223,11 @@ export default function AssetListPage() {
             {i18next.t("assetNode:Set nodes")}
           </Button>
         ) : undefined}
-        actionColumnWidth={(isAdmin ? 240 : 110) + (gateway ? 40 : 0)}
+        actionColumnWidth={(isAdmin ? 240 : 110) + (hasLocalClients ? 40 : 0)}
         rowLeading={(asset) => (
           <>
             <ConnectButton asset={asset} disabled={asset.owner !== account?.owner} />
-            {gateway && asset.protocol === "SSH" ? <SshCommandButton asset={asset} gateway={gateway} account={account} /> : null}
-            {gateway && account && asset.protocol !== "SSH" ? <TunnelCommandButton asset={asset} gateway={gateway} account={account} /> : null}
+            {gateway && account && asset.owner === account.owner ? <LocalClientButton asset={asset} gateway={gateway} account={account} /> : null}
           </>
         )}
       />

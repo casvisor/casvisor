@@ -29,6 +29,7 @@ import (
 	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/demo"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/rdgateway"
 	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/routers"
 	"github.com/casvisor/casvisor/sshgateway"
@@ -85,6 +86,8 @@ func main() {
 
 	// the websites of Web assets are served on subdomains of their own, before anything else
 	beego.InsertFilter("*", beego.BeforeStatic, webproxy.Filter)
+	// mstsc reaches the Remote Desktop Gateway with methods of its own, before beego reads the request
+	beego.InsertFilter("*", beego.BeforeStatic, rdgateway.Filter)
 	beego.InsertFilter("*", beego.BeforeStatic, routers.RejectEncodedBody)
 	beego.SetStaticPath("/swagger", "swagger")
 	beego.InsertFilter("/metrics", beego.BeforeRouter, routers.MetricsFilter)

@@ -285,6 +285,8 @@ export interface SshGateway {
   host: string;
   port: string;
   fingerprint: string;
+  /** whether mstsc can open RDP assets through the Remote Desktop Gateway */
+  rdGateway?: boolean;
 }
 
 export interface SessionFile {
