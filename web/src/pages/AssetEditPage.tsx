@@ -18,7 +18,8 @@ import {Link, useNavigate, useParams} from "react-router-dom";
 import * as AssetBackend from "@/backend/AssetBackend";
 import * as AssetNodeBackend from "@/backend/AssetNodeBackend";
 import * as NetworkGatewayBackend from "@/backend/NetworkGatewayBackend";
-import type {Asset, AssetNode, NetworkGateway} from "@/backend/types";
+import * as SessionBackend from "@/backend/SessionBackend";
+import type {Asset, AssetNode, NetworkGateway, WebLogin} from "@/backend/types";
 import {MultiSelect} from "@/components/common/MultiSelect";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
@@ -31,13 +32,23 @@ import {AssetAccountsPanel} from "@/components/access/AssetAccountsPanel";
 import {EditPageShell} from "@/components/crud/EditPageShell";
 import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
-import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, KubernetesProtocol, OperatingSystems, Protocols, WebProtocol} from "@/lib/asset";
+import {DesktopProtocol, getDefaultPort, isDatabaseProtocol, KubernetesProtocol, OperatingSystems, Protocols, WebModeBrowser, WebProtocol} from "@/lib/asset";
 import {getNodeOptions} from "@/lib/assetNode";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import * as Setting from "@/lib/setting";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 const directConnection = "__direct__";
+const webModeProxy = "Proxy";
+const emptyWebLogin: WebLogin = {loginUrl: "", usernameSelector: "", passwordSelector: "", nextSelector: "", submitSelector: ""};
+
+const webLoginFields: {key: keyof WebLogin; label: string; tooltip: string; placeholder: string}[] = [
+  {key: "loginUrl", label: "web:Sign-in page", tooltip: "web:Sign-in page - Tooltip", placeholder: "/login"},
+  {key: "usernameSelector", label: "web:Username field", tooltip: "web:Username field - Tooltip", placeholder: "#username"},
+  {key: "nextSelector", label: "web:Next button", tooltip: "web:Next button - Tooltip", placeholder: "#next"},
+  {key: "passwordSelector", label: "web:Password field", tooltip: "web:Password field - Tooltip", placeholder: "input[type=password]"},
+  {key: "submitSelector", label: "web:Sign-in button", tooltip: "web:Sign-in button - Tooltip", placeholder: "button[type=submit]"},
+];
 
 export default function AssetEditPage() {
   const {owner = "", name = ""} = useParams();
@@ -52,6 +63,10 @@ export default function AssetEditPage() {
 
   const [gateways, setGateways] = React.useState<NetworkGateway[]>([]);
   const [nodes, setNodes] = React.useState<AssetNode[]>([]);
+  const [hasRemoteBrowser, setHasRemoteBrowser] = React.useState(false);
+  React.useEffect(() => {
+    SessionBackend.getRemoteBrowser().then((res) => setHasRemoteBrowser(res.status === "ok" && res.data === true));
+  }, []);
   React.useEffect(() => {
     NetworkGatewayBackend.getNetworkGateways(owner).then((res) => {
       if (res.status === "ok") {
@@ -95,6 +110,8 @@ export default function AssetEditPage() {
 
   const isKubernetes = asset.protocol === KubernetesProtocol;
   const isWeb = asset.protocol === WebProtocol;
+  const isBrowser = isWeb && asset.webMode === WebModeBrowser;
+  const webLogin = asset.webLogin ?? emptyWebLogin;
 
   // The test connects with what is in the form without saving it; a host key seen for the first time goes into the form.
   const test = async() => {
@@ -180,7 +197,7 @@ export default function AssetEditPage() {
           </FormRow>
           <FormRow
             labelKey="general:Username"
-            tooltip={isKubernetes ? i18next.t("asset:Username of a Kubernetes cluster - Tooltip") : isWeb ? i18next.t("web:Basic authentication - Tooltip") : undefined}
+            tooltip={isKubernetes ? i18next.t("asset:Username of a Kubernetes cluster - Tooltip") : isBrowser ? i18next.t("web:Sign-in account - Tooltip") : isWeb ? i18next.t("web:Basic authentication - Tooltip") : undefined}
           >
             <Input value={asset.username} autoComplete="off" onChange={(e) => updateField("username", e.target.value)} />
           </FormRow>
@@ -193,6 +210,28 @@ export default function AssetEditPage() {
           </FormRow>
         </>
       ) : null}
+      {isWeb && (hasRemoteBrowser || isBrowser) ? (
+        <FormRow label={i18next.t("web:Open in")} tooltip={i18next.t("web:Open in - Tooltip")}>
+          <SelectField
+            value={asset.webMode || webModeProxy}
+            options={[
+              {id: webModeProxy, name: i18next.t("web:Reverse proxy")},
+              {id: WebModeBrowser, name: i18next.t("web:Casvisor's browser")},
+            ]}
+            onChange={(value) => updateField("webMode", value === WebModeBrowser ? WebModeBrowser : "")}
+          />
+        </FormRow>
+      ) : null}
+      {isBrowser ? webLoginFields.map((field) => (
+        <FormRow key={field.key} label={i18next.t(field.label)} tooltip={i18next.t(field.tooltip)}>
+          <Input
+            value={webLogin[field.key]}
+            placeholder={field.placeholder}
+            className={field.key === "loginUrl" ? undefined : "font-mono text-xs"}
+            onChange={(e) => updateField("webLogin", {...webLogin, [field.key]: e.target.value})}
+          />
+        </FormRow>
+      )) : null}
       {asset.protocol === "Oracle" ? (
         <FormRow label={i18next.t("asset:Service name")} tooltip={i18next.t("asset:Service name - Tooltip")}>
           <Input value={asset.database ?? ""} placeholder="ORCLPDB1" onChange={(e) => updateField("database", e.target.value)} />

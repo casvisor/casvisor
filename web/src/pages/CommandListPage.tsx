@@ -23,7 +23,7 @@ import {ExportButton} from "@/components/crud/ExportButton";
 import {dateColumn, textColumn} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
-import {isDatabaseProtocol, WebProtocol} from "@/lib/asset";
+import {BrowserProtocol, isDatabaseProtocol, WebProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 import {CommandActionBadge} from "@/pages/CommandRuleListPage";
 
@@ -73,8 +73,8 @@ export default function CommandListPage() {
       title: i18next.t("database:Result"),
       width: 160,
       render: (_value, command) => {
-        if (command.protocol === WebProtocol) {
-          const status = command.action === "Block" ? "" : `HTTP ${command.statusCode ?? 0}`;
+        if (command.protocol === WebProtocol || command.protocol === BrowserProtocol) {
+          const status = command.action === "Block" || !command.statusCode ? "" : `HTTP ${command.statusCode}`;
           if (command.error) {
             const text = status ? `${status}, ${command.error}` : command.error;
             return <span className="line-clamp-2 break-all text-xs text-destructive" title={text}>{text}</span>;

@@ -29,6 +29,7 @@ import (
 	"github.com/casvisor/casvisor/controllers"
 	"github.com/casvisor/casvisor/demo"
 	"github.com/casvisor/casvisor/object"
+	"github.com/casvisor/casvisor/rbrowser"
 	"github.com/casvisor/casvisor/rdgateway"
 	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/routers"
@@ -117,6 +118,7 @@ func main() {
 	sshgateway.Start()
 	object.StartLiveSessionChecker()
 	webproxy.Start()
+	rbrowser.Init()
 	object.StartAccountRotator()
 	object.StartCloudSyncer()
 	object.StartJobScheduler()

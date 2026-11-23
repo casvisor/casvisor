@@ -54,6 +54,16 @@ export function getWebAssetUrl(sessionId: string) {
   return post("/api/get-web-asset-url", {sessionId});
 }
 
+/** Whether Web assets can be opened in Casvisor's browser, which needs Chrome, Chromium or Edge on the server. */
+export function getRemoteBrowser() {
+  return get("/api/get-remote-browser");
+}
+
+/** The address of a file the browser of a session has downloaded. */
+export function getBrowserDownloadUrl(sessionId: string, download: string) {
+  return `${Setting.ServerUrl}/api/get-browser-download?${new URLSearchParams({sessionId, download})}`;
+}
+
 export function connect(sessionId: string) {
   return post("/api/start-session", {id: sessionId});
 }

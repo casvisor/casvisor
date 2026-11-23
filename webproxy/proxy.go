@@ -564,11 +564,6 @@ func writePage(w http.ResponseWriter, status int, title string, message string, 
 
 // writePageRefresh writes a page of Casvisor that the browser reloads every refresh seconds, if set.
 func writePageRefresh(w http.ResponseWriter, status int, title string, message string, link string, refresh int) {
-	linkHtml := ""
-	if link != "" {
-		linkHtml = fmt.Sprintf(`<p><a href="%s">Go to Casvisor</a></p>`, html.EscapeString(link))
-	}
-
 	header := w.Header()
 	for key := range header {
 		header.Del(key)
@@ -581,5 +576,14 @@ func writePageRefresh(w http.ResponseWriter, status int, title string, message s
 		header.Set("Refresh", fmt.Sprintf("%d", refresh))
 	}
 	w.WriteHeader(status)
-	_, _ = fmt.Fprintf(w, pageTemplate, html.EscapeString(title), html.EscapeString(title), html.EscapeString(message), linkHtml)
+	_, _ = w.Write(RenderPage(title, message, link))
+}
+
+// RenderPage returns a page of Casvisor that tells why a website is not shown.
+func RenderPage(title string, message string, link string) []byte {
+	linkHtml := ""
+	if link != "" {
+		linkHtml = fmt.Sprintf(`<p><a href="%s">Go to Casvisor</a></p>`, html.EscapeString(link))
+	}
+	return []byte(fmt.Sprintf(pageTemplate, html.EscapeString(title), html.EscapeString(title), html.EscapeString(message), linkHtml))
 }

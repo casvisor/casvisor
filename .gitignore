@@ -36,5 +36,6 @@ conf/app.local.conf
 data/drives/
 data/clipboard/
 data/jobs/
+data/browsers/
 db/
 recordings/

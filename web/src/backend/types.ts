@@ -37,6 +37,18 @@ export interface Asset {
   cloudInstance?: string;
   /** the accounts the signed-in user may connect as, the asset's own account first */
   accounts?: AccountInfo[];
+  /** "Browser" to open a Web asset in Casvisor's browser, empty for the reverse proxy */
+  webMode?: string;
+  webLogin?: WebLogin | null;
+}
+
+/** How Casvisor signs in to a website in its browser, with CSS selectors of the sign-in form. */
+export interface WebLogin {
+  loginUrl: string;
+  usernameSelector: string;
+  passwordSelector: string;
+  nextSelector: string;
+  submitSelector: string;
 }
 
 /** Posts the events of its organization it subscribes to, as JSON or as a chat bot message. */

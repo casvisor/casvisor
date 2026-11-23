@@ -74,16 +74,19 @@ export function ConnectionToolbar({
   onClipboard,
   onHotKey,
   onFiles,
+  inline,
 }: {
   onFullscreen: () => void;
   onClipboard?: () => void;
   onHotKey?: (keys: number[]) => void;
   onFiles?: () => void;
+  /** in a bar of the view, instead of floating over the screen */
+  inline?: boolean;
 }) {
   const shareTarget = React.useContext(SessionShareContext);
   const [sharing, setSharing] = React.useState(false);
   return (
-    <div className="absolute right-4 top-4 z-10 flex gap-1.5 opacity-60 transition-opacity hover:opacity-100">
+    <div className={inline ? "flex gap-1.5" : "absolute right-4 top-4 z-10 flex gap-1.5 opacity-60 transition-opacity hover:opacity-100"}>
       {shareTarget ? (
         <ToolbarButton label={i18next.t("session:Share this session")} onClick={() => setSharing(true)}>
           <Share2 />

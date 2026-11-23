@@ -61,6 +61,9 @@ var userApis = map[string]bool{
 	"/api/get-kubernetes-pods":    true,
 	"/api/get-asset-kubernetes":   true,
 	"/api/get-web-asset-url":      true,
+	"/api/get-remote-browser":     true,
+	"/api/get-asset-browser":      true,
+	"/api/get-browser-download":   true,
 
 	"/api/get-session-files":     true,
 	"/api/download-session-file": true,

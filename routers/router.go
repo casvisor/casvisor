@@ -217,6 +217,9 @@ func initAPI() {
 	beego.Router("/api/get-kubernetes-pods", &controllers.ApiController{}, "POST:GetKubernetesPods")
 	beego.Router("/api/get-asset-kubernetes", &controllers.ApiController{}, "GET:GetAssetKubernetes")
 	beego.Router("/api/get-web-asset-url", &controllers.ApiController{}, "POST:GetWebAssetUrl")
+	beego.Router("/api/get-remote-browser", &controllers.ApiController{}, "GET:GetRemoteBrowser")
+	beego.Router("/api/get-asset-browser", &controllers.ApiController{}, "GET:GetAssetBrowser")
+	beego.Router("/api/get-browser-download", &controllers.ApiController{}, "GET:GetBrowserDownload")
 
 	beego.Router("/api/get-session-files", &controllers.ApiController{}, "GET:GetSessionFiles")
 	beego.Router("/api/download-session-file", &controllers.ApiController{}, "GET:DownloadSessionFile")

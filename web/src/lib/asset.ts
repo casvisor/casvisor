@@ -25,6 +25,10 @@ export function isTerminalProtocol(protocol: string) {
 /** A website, opened through Casvisor's reverse proxy on a subdomain of its own. */
 export const WebProtocol = "Web";
 
+/** The way to open a Web asset in a browser that Casvisor runs, and the protocol of its sessions. */
+export const WebModeBrowser = "Browser";
+export const BrowserProtocol = "Browser";
+
 /** The protocols whose sessions are a list of statements or requests instead of a recording. */
 export function isRequestLogProtocol(protocol: string) {
   return isDatabaseProtocol(protocol) || protocol === WebProtocol;

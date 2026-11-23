@@ -23,7 +23,7 @@ import {ExportButton} from "@/components/crud/ExportButton";
 import {textColumn, valueFilters} from "@/components/crud/columns";
 import type {ColumnDef, TableQuery} from "@/components/crud/types";
 import {useAccount} from "@/hooks/use-account";
-import {isRequestLogProtocol, KubernetesProtocol, Protocols} from "@/lib/asset";
+import {BrowserProtocol, isRequestLogProtocol, KubernetesProtocol, Protocols} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 export default function SessionListPage() {
@@ -83,7 +83,7 @@ export default function SessionListPage() {
       searchable: true,
       render: (value) => <span className="font-mono text-xs">{value || i18next.t("account:Default")}</span>,
     },
-    textColumn<Session>({dataIndex: "protocol", title: i18next.t("general:Protocol"), width: 120, filters: valueFilters(Protocols)}),
+    textColumn<Session>({dataIndex: "protocol", title: i18next.t("general:Protocol"), width: 120, filters: valueFilters([...Protocols, BrowserProtocol])}),
     textColumn<Session>({
       dataIndex: "creator",
       title: i18next.t("general:User"),
@@ -133,7 +133,7 @@ export default function SessionListPage() {
       title: i18next.t("general:Commands"),
       width: 110,
       render: (value, session) =>
-        session.protocol === "SSH" || session.protocol === KubernetesProtocol || isRequestLogProtocol(session.protocol) ? (
+        session.protocol === "SSH" || session.protocol === KubernetesProtocol || session.protocol === BrowserProtocol || isRequestLogProtocol(session.protocol) ? (
           <Link to={`/commands?session=${encodeURIComponent(Setting.getIdFromObject(session))}`} className="tabular-nums underline-offset-4 hover:underline">
             {value ?? 0}
           </Link>

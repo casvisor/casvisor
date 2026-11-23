@@ -25,7 +25,7 @@ import {Button} from "@/components/ui/button";
 import {Switch} from "@/components/ui/switch";
 import {ReplayPlayer} from "@/components/replay/player";
 import {createScreen} from "@/components/replay/screens";
-import {isRequestLogProtocol, isTerminalProtocol} from "@/lib/asset";
+import {BrowserProtocol, isRequestLogProtocol, isTerminalProtocol} from "@/lib/asset";
 import {formatDuration, parseRecording, type Recording} from "@/lib/recording";
 import * as Setting from "@/lib/setting";
 
@@ -132,7 +132,7 @@ function RecordingReplay({session}: {session: Session | null}) {
   }, [recording, atParam]);
 
   React.useEffect(() => {
-    if (!recording || !isTerminalProtocol(recording.header.protocol)) {
+    if (!recording || !(isTerminalProtocol(recording.header.protocol) || recording.header.protocol === BrowserProtocol)) {
       setCommands([]);
       return;
     }

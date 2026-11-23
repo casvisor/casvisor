@@ -35,6 +35,24 @@ const ProtocolWeb = "Web"
 
 const webProbeTimeout = 15 * time.Second
 
+// WebModeBrowser opens a Web asset in a browser that Casvisor runs, whose screen the user sees
+// and controls; the website is opened through the reverse proxy otherwise.
+const WebModeBrowser = "Browser"
+
+// ProtocolBrowser is the protocol of a session that opens a Web asset in Casvisor's browser.
+const ProtocolBrowser = "Browser"
+
+// WebLogin is how Casvisor signs in to a website in its browser: the page with the form, and the
+// CSS selectors of the username, the password and the button that submits them. NextSelector is
+// the button between the username and the password of a sign-in in two steps.
+type WebLogin struct {
+	LoginUrl         string `json:"loginUrl"`
+	UsernameSelector string `json:"usernameSelector"`
+	PasswordSelector string `json:"passwordSelector"`
+	NextSelector     string `json:"nextSelector"`
+	SubmitSelector   string `json:"submitSelector"`
+}
+
 // getWebUrl reads the host of a web asset, either an address like http://10.0.0.5:3000/grafana/,
 // whose path and query are the page opened first, or a host name whose port is the port of the
 // asset, served over https on 443 and over http on the other ports.
@@ -87,9 +105,11 @@ func (asset *Asset) GetWebUrl() (*url.URL, error) {
 }
 
 // normalizeWeb keeps the port of the asset the same as the port of its address,
-// which the port forwarding of the SSH gateway checks.
+// which the port forwarding of the SSH gateway checks, and the sign-in page on the website.
 func (asset *Asset) normalizeWeb() error {
 	if asset.Protocol != ProtocolWeb {
+		asset.WebMode = ""
+		asset.WebLogin = nil
 		return nil
 	}
 
@@ -99,7 +119,45 @@ func (asset *Asset) normalizeWeb() error {
 		return err
 	}
 	asset.Port, _ = strconv.Atoi(u.Port())
+
+	if asset.WebMode != "" && asset.WebMode != WebModeBrowser {
+		return fmt.Errorf("the way to open the website: %s is invalid", asset.WebMode)
+	}
+	login := asset.WebLogin
+	if login == nil {
+		return nil
+	}
+	login.LoginUrl = strings.TrimSpace(login.LoginUrl)
+	login.UsernameSelector = strings.TrimSpace(login.UsernameSelector)
+	login.PasswordSelector = strings.TrimSpace(login.PasswordSelector)
+	login.NextSelector = strings.TrimSpace(login.NextSelector)
+	login.SubmitSelector = strings.TrimSpace(login.SubmitSelector)
+	if *login == (WebLogin{}) {
+		asset.WebLogin = nil
+		return nil
+	}
+	if login.LoginUrl != "" {
+		loginUrl, err := u.Parse(login.LoginUrl)
+		if err != nil || !strings.EqualFold(loginUrl.Scheme, u.Scheme) || !strings.EqualFold(getUrlHost(loginUrl), u.Host) {
+			return fmt.Errorf("the sign-in page: %s must be on the website: %s://%s", login.LoginUrl, u.Scheme, u.Host)
+		}
+		login.LoginUrl = loginUrl.String()
+	}
+	if login.UsernameSelector == "" && login.PasswordSelector == "" {
+		return fmt.Errorf("the sign-in of the website needs the selector of its username or password field")
+	}
 	return nil
+}
+
+func getUrlHost(u *url.URL) string {
+	if u.Port() != "" {
+		return u.Host
+	}
+	port := "80"
+	if strings.EqualFold(u.Scheme, "https") {
+		port = "443"
+	}
+	return net.JoinHostPort(u.Hostname(), port)
 }
 
 func (asset *Asset) normalizeAddress() error {

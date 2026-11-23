@@ -20,7 +20,7 @@ import {SessionShareContext} from "@/components/access/ShareSessionDialog";
 import {Watermark} from "@/components/access/Watermark";
 import {Loading} from "@/components/common/Loading";
 import type {ConnectionProps} from "@/components/access/util";
-import {isDatabaseProtocol, KubernetesProtocol, WebProtocol} from "@/lib/asset";
+import {BrowserProtocol, isDatabaseProtocol, KubernetesProtocol, WebModeBrowser, WebProtocol} from "@/lib/asset";
 import * as Setting from "@/lib/setting";
 
 // each client library is only downloaded for the protocol that needs it
@@ -31,6 +31,7 @@ const DesktopView = React.lazy(() => import("@/components/access/DesktopView"));
 const DatabaseView = React.lazy(() => import("@/components/access/DatabaseView"));
 const KubernetesView = React.lazy(() => import("@/components/access/KubernetesView"));
 const WebView = React.lazy(() => import("@/components/access/WebView"));
+const BrowserView = React.lazy(() => import("@/components/access/BrowserView"));
 
 /** Looks the asset up and opens it with the client its protocol needs. */
 export function AssetConnection(props: ConnectionProps) {
@@ -42,7 +43,8 @@ export function AssetConnection(props: ConnectionProps) {
     const [owner, name] = props.assetId.split("/");
     AssetBackend.getAsset(owner, name).then((res) => {
       if (res.status === "ok" && res.data) {
-        setProtocol(res.data.protocol);
+        // a website opened in Casvisor's browser is a screen, like a remote desktop
+        setProtocol(res.data.protocol === WebProtocol && res.data.webMode === WebModeBrowser ? BrowserProtocol : res.data.protocol);
       } else {
         Setting.showMessage("error", `${i18next.t("asset:Failed to get the asset")}: ${res.msg || props.assetId}`);
       }
@@ -75,6 +77,8 @@ export function AssetConnection(props: ConnectionProps) {
             <KubernetesView {...connectionProps} />
           ) : protocol === WebProtocol ? (
             <WebView {...connectionProps} />
+          ) : protocol === BrowserProtocol ? (
+            <BrowserView {...connectionProps} />
           ) : (
             <SshView {...connectionProps} protocol={protocol} />
           )}

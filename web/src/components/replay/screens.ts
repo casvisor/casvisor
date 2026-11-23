@@ -36,6 +36,7 @@ export function createScreen(container: HTMLElement, header: RecordingHeader): R
   case "VNC":
     return new VncScreen(container);
   case "RDP":
+  case "Browser":
     return new RdpReplayScreen(container, header);
   case "Desktop":
     return new DesktopReplayScreen(container);

@@ -48,6 +48,10 @@ type Asset struct {
 
 	Nodes []string `xorm:"mediumtext" json:"nodes"`
 
+	// WebMode and WebLogin are how a Web asset is opened, and how Casvisor signs in to it for the user
+	WebMode  string    `xorm:"varchar(20)" json:"webMode"`
+	WebLogin *WebLogin `xorm:"json text" json:"webLogin"`
+
 	// CloudAccount and CloudInstance are the cloud account an asset is synced from, and its server there
 	CloudAccount  string `xorm:"varchar(100) index" json:"cloudAccount"`
 	CloudInstance string `xorm:"varchar(200)" json:"cloudInstance"`
