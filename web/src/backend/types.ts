@@ -273,6 +273,23 @@ export interface Permission {
   isEnabled: boolean;
 }
 
+/** A share of a connected session, with the code to join it. */
+export interface SessionShare {
+  owner: string;
+  name: string;
+  createdTime: string;
+  session: string;
+  asset: string;
+  creator: string;
+  users: string[] | null;
+  mode: string;
+  code: string;
+  expireTime: string;
+  isRevoked: boolean;
+  failedAttempts: number;
+  joinCount: number;
+}
+
 export interface Session {
   owner: string;
   name: string;

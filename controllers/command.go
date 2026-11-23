@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/beego/beego/utils/pagination"
+	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/casvisor/casvisor/object"
 	"github.com/casvisor/casvisor/recording"
 	"github.com/casvisor/casvisor/terminal"
@@ -93,9 +94,6 @@ func (c *ApiController) GetSessionMonitor() {
 		return
 	}
 
-	history, cols, rows, viewer := recorder.Watch()
-	defer recorder.Unwatch(viewer)
-
 	user := c.GetSessionUser()
 	isControl := c.Input().Get("control") == "true"
 	if isControl {
@@ -105,6 +103,28 @@ func (c *ApiController) GetSessionMonitor() {
 		defer recorder.Announce(fmt.Sprintf("The administrator %s has left this session", userId))
 	} else {
 		c.auditMonitor(sessionId, "SSH")
+	}
+
+	streamTerminal(ws, stream, recorder, user, isControl, nil)
+}
+
+// streamTerminal sends a terminal session to a websocket as it goes, and with control also
+// passes on what the user types, as an operator of the session; closing stop ends it early.
+func streamTerminal(ws *websocket.Conn, stream *wsStream, recorder *terminal.Recorder, user *casdoorsdk.User, isControl bool, stop <-chan struct{}) {
+	history, cols, rows, viewer := recorder.Watch()
+	defer recorder.Unwatch(viewer)
+
+	if stop != nil {
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			select {
+			case <-stop:
+				stream.Close(Normal, "The share has ended")
+				recorder.Unwatch(viewer)
+			case <-done:
+			}
+		}()
 	}
 
 	go func() {
@@ -130,6 +150,7 @@ func (c *ApiController) GetSessionMonitor() {
 	_ = stream.WriteJSON(terminalMessage{Type: "connected"})
 
 	for event := range viewer.Events {
+		var err error
 		if event.Data != nil {
 			_, err = stream.Write(event.Data)
 		} else {

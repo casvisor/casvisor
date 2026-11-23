@@ -16,6 +16,7 @@ import * as React from "react";
 import i18next from "i18next";
 import * as AssetBackend from "@/backend/AssetBackend";
 import type {Session} from "@/backend/types";
+import {SessionShareContext} from "@/components/access/ShareSessionDialog";
 import {Watermark} from "@/components/access/Watermark";
 import {Loading} from "@/components/common/Loading";
 import type {ConnectionProps} from "@/components/access/util";
@@ -35,6 +36,7 @@ const WebView = React.lazy(() => import("@/components/access/WebView"));
 export function AssetConnection(props: ConnectionProps) {
   const [protocol, setProtocol] = React.useState("");
   const [watermark, setWatermark] = React.useState("");
+  const [session, setSession] = React.useState<Session | null>(null);
 
   React.useEffect(() => {
     const [owner, name] = props.assetId.split("/");
@@ -52,27 +54,33 @@ export function AssetConnection(props: ConnectionProps) {
     return fallback;
   }
 
-  const connectionProps = {...props, onSession: (session: Session) => setWatermark(session.watermark ?? "")};
+  const connectionProps = {...props, onSession: (session: Session) => {
+    setWatermark(session.watermark ?? "");
+    setSession(session);
+    props.onSession?.(session);
+  }};
   return (
-    <div className="relative h-full w-full">
-      <React.Suspense fallback={fallback}>
-        {protocol === "VNC" ? (
-          <VncView {...connectionProps} />
-        ) : protocol === "RDP" ? (
-          <RdpView {...connectionProps} />
-        ) : protocol === "Desktop" ? (
-          <DesktopView {...connectionProps} />
-        ) : isDatabaseProtocol(protocol) ? (
-          <DatabaseView {...connectionProps} />
-        ) : protocol === KubernetesProtocol ? (
-          <KubernetesView {...connectionProps} />
-        ) : protocol === WebProtocol ? (
-          <WebView {...connectionProps} />
-        ) : (
-          <SshView {...connectionProps} protocol={protocol} />
-        )}
-      </React.Suspense>
-      {watermark ? <Watermark text={watermark} /> : null}
-    </div>
+    <SessionShareContext.Provider value={session ? {session, protocol} : null}>
+      <div className="relative h-full w-full">
+        <React.Suspense fallback={fallback}>
+          {protocol === "VNC" ? (
+            <VncView {...connectionProps} />
+          ) : protocol === "RDP" ? (
+            <RdpView {...connectionProps} />
+          ) : protocol === "Desktop" ? (
+            <DesktopView {...connectionProps} />
+          ) : isDatabaseProtocol(protocol) ? (
+            <DatabaseView {...connectionProps} />
+          ) : protocol === KubernetesProtocol ? (
+            <KubernetesView {...connectionProps} />
+          ) : protocol === WebProtocol ? (
+            <WebView {...connectionProps} />
+          ) : (
+            <SshView {...connectionProps} protocol={protocol} />
+          )}
+        </React.Suspense>
+        {watermark ? <Watermark text={watermark} /> : null}
+      </div>
+    </SessionShareContext.Provider>
   );
 }

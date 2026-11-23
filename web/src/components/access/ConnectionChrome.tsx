@@ -14,7 +14,7 @@
 
 import * as React from "react";
 import i18next from "i18next";
-import {CircleX, ClipboardPaste, Download, Expand, FolderOpen, Keyboard} from "lucide-react";
+import {CircleX, ClipboardPaste, Download, Expand, FolderOpen, Keyboard, Share2} from "lucide-react";
 import {toast} from "sonner";
 import {
   AlertDialog,
@@ -38,6 +38,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
 import {formatBytes} from "@/components/access/rdpClipboard";
 import {HotKeys} from "@/components/access/util";
+import {SessionShareContext, ShareSessionDialog} from "@/components/access/ShareSessionDialog";
 
 /** One toast per view, replaced as the connection moves from state to state. */
 export function useConnectionToast(assetId: string) {
@@ -79,8 +80,16 @@ export function ConnectionToolbar({
   onHotKey?: (keys: number[]) => void;
   onFiles?: () => void;
 }) {
+  const shareTarget = React.useContext(SessionShareContext);
+  const [sharing, setSharing] = React.useState(false);
   return (
     <div className="absolute right-4 top-4 z-10 flex gap-1.5 opacity-60 transition-opacity hover:opacity-100">
+      {shareTarget ? (
+        <ToolbarButton label={i18next.t("session:Share this session")} onClick={() => setSharing(true)}>
+          <Share2 />
+        </ToolbarButton>
+      ) : null}
+      {sharing && shareTarget ? <ShareSessionDialog session={shareTarget.session} protocol={shareTarget.protocol} onClose={() => setSharing(false)} /> : null}
       {onHotKey ? (
         <DropdownMenu>
           <Tooltip>
