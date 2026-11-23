@@ -504,6 +504,34 @@
                 }
             }
         },
+        "/add-report": {
+            "post": {
+                "tags": [
+                    "Report API"
+                ],
+                "description": "add a saved report",
+                "operationId": "ApiController.AddReport",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the report",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.Report"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/add-session": {
             "post": {
                 "tags": [
@@ -1246,6 +1274,34 @@
                 }
             }
         },
+        "/delete-report": {
+            "post": {
+                "tags": [
+                    "Report API"
+                ],
+                "description": "delete a saved report",
+                "operationId": "ApiController.DeleteReport",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The report",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.Report"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/delete-session": {
             "post": {
                 "tags": [
@@ -1412,6 +1468,40 @@
                 }
             }
         },
+        "/download-report": {
+            "get": {
+                "tags": [
+                    "Report API"
+                ],
+                "description": "download the report as an Excel workbook, with a sheet for each part; it takes the parameters of get-report-data",
+                "operationId": "ApiController.DownloadReport",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of a saved report, instead of the options of get-report-data",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The organization",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "lang",
+                        "description": "en or zh, the language of the workbook",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{file} file The xlsx file"
+                    }
+                }
+            }
+        },
         "/download-session-file": {
             "get": {
                 "tags": [
@@ -1475,7 +1565,7 @@
                 "tags": [
                     "Asset API"
                 ],
-                "description": "download the assets that match the filter of the asset list as CSV, without passwords and private keys, in the format of the import",
+                "description": "download the assets that match the filter of the asset list as CSV, or as an Excel workbook with format=xlsx, without passwords and private keys, in the format of the import",
                 "operationId": "ApiController.ExportAssets",
                 "parameters": [
                     {
@@ -1502,11 +1592,17 @@
                         "name": "value",
                         "description": "The value of the filter",
                         "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "description": "csv (default) or xlsx",
+                        "type": "string"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "{string} string The CSV file"
+                        "description": "{string} string The CSV or xlsx file"
                     }
                 }
             }
@@ -1516,7 +1612,7 @@
                 "tags": [
                     "Command API"
                 ],
-                "description": "download the commands that match the filter of the command list as CSV, 100,000 at most",
+                "description": "download the commands that match the filter of the command list as CSV, or as an Excel workbook with format=xlsx, 100,000 at most",
                 "operationId": "ApiController.ExportCommands",
                 "parameters": [
                     {
@@ -1537,11 +1633,17 @@
                         "name": "value",
                         "description": "The value of the filter",
                         "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "description": "csv (default) or xlsx",
+                        "type": "string"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "{string} string The CSV file"
+                        "description": "{string} string The CSV or xlsx file"
                     }
                 }
             }
@@ -1581,7 +1683,7 @@
                 "tags": [
                     "Record API"
                 ],
-                "description": "download the records that match the filter of the record list as CSV, 100,000 at most",
+                "description": "download the records that match the filter of the record list as CSV, or as an Excel workbook with format=xlsx, 100,000 at most",
                 "operationId": "ApiController.ExportRecords",
                 "parameters": [
                     {
@@ -1602,11 +1704,17 @@
                         "name": "value",
                         "description": "The value of the filter",
                         "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "description": "csv (default) or xlsx",
+                        "type": "string"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "{string} string The CSV file"
+                        "description": "{string} string The CSV or xlsx file"
                     }
                 }
             }
@@ -1616,7 +1724,7 @@
                 "tags": [
                     "Session API"
                 ],
-                "description": "download the sessions that match the filter of the session list as CSV, 100,000 at most",
+                "description": "download the sessions that match the filter of the session list as CSV, or as an Excel workbook with format=xlsx, 100,000 at most",
                 "operationId": "ApiController.ExportSessions",
                 "parameters": [
                     {
@@ -1643,11 +1751,17 @@
                         "name": "value",
                         "description": "The value of the filter",
                         "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "description": "csv (default) or xlsx",
+                        "type": "string"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "{string} string The CSV file"
+                        "description": "{string} string The CSV or xlsx file"
                     }
                 }
             }
@@ -3076,6 +3190,140 @@
                 }
             }
         },
+        "/get-report": {
+            "get": {
+                "tags": [
+                    "Report API"
+                ],
+                "description": "get a saved report",
+                "operationId": "ApiController.GetReport",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the report",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.Report"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-report-data": {
+            "get": {
+                "tags": [
+                    "Report API"
+                ],
+                "description": "count the sign-ins, sessions, commands, file transfers, approvals, account changes and asset and permission changes of an organization in a period",
+                "operationId": "ApiController.GetReportData",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of a saved report, instead of the options below",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The organization",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "period",
+                        "description": "today, yesterday, this-week (default), last-week, this-month, last-month, last-7-days, last-30-days or custom",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "startDate",
+                        "description": "The first day of a custom period, such as 2026-11-01",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "endDate",
+                        "description": "The last day of a custom period, such as 2026-11-30",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "timeZone",
+                        "description": "The time zone of the period and the working hours, such as Asia/Shanghai; the server's by default",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "weekdays",
+                        "description": "The working days, from 0 (Sunday) to 6, separated by commas; 1,2,3,4,5 by default",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "workStartTime",
+                        "description": "The start of the working hours, 09:00 by default",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "workEndTime",
+                        "description": "The end of the working hours, 18:00 by default",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sections",
+                        "description": "The parts to count, separated by commas: login, session, command, file, approval, account, asset; all by default",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/object.ReportData"
+                        }
+                    }
+                }
+            }
+        },
+        "/get-reports": {
+            "get": {
+                "tags": [
+                    "Report API"
+                ],
+                "description": "get the saved reports, by page",
+                "operationId": "ApiController.GetReports",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "owner",
+                        "description": "The owner of the reports",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/object.Report"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/get-requestable-assets": {
             "get": {
                 "tags": [
@@ -3462,13 +3710,13 @@
                 "tags": [
                     "Asset API"
                 ],
-                "description": "add assets from a CSV file, and update the existing ones when update is true; with dryRun it only tells what it would do",
+                "description": "add assets from a CSV file or the first sheet of an Excel workbook, and update the existing ones when update is true; with dryRun it only tells what it would do",
                 "operationId": "ApiController.ImportAssets",
                 "parameters": [
                     {
                         "in": "body",
                         "name": "body",
-                        "description": "The CSV file and the options",
+                        "description": "The CSV file or the workbook in base64, and the options",
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/controllers.importAssetsForm"
@@ -3956,6 +4204,32 @@
                         "description": "The Response object",
                         "schema": {
                             "$ref": "#/definitions/object.Job"
+                        }
+                    }
+                }
+            }
+        },
+        "/run-report": {
+            "post": {
+                "tags": [
+                    "Report API"
+                ],
+                "description": "make the report now and email it as an Excel workbook with its webhooks of the Email type",
+                "operationId": "ApiController.RunReport",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the report",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
                         }
                     }
                 }
@@ -4652,6 +4926,41 @@
                 }
             }
         },
+        "/update-report": {
+            "post": {
+                "tags": [
+                    "Report API"
+                ],
+                "description": "update a saved report",
+                "operationId": "ApiController.UpdateReport",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "id",
+                        "description": "The id ( owner/name ) of the report",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "The details of the report",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/object.Report"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Response object",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/update-session": {
             "post": {
                 "tags": [
@@ -4990,6 +5299,9 @@
                 },
                 "update": {
                     "type": "boolean"
+                },
+                "xlsx": {
+                    "type": "string"
                 }
             }
         },
@@ -6899,6 +7211,549 @@
                 },
                 "userAgent": {
                     "type": "string"
+                }
+            }
+        },
+        "object.Report": {
+            "title": "Report",
+            "type": "object",
+            "properties": {
+                "createdTime": {
+                    "type": "string"
+                },
+                "cron": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "isEnabled": {
+                    "type": "boolean"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "lastRunMessage": {
+                    "type": "string"
+                },
+                "lastRunStatus": {
+                    "type": "string"
+                },
+                "lastRunTime": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nextRunTime": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "period": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "timeZone": {
+                    "type": "string"
+                },
+                "updatedTime": {
+                    "type": "string"
+                },
+                "webhooks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "weekdays": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "workEndTime": {
+                    "type": "string"
+                },
+                "workStartTime": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.ReportAccount": {
+            "title": "ReportAccount",
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportEvent"
+                    }
+                },
+                "ignoredRisks": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "newRisks": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "openRisks": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "pushFailed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "pushed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "resolvedRisks": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "riskKinds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "rotateFailed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "rotated": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "object.ReportApproval": {
+            "title": "ReportApproval",
+            "type": "object",
+            "properties": {
+                "accessRequests": {
+                    "$ref": "#/definitions/object.ReportReviews"
+                },
+                "commandReviews": {
+                    "$ref": "#/definitions/object.ReportReviews"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportEvent"
+                    }
+                },
+                "loginReviews": {
+                    "$ref": "#/definitions/object.ReportReviews"
+                },
+                "requesters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "reviewers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                }
+            }
+        },
+        "object.ReportAsset": {
+            "title": "ReportAsset",
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "byProtocol": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "deleted": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportEvent"
+                    }
+                },
+                "permissionEvents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportEvent"
+                    }
+                },
+                "permissions": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "permissionsAdded": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "permissionsDeleted": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "permissionsUpdated": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "total": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "object.ReportCommand": {
+            "title": "ReportCommand",
+            "type": "object",
+            "properties": {
+                "alerted": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "blocked": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "byUser": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportEvent"
+                    }
+                },
+                "reviewed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "total": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "object.ReportData": {
+            "title": "ReportData",
+            "type": "object",
+            "properties": {
+                "account": {
+                    "$ref": "#/definitions/object.ReportAccount"
+                },
+                "approval": {
+                    "$ref": "#/definitions/object.ReportApproval"
+                },
+                "asset": {
+                    "$ref": "#/definitions/object.ReportAsset"
+                },
+                "command": {
+                    "$ref": "#/definitions/object.ReportCommand"
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "file": {
+                    "$ref": "#/definitions/object.ReportFile"
+                },
+                "generatedTime": {
+                    "type": "string"
+                },
+                "login": {
+                    "$ref": "#/definitions/object.ReportLogin"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "period": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "session": {
+                    "$ref": "#/definitions/object.ReportSession"
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "timeZone": {
+                    "type": "string"
+                },
+                "weekdays": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "workEndTime": {
+                    "type": "string"
+                },
+                "workStartTime": {
+                    "type": "string"
+                },
+                "workingHours": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.ReportEvent": {
+            "title": "ReportEvent",
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "asset": {
+                    "type": "string"
+                },
+                "clientIp": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "seconds": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "time": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "string"
+                }
+            }
+        },
+        "object.ReportFile": {
+            "title": "ReportFile",
+            "type": "object",
+            "properties": {
+                "byAsset": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "byUser": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "downloads": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportEvent"
+                    }
+                },
+                "uploads": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "object.ReportItem": {
+            "title": "ReportItem",
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "count": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "downloads": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "failed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "seconds": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "uploads": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "object.ReportLogin": {
+            "title": "ReportLogin",
+            "type": "object",
+            "properties": {
+                "clientIps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportEvent"
+                    }
+                },
+                "failed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "mfaRequired": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "offHours": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "rejected": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "reviewed": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "succeeded": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                }
+            }
+        },
+        "object.ReportReviews": {
+            "title": "ReportReviews",
+            "type": "object",
+            "properties": {
+                "approved": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "cancelled": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "expired": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "pending": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "rejected": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "revoked": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "total": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "object.ReportSession": {
+            "title": "ReportSession",
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "assets": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "byAsset": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "byProtocol": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "byUser": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportItem"
+                    }
+                },
+                "longest": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/object.ReportEvent"
+                    }
+                },
+                "seconds": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "total": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "users": {
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         },
