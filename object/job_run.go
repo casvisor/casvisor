@@ -359,6 +359,7 @@ func (run *jobRun) finish() {
 	if err != nil {
 		logs.Error("failed to save the job: %s: %s", job.Name, err.Error())
 	}
+	notifyJob(job, results)
 }
 
 func (run *jobRun) saveResult(rr *jobResultRun, cols ...string) {

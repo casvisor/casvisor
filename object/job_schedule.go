@@ -328,6 +328,9 @@ func (schedule *JobSchedule) run(now time.Time) (*Job, error) {
 		if updateErr != nil {
 			logs.Error(fmt.Sprintf("JobSchedule.run(): %s", updateErr.Error()))
 		}
+		if status != ScheduleRunStarted {
+			notifyJobScheduleMissed(schedule, status, message, update.LastRunTime)
+		}
 	}()
 
 	if schedule.LastJob != "" {

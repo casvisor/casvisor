@@ -25,6 +25,9 @@ export const WebhookEvents = [
   "login_review.reviewed",
   "command_review.created",
   "command_review.reviewed",
+  "job.succeeded",
+  "job.failed",
+  "job_schedule.missed",
 ];
 
 export function getWebhooks(owner: string, params: ListParams = {}) {

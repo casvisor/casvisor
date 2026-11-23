@@ -259,3 +259,38 @@ func (c *ApiController) SetAccountRiskStatus() {
 	c.Data["json"] = wrapActionResponse(object.SetAccountRiskStatus(form.Id, form.Status, form.Comment))
 	c.ServeJSON()
 }
+
+type accountRiskHandleForm struct {
+	Ids    []string `json:"ids"`
+	Action string   `json:"action"`
+}
+
+// HandleAccountRisks
+// @Title HandleAccountRisks
+// @Tag Account API
+// @Description fix risks on the assets: Rotate sets a new random password for a managed account, Manage makes Casvisor manage an account found on the asset with a random password, Lock locks an account found on the asset
+// @Param   body    body   controllers.accountRiskHandleForm  true        "The risks and the action: Rotate, Manage or Lock"
+// @Success 200 {array} object.RiskHandleResult The Response object
+// @router /handle-account-risks [post]
+func (c *ApiController) HandleAccountRisks() {
+	var form accountRiskHandleForm
+	err := json.Unmarshal(c.Ctx.Input.RequestBody, &form)
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	for _, id := range form.Ids {
+		owner, _ := util.GetOwnerAndNameFromIdNoCheck(id)
+		if !c.checkOwner(owner) {
+			return
+		}
+	}
+
+	user := c.GetSessionUser()
+	res, err := object.HandleAccountRisks(form.Ids, form.Action, util.GetIdFromOwnerAndName(user.Owner, user.Name))
+	if err != nil {
+		c.ResponseError(err.Error())
+		return
+	}
+	c.ResponseOk(res)
+}

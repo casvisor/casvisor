@@ -76,6 +76,7 @@ func initAPI() {
 	beego.Router("/api/start-account-risk-scan", &controllers.ApiController{}, "POST:StartAccountRiskScan")
 	beego.Router("/api/get-account-risk-scan", &controllers.ApiController{}, "GET:GetAccountRiskScan")
 	beego.Router("/api/set-account-risk-status", &controllers.ApiController{}, "POST:SetAccountRiskStatus")
+	beego.Router("/api/handle-account-risks", &controllers.ApiController{}, "POST:HandleAccountRisks")
 	beego.Router("/api/get-connect-rules", &controllers.ApiController{}, "GET:GetConnectRules")
 	beego.Router("/api/get-connect-rule", &controllers.ApiController{}, "GET:GetConnectRule")
 	beego.Router("/api/update-connect-rule", &controllers.ApiController{}, "POST:UpdateConnectRule")

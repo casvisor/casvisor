@@ -44,6 +44,69 @@ const statusVariants: Record<string, "warning" | "secondary" | "success"> = {
 
 const allStatuses = "@all";
 
+const passwordRisks = ["weak-password", "stale-password", "reused-password", "empty-password"];
+
+/** The actions that fit a risk: a new password for a managed account, and managing or locking
+ *  an account found on the asset. */
+function getRiskActions(risk: AccountRisk) {
+  if (risk.managed) {
+    return passwordRisks.includes(risk.kind) ? ["Rotate"] : [];
+  }
+  // root and Administrator are never locked from Casvisor
+  return ["root", "administrator"].includes(risk.username.toLowerCase()) ? ["Manage"] : ["Manage", "Lock"];
+}
+
+interface HandleResult {
+  id: string;
+  asset: string;
+  username: string;
+  ok: boolean;
+  message: string;
+}
+
+/** Asks before changing the assets, then runs the action and shows how each risk went. */
+function HandleDialog({risks, action, onClose}: {risks: AccountRisk[]; action: string; onClose: (changed: boolean) => void}) {
+  const [busy, setBusy] = React.useState(false);
+  const [results, setResults] = React.useState<HandleResult[] | null>(null);
+  const run = async() => {
+    setBusy(true);
+    try {
+      const res = await AccountTemplateBackend.handleAccountRisks(risks.map((risk) => `${risk.owner}/${risk.name}`), action);
+      if (res.status === "ok") {
+        setResults(res.data ?? []);
+      } else {
+        Setting.showMessage("error", res.msg);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  const targets = [...new Set(risks.map((risk) => `${risk.asset} / ${risk.username}`))];
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose(results !== null)}>
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{i18next.t(`accountRisk:${action} - Title`)}</DialogTitle>
+          <DialogDescription>{i18next.t(`accountRisk:${action} - Description`)}</DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-auto rounded-md border p-2 text-sm">
+          {results === null ? targets.map((target) => <div key={target} className="font-mono text-xs">{target}</div>) : results.map((result) => (
+            <div key={result.id} className="flex gap-2 py-0.5 text-xs">
+              <Badge variant={result.ok ? "success" : "destructive"}>{result.ok ? i18next.t("accountRisk:Done") : i18next.t("accountRisk:Failed")}</Badge>
+              <span className="font-mono">{result.asset} / {result.username}</span>
+              {result.message ? <span className="break-all text-muted-foreground">{result.message}</span> : null}
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onClose(results !== null)}>{results === null ? i18next.t("general:Cancel") : i18next.t("general:Close")}</Button>
+          {results === null ? <Button variant={action === "Lock" ? "destructive" : "default"} loading={busy} onClick={run}>{i18next.t(`accountRisk:${action}`)}</Button> : null}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function IgnoreDialog({risk, onClose}: {risk: AccountRisk; onClose: (changed: boolean) => void}) {
   const [comment, setComment] = React.useState(risk.comment ?? "");
   const [saving, setSaving] = React.useState(false);
@@ -83,6 +146,7 @@ export default function AccountRiskListPage() {
   const [status, setStatus] = React.useState("Open");
   const [scan, setScan] = React.useState<AccountRiskScan | null>(null);
   const [ignoring, setIgnoring] = React.useState<{risk: AccountRisk; refresh: () => void} | null>(null);
+  const [handling, setHandling] = React.useState<{risks: AccountRisk[]; action: string; refresh: () => void} | null>(null);
   const refreshRef = React.useRef<() => void>(() => {});
 
   const loadScan = React.useCallback(() => {
@@ -214,7 +278,7 @@ export default function AccountRiskListPage() {
         fetch={fetchRisks}
         deps={[owner, status]}
         tableId="account-risks"
-        actionColumnWidth={140}
+        actionColumnWidth={240}
         toolbar={({refresh}) => {
           refreshRef.current = refresh;
           return (
@@ -238,11 +302,40 @@ export default function AccountRiskListPage() {
             </div>
           );
         }}
+        selectionActions={(records, {refresh, clearSelection}) => {
+          const open = records.filter((risk) => risk.status === "Open");
+          return ["Rotate", "Manage", "Lock"].map((action) => {
+            const fit = open.filter((risk) => getRiskActions(risk).includes(action));
+            return fit.length > 0 ? (
+              <Button key={action} size="sm" variant={action === "Lock" ? "destructive" : "outline"} onClick={() => setHandling({risks: fit, action, refresh: () => {
+                clearSelection();
+                refresh();
+              }})}
+              >
+                {i18next.t(`accountRisk:${action}`)} ({fit.length})
+              </Button>
+            ) : null;
+          });
+        }}
         rowActions={(risk, _index, {refresh}) => [
+          ...(risk.status === "Open" ? getRiskActions(risk).map((action) => ({key: action, label: i18next.t(`accountRisk:${action}`), destructive: action === "Lock", onSelect: () => setHandling({risks: [risk], action, refresh})})) : []),
           risk.status === "Open" ? {key: "ignore", label: i18next.t("accountRisk:Ignore"), onSelect: () => setIgnoring({risk, refresh})} : null,
           risk.status === "Ignored" ? {key: "reopen", label: i18next.t("accountRisk:Reopen"), onSelect: () => reopen(risk, refresh)} : null,
         ]}
       />
+      {handling ? (
+        <HandleDialog
+          risks={handling.risks}
+          action={handling.action}
+          onClose={(changed) => {
+            const refresh = handling.refresh;
+            setHandling(null);
+            if (changed) {
+              refresh();
+            }
+          }}
+        />
+      ) : null}
       {ignoring ? (
         <IgnoreDialog
           risk={ignoring.risk}

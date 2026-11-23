@@ -440,11 +440,19 @@ func reportLinuxAccounts(c *riskCollector, asset *Asset, known []string, output 
 	}
 
 	emptyPassword := map[string]bool{}
+	// an account past its expiry date can't sign in at all, as one locked from Casvisor is
+	expired := map[string]bool{}
+	today := int(time.Now().Unix() / 86400)
 	if canReadShadow {
 		for _, line := range strings.Split(shadowText, "\n") {
 			fields := strings.Split(line, ":")
 			if len(fields) >= 2 && fields[0] != "" && fields[1] == "" {
 				emptyPassword[fields[0]] = true
+			}
+			if len(fields) >= 8 && fields[7] != "" {
+				if day, err := strconv.Atoi(fields[7]); err == nil && day <= today {
+					expired[fields[0]] = true
+				}
 			}
 		}
 	}
@@ -456,7 +464,7 @@ func reportLinuxAccounts(c *riskCollector, asset *Asset, known []string, output 
 		}
 		name, uid, gid, shell := fields[0], fields[2], fields[3], fields[6]
 		base := shell[strings.LastIndex(shell, "/")+1:]
-		if shell == "" || slices.Contains(noLoginShells, base) {
+		if shell == "" || slices.Contains(noLoginShells, base) || expired[name] {
 			continue
 		}
 

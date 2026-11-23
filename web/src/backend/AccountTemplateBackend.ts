@@ -54,6 +54,11 @@ export function getAccountRiskScan(owner: string) {
   return get("/api/get-account-risk-scan", {owner});
 }
 
+/** Rotate, Manage or Lock: fixes the risks on the assets and resolves the ones it fixed. */
+export function handleAccountRisks(ids: string[], action: string) {
+  return post("/api/handle-account-risks", {}, {ids, action});
+}
+
 export function setAccountRiskStatus(id: string, status: string, comment: string) {
   return post("/api/set-account-risk-status", {}, {id, status, comment});
 }

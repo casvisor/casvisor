@@ -375,3 +375,74 @@ func notifyCommandReview(review *CommandReview, created bool) {
 	}
 	sendWebhooks(event)
 }
+
+// notifyJob tells how a finished job went: which assets failed and why.
+func notifyJob(job *Job, results []*JobResult) {
+	if job.Status != JobSucceeded && job.Status != JobFailed {
+		return
+	}
+	eventType, title := WebhookEventJobSucceeded, "Job succeeded"
+	if job.Status == JobFailed {
+		eventType, title = WebhookEventJobFailed, "Job failed"
+	}
+
+	failed := []string{}
+	for _, result := range results {
+		if result.Status == JobSucceeded {
+			continue
+		}
+		line := fmt.Sprintf("%s: %s", result.Asset, result.Status)
+		if result.Error != "" {
+			line += ", " + truncate(result.Error, 200)
+		} else if result.ExitCode != 0 {
+			line += fmt.Sprintf(", exit code %d", result.ExitCode)
+		}
+		failed = append(failed, line)
+		if len(failed) == 10 {
+			failed = append(failed, "...")
+			break
+		}
+	}
+
+	user := job.User
+	if strings.Contains(user, "/") {
+		_, user = util.GetOwnerAndNameFromIdNoCheck(user)
+	}
+	fields := []WebhookField{
+		{"job", "Job", job.DisplayName},
+		{"id", "ID", job.Name},
+		{"schedule", "Schedule", job.Schedule},
+		{"assets", "Assets", fmt.Sprintf("%d, %d succeeded, %d failed", job.Total, job.Succeeded, job.Failed)},
+	}
+	if len(failed) > 0 {
+		fields = append(fields, WebhookField{"failed", "Failed on", strings.Join(failed, "; ")})
+	}
+	sendWebhooks(&WebhookEvent{
+		Type:         eventType,
+		Title:        title,
+		Time:         job.EndTime,
+		Organization: job.Owner,
+		User:         user,
+		Fields:       fields,
+	})
+}
+
+// notifyJobScheduleMissed tells that a schedule's time came and no job started.
+func notifyJobScheduleMissed(schedule *JobSchedule, status string, message string, time string) {
+	user := schedule.User
+	if strings.Contains(user, "/") {
+		_, user = util.GetOwnerAndNameFromIdNoCheck(user)
+	}
+	sendWebhooks(&WebhookEvent{
+		Type:         WebhookEventJobScheduleMissed,
+		Title:        "Job schedule " + strings.ToLower(status),
+		Time:         time,
+		Organization: schedule.Owner,
+		User:         user,
+		Fields: []WebhookField{
+			{"schedule", "Schedule", schedule.Name},
+			{"status", "Status", status},
+			{"reason", "Reason", message},
+		},
+	})
+}
