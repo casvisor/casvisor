@@ -120,6 +120,7 @@ func main() {
 	object.StartAccountRotator()
 	object.StartCloudSyncer()
 	object.StartJobScheduler()
+	object.StartAccountRiskScanner()
 
 	// The profiles of a running server, on an address of its own that is
 	// only set where it is needed, such as 127.0.0.1:6060.

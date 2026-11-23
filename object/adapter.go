@@ -256,6 +256,16 @@ func (a *Adapter) createTable() {
 		panic(err)
 	}
 
+	err = a.engine.Sync2(new(AccountTemplate))
+	if err != nil {
+		panic(err)
+	}
+
+	err = a.engine.Sync2(new(AccountRisk))
+	if err != nil {
+		panic(err)
+	}
+
 	err = a.engine.Sync2(new(AssetNode))
 	if err != nil {
 		panic(err)

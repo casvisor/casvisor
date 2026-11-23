@@ -172,7 +172,10 @@ export function AssetAccountsPanel({owner, asset, protocol, ownUsername}: {owner
               {accounts.map((account) => (
                 <TableRow key={account.name}>
                   <TableCell>
-                    <div className="font-mono">{account.username}</div>
+                    <div className="font-mono">
+                      {account.username}
+                      {account.template ? <Badge variant="outline" className="ml-1.5 font-sans" title={i18next.t("accountTemplate:From the template")}>{account.template}</Badge> : null}
+                    </div>
                     {account.displayName ? <div className="text-xs text-muted-foreground">{account.displayName}</div> : null}
                   </TableCell>
                   <TableCell>

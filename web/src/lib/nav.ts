@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import i18next from "i18next";
-import {CalendarClock, Cable, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
+import {CalendarClock, Cable, ShieldQuestion, UserCog, ClipboardCheck, Cloud, FileCode, History, House, KeyRound, KeySquare, ListChecks, LogIn, MonitorPlay, Network, PackageCheck, ScrollText, Server, ShieldAlert, ShieldCheck, SquareTerminal, UserCheck, Users, Webhook, type LucideIcon} from "lucide-react";
 import * as Setting from "@/lib/setting";
 import type {Account} from "@/hooks/use-account";
 
@@ -68,6 +68,18 @@ export function getNavItems(account: Account | null | undefined): NavItem[] {
 
   if (isAdmin) {
     items.push(
+      {
+        key: "/account-templates",
+        label: i18next.t("general:Account templates"),
+        icon: UserCog,
+        description: i18next.t("general:Give many assets the same system account at once, and keep them in line"),
+      },
+      {
+        key: "/account-risks",
+        label: i18next.t("general:Account risks"),
+        icon: ShieldQuestion,
+        description: i18next.t("general:Weak, old and reused passwords, and accounts on the assets that Casvisor does not manage"),
+      },
       {
         key: "/cloud-accounts",
         label: i18next.t("general:Cloud accounts"),

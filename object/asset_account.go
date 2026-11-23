@@ -49,6 +49,9 @@ type AssetAccount struct {
 	LastRotatedTime    string `xorm:"varchar(100)" json:"lastRotatedTime"`
 	RotateStatus       string `xorm:"varchar(20)" json:"rotateStatus"`
 	RotateMessage      string `xorm:"varchar(1000)" json:"rotateMessage"`
+
+	// Template is the account template the account was created from, if any
+	Template string `xorm:"varchar(100) index" json:"template"`
 }
 
 // AccountInfo is what a user sees of an account they may connect as.

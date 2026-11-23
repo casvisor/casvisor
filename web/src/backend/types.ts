@@ -223,6 +223,54 @@ export interface AssetAccount {
   lastRotatedTime: string;
   rotateStatus: string;
   rotateMessage: string;
+  /** the account template the account was created from, if any */
+  template?: string;
+}
+
+/** A system account to give many assets at once. */
+export interface AccountTemplate {
+  owner: string;
+  name: string;
+  createdTime: string;
+  updatedTime: string;
+  displayName: string;
+  description: string;
+  username: string;
+  password: string;
+  privateKey: string;
+  randomPassword: boolean;
+  autoRotate: boolean;
+  rotateIntervalDays: number;
+  push: boolean;
+  assets: string[] | null;
+  assetTags: string[] | null;
+}
+
+/** Something wrong with an account of an asset. */
+export interface AccountRisk {
+  owner: string;
+  name: string;
+  asset: string;
+  username: string;
+  kind: string;
+  level: string;
+  detail: string;
+  managed: boolean;
+  status: string;
+  firstSeenTime: string;
+  lastSeenTime: string;
+  resolvedTime: string;
+  comment: string;
+}
+
+export interface AccountRiskScan {
+  running: boolean;
+  startTime: string;
+  endTime: string;
+  total: number;
+  done: number;
+  found: number;
+  errors: string[];
 }
 
 export interface NetworkGateway {
