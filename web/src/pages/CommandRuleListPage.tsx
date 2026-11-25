@@ -69,7 +69,7 @@ export default function CommandRuleListPage() {
   });
 
   const columns: ColumnDef<CommandRule>[] = [
-    linkColumn<CommandRule>({dataIndex: "name", width: 180, to: (rule) => `/command-rules/${rule.owner}/${rule.name}`}),
+    linkColumn<CommandRule>({dataIndex: "name", width: 180, to: (rule) => `/command-rules/${Setting.getIdPath(rule.owner, rule.name)}`}),
     textColumn<CommandRule>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 180, searchable: true}),
     {
       dataIndex: "pattern",
@@ -101,7 +101,7 @@ export default function CommandRuleListPage() {
       newRecord={newRule}
       add={CommandBackend.addCommandRule}
       remove={CommandBackend.deleteCommandRule}
-      editUrl={(rule) => `/command-rules/${rule.owner}/${rule.name}`}
+      editUrl={(rule) => `/command-rules/${Setting.getIdPath(rule.owner, rule.name)}`}
     />
   );
 }

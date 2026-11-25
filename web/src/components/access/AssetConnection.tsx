@@ -40,7 +40,7 @@ export function AssetConnection(props: ConnectionProps) {
   const [session, setSession] = React.useState<Session | null>(null);
 
   React.useEffect(() => {
-    const [owner, name] = props.assetId.split("/");
+    const [owner, name] = Setting.splitId(props.assetId);
     AssetBackend.getAsset(owner, name).then((res) => {
       if (res.status === "ok" && res.data) {
         // a website opened in Casvisor's browser is a screen, like a remote desktop

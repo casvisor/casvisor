@@ -86,7 +86,7 @@ export default function LoginRuleEditPage() {
         if (exitAfterSave) {
           navigate("/login-rules");
         } else if (record.name !== name) {
-          navigate(`/login-rules/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/login-rules/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),

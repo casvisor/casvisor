@@ -22,6 +22,7 @@ import {Input} from "@/components/ui/input";
 import {PasswordInput} from "@/components/common/PasswordInput";
 import type {Asset} from "@/backend/types";
 import {DesktopProtocol, KubernetesProtocol, WebProtocol} from "@/lib/asset";
+import * as Setting from "@/lib/setting";
 
 type Credentials = {username: string; password: string};
 
@@ -98,7 +99,7 @@ function openAccessPage(asset: Asset, username: string, password: string, accoun
     handCredentials(assetId, username, password);
   }
   const query = account ? `?account=${encodeURIComponent(account)}` : "";
-  const opened = window.open(`/access/${assetId}${query}`, "_blank");
+  const opened = window.open(`/access/${Setting.getIdPath(assetId)}${query}`, "_blank");
   if (typed && !opened) {
     // no new window, e.g. a browser that opens it in this tab instead
     keepCredentialsInTab(assetId, username, password);

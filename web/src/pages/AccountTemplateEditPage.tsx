@@ -31,6 +31,7 @@ import {useEditRecord} from "@/hooks/use-edit-record";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import NotFoundPage from "@/pages/NotFoundPage";
 import {ApplyTemplateDialog} from "@/pages/AccountTemplateListPage";
+import * as Setting from "@/lib/setting";
 
 export default function AccountTemplateEditPage() {
   const {owner = "", name = ""} = useParams();
@@ -69,7 +70,7 @@ export default function AccountTemplateEditPage() {
         if (exitAfterSave) {
           navigate("/account-templates");
         } else if (record.name !== name) {
-          navigate(`/account-templates/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/account-templates/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),

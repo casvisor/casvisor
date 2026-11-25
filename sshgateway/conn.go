@@ -158,14 +158,15 @@ func (g *gatewayConn) findAsset(name string) (*object.Asset, error) {
 	if name == "" {
 		return nil, nil
 	}
-	if strings.Contains(name, "/") {
-		owner, assetName := util.GetOwnerAndNameFromIdNoCheck(name)
-		if owner == "" || assetName == "" || strings.Contains(assetName, "/") {
-			return nil, nil
-		}
-		return object.GetAsset(name)
+	asset, err := object.GetAsset(util.GetIdFromOwnerAndName(g.user.Owner, name))
+	if err != nil || asset != nil || !strings.Contains(name, "/") {
+		return asset, err
 	}
-	return object.GetAsset(util.GetIdFromOwnerAndName(g.user.Owner, name))
+	owner, assetName := util.GetOwnerAndNameFromIdNoCheck(name)
+	if owner == "" || assetName == "" {
+		return nil, nil
+	}
+	return object.GetAsset(name)
 }
 
 func (g *gatewayConn) getAllowedAssets() ([]*object.Asset, error) {

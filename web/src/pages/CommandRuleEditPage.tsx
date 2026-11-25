@@ -30,6 +30,7 @@ import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import NotFoundPage from "@/pages/NotFoundPage";
+import * as Setting from "@/lib/setting";
 
 /** "*" grants every user, group or asset, the way the antd page offered it first. */
 function getPrincipalOptions(principals: Principal[], withAll = true): MultiSelectOption[] {
@@ -85,7 +86,7 @@ export default function CommandRuleEditPage() {
         if (exitAfterSave) {
           navigate("/command-rules");
         } else if (record.name !== name) {
-          navigate(`/command-rules/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/command-rules/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),

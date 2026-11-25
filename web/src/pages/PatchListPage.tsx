@@ -240,7 +240,7 @@ export default function PatchListPage() {
                     <Checkbox checked={selected.has(status.name)} onCheckedChange={(checked) => toggle(status.name, checked === true)} />
                   </TableCell>
                   <TableCell>
-                    <Link to={`/patches/${status.owner}/${status.name}`} className="font-medium underline-offset-4 hover:underline">
+                    <Link to={`/patches/${Setting.getIdPath(status.owner, status.name)}`} className="font-medium underline-offset-4 hover:underline">
                       {status.displayName || status.name}
                     </Link>
                     <div className="text-xs text-muted-foreground">{status.host}</div>

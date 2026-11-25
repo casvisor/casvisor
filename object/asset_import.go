@@ -20,6 +20,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/casvisor/casvisor/util"
 )
@@ -98,8 +99,14 @@ func checkAssetName(name string) error {
 	if name == "" {
 		return fmt.Errorf("the name can not be empty")
 	}
-	if strings.ContainsAny(name, "/@: \t") {
-		return fmt.Errorf("the name: %s can not contain \"/\", \"@\", \":\" or spaces", name)
+	if strings.Contains(name, "@") {
+		return fmt.Errorf("the name: %s can not contain \"@\"", name)
+	}
+	if strings.IndexFunc(name, unicode.IsControl) >= 0 {
+		return fmt.Errorf("the name: %q can not contain control characters", name)
+	}
+	if strings.TrimSpace(name) != name {
+		return fmt.Errorf("the name: %s can not start or end with spaces", name)
 	}
 	if len(name) > 100 {
 		return fmt.Errorf("the name: %s is longer than 100 characters", name)

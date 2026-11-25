@@ -32,6 +32,7 @@ import {getDefaultPort, Protocols} from "@/lib/asset";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import NotFoundPage from "@/pages/NotFoundPage";
 import {copyPlatform, getMethodName} from "@/pages/PlatformListPage";
+import * as Setting from "@/lib/setting";
 
 function ProtocolsEditor({value, onChange}: {value: PlatformProtocol[]; onChange: (value: PlatformProtocol[]) => void}) {
   const update = (index: number, patch: Partial<PlatformProtocol>) => onChange(value.map((protocol, i) => (i === index ? {...protocol, ...patch} : protocol)));
@@ -97,7 +98,7 @@ function PlatformEditor() {
         if (exitAfterSave) {
           navigate("/platforms");
         } else if (mode === "add" || record.name !== name) {
-          navigate(`/platforms/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/platforms/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),
@@ -106,7 +107,7 @@ function PlatformEditor() {
 
   const copy = () => {
     const record = copyPlatform(platform);
-    navigate(`/platforms/${record.owner}/${record.name}`, {state: {mode: "add", record}});
+    navigate(`/platforms/${Setting.getIdPath(record.owner, record.name)}`, {state: {mode: "add", record}});
   };
 
   const changeMethod = (method: string) => {

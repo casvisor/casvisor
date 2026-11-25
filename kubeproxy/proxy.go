@@ -99,8 +99,11 @@ func splitPath(p string) (string, string, bool) {
 	rest := strings.TrimPrefix(p, Path)
 	owner, rest, ok1 := strings.Cut(rest, "/")
 	name, apiPath, _ := strings.Cut(rest, "/")
+	owner, err1 := url.PathUnescape(owner)
+	name, err2 := url.PathUnescape(name)
+	apiPath, err3 := url.PathUnescape(apiPath)
 	apiPath = "/" + apiPath
-	if !ok1 || owner == "" || name == "" || path.Clean(apiPath) != strings.TrimSuffix(apiPath, "/") && apiPath != "/" {
+	if !ok1 || err1 != nil || err2 != nil || err3 != nil || owner == "" || name == "" || path.Clean(apiPath) != strings.TrimSuffix(apiPath, "/") && apiPath != "/" {
 		return "", "", false
 	}
 	return util.GetIdFromOwnerAndName(owner, name), apiPath, true
@@ -128,7 +131,7 @@ func serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	assetId, apiPath, ok := splitPath(r.URL.Path)
+	assetId, apiPath, ok := splitPath(r.URL.EscapedPath())
 	if !ok {
 		writeStatus(w, http.StatusNotFound, "NotFound", "the path is not one of an asset, use the kubeconfig downloaded from Casvisor")
 		return

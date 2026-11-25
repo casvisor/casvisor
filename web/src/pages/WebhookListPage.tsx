@@ -61,7 +61,7 @@ export default function WebhookListPage() {
   });
 
   const columns: ColumnDef<Webhook>[] = [
-    linkColumn<Webhook>({dataIndex: "name", width: 170, to: (webhook) => `/webhooks/${webhook.owner}/${webhook.name}`}),
+    linkColumn<Webhook>({dataIndex: "name", width: 170, to: (webhook) => `/webhooks/${Setting.getIdPath(webhook.owner, webhook.name)}`}),
     textColumn<Webhook>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 180, searchable: true}),
     {
       dataIndex: "type",
@@ -103,7 +103,7 @@ export default function WebhookListPage() {
       newRecord={newWebhook}
       add={WebhookBackend.addWebhook}
       remove={WebhookBackend.deleteWebhook}
-      editUrl={(webhook) => `/webhooks/${webhook.owner}/${webhook.name}`}
+      editUrl={(webhook) => `/webhooks/${Setting.getIdPath(webhook.owner, webhook.name)}`}
     />
   );
 }

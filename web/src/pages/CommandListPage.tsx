@@ -28,8 +28,8 @@ import * as Setting from "@/lib/setting";
 import {CommandActionBadge} from "@/pages/CommandRuleListPage";
 
 function getReplayUrl(command: Command) {
-  const [owner, name] = command.session.split("/");
-  return `/sessions/${owner}/${name}/replay?at=${encodeURIComponent(command.createdTime)}`;
+  const [owner, name] = Setting.splitId(command.session);
+  return `/sessions/${Setting.getIdPath(owner, name)}/replay?at=${encodeURIComponent(command.createdTime)}`;
 }
 
 /** The commands run in SSH sessions and the statements run in database sessions;
@@ -98,7 +98,7 @@ export default function CommandListPage() {
       width: 170,
       searchable: true,
       render: (value) => (
-        <Link to={`/assets/${value}`} className="underline-offset-4 hover:underline">{value}</Link>
+        <Link to={`/assets/${Setting.getIdPath(value)}`} className="underline-offset-4 hover:underline">{value}</Link>
       ),
     },
     {
@@ -106,7 +106,7 @@ export default function CommandListPage() {
       title: i18next.t("command:Rule"),
       width: 170,
       render: (value) => (value ? (
-        <Link to={`/command-rules/${value}`} className="underline-offset-4 hover:underline">{Setting.getShortName(value)}</Link>
+        <Link to={`/command-rules/${Setting.getIdPath(value)}`} className="underline-offset-4 hover:underline">{Setting.getShortName(value)}</Link>
       ) : null),
     },
     {

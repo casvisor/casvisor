@@ -165,7 +165,21 @@ export function getShortText(s: string | undefined | null, maxLength = 35) {
 }
 
 export function getShortName(s: string) {
-  return (s ?? "").split("/").slice(-1)[0];
+  return splitId(s ?? "")[1];
+}
+
+/** Splits "owner/name" at its first "/", as a name may contain "/" but an owner may not. */
+export function splitId(id: string): [string, string] {
+  const i = id.indexOf("/");
+  return i === -1 ? ["", id] : [id.slice(0, i), id.slice(i + 1)];
+}
+
+/** "owner/name" for the path of a page, the name escaped; with one argument it is an "owner/name" ID. */
+export function getIdPath(owner: string, name?: string) {
+  if (name === undefined) {
+    [owner, name] = splitId(owner ?? "");
+  }
+  return `${owner}/${encodeURIComponent(name ?? "")}`;
 }
 
 export function getFormattedDate(date: string | undefined | null) {

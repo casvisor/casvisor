@@ -108,7 +108,7 @@ export default function AssetEditPage() {
         if (exitAfterSave) {
           navigate("/assets");
         } else if (record.owner !== owner || record.name !== name) {
-          navigate(`/assets/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/assets/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),
@@ -193,7 +193,7 @@ export default function AssetEditPage() {
       {asset.cloudAccount ? (
         <FormRow label={i18next.t("cloudAccount:Synced from")} tooltip={i18next.t("cloudAccount:Synced from - Tooltip")}>
           <div className="flex h-9 items-center gap-2 text-sm">
-            <Link to={`/cloud-accounts/${asset.owner}/${asset.cloudAccount}`} className="text-primary underline-offset-4 hover:underline">{asset.cloudAccount}</Link>
+            <Link to={`/cloud-accounts/${Setting.getIdPath(asset.owner, asset.cloudAccount)}`} className="text-primary underline-offset-4 hover:underline">{asset.cloudAccount}</Link>
             <span className="font-mono text-xs text-muted-foreground">{asset.cloudInstance}</span>
           </div>
         </FormRow>

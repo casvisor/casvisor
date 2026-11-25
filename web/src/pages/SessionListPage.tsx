@@ -69,7 +69,7 @@ export default function SessionListPage() {
       render: (value, session) =>
         value ? (
           <>
-            <Link to={`/assets/${value}`} className="font-medium underline-offset-4 hover:underline">
+            <Link to={`/assets/${Setting.getIdPath(value)}`} className="font-medium underline-offset-4 hover:underline">
               {value}
             </Link>
             {session.target ? <div className="break-all font-mono text-xs text-muted-foreground">{session.target}</div> : null}
@@ -170,7 +170,7 @@ export default function SessionListPage() {
             onSelect: () => {
               // a database or web session has no screen to watch, its statements or requests are listed instead
               const page = isRequestLogProtocol(session.protocol) ? "replay" : "monitor";
-              window.open(`/sessions/${session.owner}/${session.name}/${page}`, "_blank");
+              window.open(`/sessions/${Setting.getIdPath(session.owner, session.name)}/${page}`, "_blank");
             },
           }
           : null,
@@ -179,7 +179,7 @@ export default function SessionListPage() {
             key: "replay",
             label: i18next.t("session:Replay"),
             onSelect: () => {
-              window.open(`/sessions/${session.owner}/${session.name}/replay`, "_blank");
+              window.open(`/sessions/${Setting.getIdPath(session.owner, session.name)}/replay`, "_blank");
             },
           }
           : null,

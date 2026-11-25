@@ -128,7 +128,7 @@ export default function AssetListPage() {
       linkExternal: true,
     }),
     isAdmin
-      ? linkColumn<Asset>({dataIndex: "name", width: 160, to: (asset) => `/assets/${asset.owner}/${asset.name}`})
+      ? linkColumn<Asset>({dataIndex: "name", width: 160, to: (asset) => `/assets/${Setting.getIdPath(asset.owner, asset.name)}`})
       : textColumn<Asset>({dataIndex: "name", title: i18next.t("general:Name"), width: 160, searchable: true}),
     dateColumn<Asset>("createdTime"),
     textColumn<Asset>({dataIndex: "description", title: i18next.t("general:Description"), width: 200}),
@@ -172,7 +172,7 @@ export default function AssetListPage() {
         newRecord={isAdmin ? newAsset : undefined}
         add={AssetBackend.addAsset}
         remove={isAdmin ? deleteAsset : undefined}
-        editUrl={isAdmin ? (asset) => `/assets/${asset.owner}/${asset.name}` : undefined}
+        editUrl={isAdmin ? (asset) => `/assets/${Setting.getIdPath(asset.owner, asset.name)}` : undefined}
         deleteDisabled={(asset) => asset.owner !== account?.owner}
         toolbar={isAdmin ? ({refresh, query}) => (
           <>

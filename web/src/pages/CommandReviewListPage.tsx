@@ -136,13 +136,13 @@ export default function CommandReviewListPage() {
       title: i18next.t("general:Asset"),
       width: 160,
       searchable: true,
-      render: (value) => <Link to={`/assets/${value}`} className="underline-offset-4 hover:underline">{value}</Link>,
+      render: (value) => <Link to={`/assets/${Setting.getIdPath(value)}`} className="underline-offset-4 hover:underline">{value}</Link>,
     },
     {
       dataIndex: "rule",
       title: i18next.t("command:Rule"),
       width: 150,
-      render: (value) => (value ? <Link to={`/command-rules/${value}`} className="underline-offset-4 hover:underline">{Setting.getShortName(value)}</Link> : null),
+      render: (value) => (value ? <Link to={`/command-rules/${Setting.getIdPath(value)}`} className="underline-offset-4 hover:underline">{Setting.getShortName(value)}</Link> : null),
     },
     {
       dataIndex: "session",
@@ -152,7 +152,7 @@ export default function CommandReviewListPage() {
         const label = Setting.getShortName(value).slice(0, 8);
         // a command still waiting can be looked at in the session it waits in
         return review.status === "Pending" && value?.includes("/") ? (
-          <Link to={`/sessions/${value}/monitor`} target="_blank" rel="noreferrer" title={i18next.t("command:Watch the session")} className="font-mono text-xs text-primary underline-offset-4 hover:underline">{label}</Link>
+          <Link to={`/sessions/${Setting.getIdPath(value)}/monitor`} target="_blank" rel="noreferrer" title={i18next.t("command:Watch the session")} className="font-mono text-xs text-primary underline-offset-4 hover:underline">{label}</Link>
         ) : (
           <Link to={`/commands?session=${encodeURIComponent(value)}`} className="font-mono text-xs underline-offset-4 hover:underline">{label}</Link>
         );

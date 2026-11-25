@@ -96,7 +96,7 @@ export default function JobListPage() {
       width: 200,
       searchable: true,
       render: (value, job) => (
-        <Link to={`/jobs/${job.owner}/${job.name}`} className="font-medium underline-offset-4 hover:underline">
+        <Link to={`/jobs/${Setting.getIdPath(job.owner, job.name)}`} className="font-medium underline-offset-4 hover:underline">
           {value || job.name.slice(0, 8)}
         </Link>
       ),
@@ -136,7 +136,7 @@ export default function JobListPage() {
       width: 150,
       searchable: true,
       render: (value, job) => (value ? (
-        <Link to={`/job-schedules/${job.owner}/${value}`} className="underline-offset-4 hover:underline">{value}</Link>
+        <Link to={`/job-schedules/${Setting.getIdPath(job.owner, value)}`} className="underline-offset-4 hover:underline">{value}</Link>
       ) : null),
     },
     dateColumn<Job>("createdTime", i18next.t("general:Time")),

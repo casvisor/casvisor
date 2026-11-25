@@ -72,7 +72,7 @@ export default function CloudAccountListPage() {
   });
 
   const columns: ColumnDef<CloudAccount>[] = [
-    linkColumn<CloudAccount>({dataIndex: "name", width: 160, to: (item) => `/cloud-accounts/${item.owner}/${item.name}`}),
+    linkColumn<CloudAccount>({dataIndex: "name", width: 160, to: (item) => `/cloud-accounts/${Setting.getIdPath(item.owner, item.name)}`}),
     textColumn<CloudAccount>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 170, searchable: true}),
     {
       dataIndex: "provider",
@@ -120,7 +120,7 @@ export default function CloudAccountListPage() {
         newRecord={newAccount}
         add={CloudAccountBackend.addCloudAccount}
         remove={CloudAccountBackend.deleteCloudAccount}
-        editUrl={(item) => `/cloud-accounts/${item.owner}/${item.name}`}
+        editUrl={(item) => `/cloud-accounts/${Setting.getIdPath(item.owner, item.name)}`}
         actionColumnWidth={220}
         rowActions={(item, _index, {refresh}) => [
           {key: "sync", label: i18next.t("cloudAccount:Sync"), onSelect: () => setSyncing({account: item, refresh})},

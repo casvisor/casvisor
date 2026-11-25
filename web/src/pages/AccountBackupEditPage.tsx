@@ -34,6 +34,7 @@ import {useEditRecord} from "@/hooks/use-edit-record";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import NotFoundPage from "@/pages/NotFoundPage";
 import {BackupRunBadge, downloadBackup, sendBackupNow} from "@/pages/AccountBackupListPage";
+import * as Setting from "@/lib/setting";
 
 export default function AccountBackupEditPage() {
   const {owner = "", name = ""} = useParams();
@@ -100,7 +101,7 @@ export default function AccountBackupEditPage() {
         if (exitAfterSave) {
           navigate("/account-backups");
         } else if (record.name !== name) {
-          navigate(`/account-backups/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/account-backups/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         } else {
           setMode("edit");
           reload();

@@ -323,7 +323,7 @@ export default function AccessRequestListPage() {
           <div>{value}</div>
           {request.reviewComment ? <div className="text-muted-foreground">{request.reviewComment}</div> : null}
           {request.permission ? (
-            <Link to={`/permissions/${request.owner}/${request.permission}`} className="text-muted-foreground underline-offset-4 hover:underline">
+            <Link to={`/permissions/${Setting.getIdPath(request.owner, request.permission)}`} className="text-muted-foreground underline-offset-4 hover:underline">
               {request.permission}
             </Link>
           ) : null}

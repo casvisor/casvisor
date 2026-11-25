@@ -357,7 +357,7 @@ export default function JobDetailPage() {
               <React.Fragment key={result.asset}>
                 <TableRow>
                   <TableCell>
-                    <Link to={`/assets/${result.owner}/${result.asset}`} className="font-medium underline-offset-4 hover:underline">
+                    <Link to={`/assets/${Setting.getIdPath(result.owner, result.asset)}`} className="font-medium underline-offset-4 hover:underline">
                       {result.displayName || result.asset}
                     </Link>
                     <div className="text-xs text-muted-foreground">{result.host}</div>
@@ -376,7 +376,7 @@ export default function JobDetailPage() {
                     {result.rule ? (
                       <div>
                         {i18next.t("command:Rule")}:{" "}
-                        <Link to={`/command-rules/${result.rule}`} className="underline-offset-4 hover:underline">{Setting.getShortName(result.rule)}</Link>
+                        <Link to={`/command-rules/${Setting.getIdPath(result.rule)}`} className="underline-offset-4 hover:underline">{Setting.getShortName(result.rule)}</Link>
                       </div>
                     ) : null}
                   </TableCell>

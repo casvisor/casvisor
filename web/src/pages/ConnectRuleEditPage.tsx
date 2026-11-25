@@ -30,6 +30,7 @@ import {FormRow} from "@/components/crud/FormRow";
 import {useEditRecord} from "@/hooks/use-edit-record";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import NotFoundPage from "@/pages/NotFoundPage";
+import * as Setting from "@/lib/setting";
 
 function getPrincipalOptions(principals: Principal[]): MultiSelectOption[] {
   return [{name: "*", displayName: i18next.t("permission:All")}, ...principals].map((item) => ({
@@ -84,7 +85,7 @@ export default function ConnectRuleEditPage() {
         if (exitAfterSave) {
           navigate("/connect-rules");
         } else if (record.name !== name) {
-          navigate(`/connect-rules/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/connect-rules/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),

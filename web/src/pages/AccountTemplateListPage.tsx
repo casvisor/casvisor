@@ -168,7 +168,7 @@ export default function AccountTemplateListPage() {
   });
 
   const columns: ColumnDef<AccountTemplate>[] = [
-    linkColumn<AccountTemplate>({dataIndex: "name", width: 180, to: (item) => `/account-templates/${item.owner}/${item.name}`}),
+    linkColumn<AccountTemplate>({dataIndex: "name", width: 180, to: (item) => `/account-templates/${Setting.getIdPath(item.owner, item.name)}`}),
     textColumn<AccountTemplate>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 180, searchable: true}),
     {
       dataIndex: "username",
@@ -199,7 +199,7 @@ export default function AccountTemplateListPage() {
         newRecord={newTemplate}
         add={AccountTemplateBackend.addAccountTemplate}
         remove={AccountTemplateBackend.deleteAccountTemplate}
-        editUrl={(item) => `/account-templates/${item.owner}/${item.name}`}
+        editUrl={(item) => `/account-templates/${Setting.getIdPath(item.owner, item.name)}`}
         actionColumnWidth={200}
         rowActions={(item) => [
           {key: "apply", label: i18next.t("accountTemplate:Apply"), onSelect: () => setApplying(item)},

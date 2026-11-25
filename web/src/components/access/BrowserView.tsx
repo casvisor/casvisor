@@ -243,7 +243,7 @@ export default function BrowserView(props: ConnectionProps) {
     if (!inTab) {
       document.title = assetName;
     }
-    const [owner, name] = assetId.split("/");
+    const [owner, name] = Setting.splitId(assetId);
     AssetBackend.getAsset(owner, name).then((res) => {
       if (res.status === "ok" && res.data) {
         const login = res.data.webLogin;

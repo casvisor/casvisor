@@ -40,7 +40,7 @@ export async function runScheduleNow(schedule: JobSchedule, navigate: (to: strin
   const res = await JobScheduleBackend.runJobSchedule(schedule.owner, schedule.name);
   if (res.status === "ok") {
     Setting.showMessage("success", i18next.t("job:Started"));
-    navigate(`/jobs/${res.data.owner}/${res.data.name}`);
+    navigate(`/jobs/${Setting.getIdPath(res.data.owner, res.data.name)}`);
   } else {
     Setting.showMessage("error", res.msg);
   }
@@ -71,7 +71,7 @@ export default function JobScheduleListPage() {
       width: 200,
       searchable: true,
       render: (value, schedule) => (
-        <Link to={`/job-schedules/${schedule.owner}/${schedule.name}`} className="font-medium underline-offset-4 hover:underline">
+        <Link to={`/job-schedules/${Setting.getIdPath(schedule.owner, schedule.name)}`} className="font-medium underline-offset-4 hover:underline">
           {value || schedule.name}
         </Link>
       ),
@@ -108,7 +108,7 @@ export default function JobScheduleListPage() {
           <div className="flex items-center gap-1.5">
             <ScheduleRunBadge status={schedule.lastRunStatus} />
             {schedule.lastJob && schedule.lastRunStatus === "Started" ? (
-              <Link to={`/jobs/${schedule.owner}/${schedule.lastJob}`} className="tabular-nums text-primary underline-offset-4 hover:underline">{dayjs(value).format("YYYY-MM-DD HH:mm")}</Link>
+              <Link to={`/jobs/${Setting.getIdPath(schedule.owner, schedule.lastJob)}`} className="tabular-nums text-primary underline-offset-4 hover:underline">{dayjs(value).format("YYYY-MM-DD HH:mm")}</Link>
             ) : <span className="tabular-nums text-muted-foreground">{dayjs(value).format("YYYY-MM-DD HH:mm")}</span>}
           </div>
           {schedule.lastRunMessage ? <div className="mt-0.5 line-clamp-2 break-all text-muted-foreground" title={schedule.lastRunMessage}>{schedule.lastRunMessage}</div> : null}
@@ -132,7 +132,7 @@ export default function JobScheduleListPage() {
       fetch={fetchSchedules}
       deps={[owner]}
       remove={JobScheduleBackend.deleteJobSchedule}
-      editUrl={(schedule) => `/job-schedules/${schedule.owner}/${schedule.name}`}
+      editUrl={(schedule) => `/job-schedules/${Setting.getIdPath(schedule.owner, schedule.name)}`}
       actionColumnWidth={220}
       rowActions={(schedule) => [
         {key: "run", label: i18next.t("job:Run now"), onSelect: () => runScheduleNow(schedule, navigate)},

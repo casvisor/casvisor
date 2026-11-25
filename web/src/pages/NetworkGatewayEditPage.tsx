@@ -123,7 +123,7 @@ export default function NetworkGatewayEditPage() {
         if (exitAfterSave) {
           navigate("/network-gateways");
         } else if (record.name !== name) {
-          navigate(`/network-gateways/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/network-gateways/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),

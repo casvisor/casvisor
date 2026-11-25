@@ -85,7 +85,7 @@ export default function NetworkGatewayListPage() {
   });
 
   const columns: ColumnDef<NetworkGateway>[] = [
-    linkColumn<NetworkGateway>({dataIndex: "name", width: 180, to: (gateway) => `/network-gateways/${gateway.owner}/${gateway.name}`}),
+    linkColumn<NetworkGateway>({dataIndex: "name", width: 180, to: (gateway) => `/network-gateways/${Setting.getIdPath(gateway.owner, gateway.name)}`}),
     textColumn<NetworkGateway>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 180, searchable: true}),
     dateColumn<NetworkGateway>("createdTime"),
     textColumn<NetworkGateway>({dataIndex: "description", title: i18next.t("general:Description"), width: 200}),
@@ -139,7 +139,7 @@ export default function NetworkGatewayListPage() {
       newRecord={newGateway}
       add={NetworkGatewayBackend.addNetworkGateway}
       remove={NetworkGatewayBackend.deleteNetworkGateway}
-      editUrl={(gateway) => `/network-gateways/${gateway.owner}/${gateway.name}`}
+      editUrl={(gateway) => `/network-gateways/${Setting.getIdPath(gateway.owner, gateway.name)}`}
     />
   );
 }

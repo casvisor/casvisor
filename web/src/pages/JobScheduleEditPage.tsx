@@ -132,7 +132,7 @@ export default function JobScheduleEditPage() {
       if (res.status === "ok") {
         Setting.showMessage("success", i18next.t("general:Successfully saved"));
         if (isNew || record.name !== name) {
-          navigate(`/job-schedules/${owner}/${encodeURIComponent(record.name ?? "")}`, {replace: true});
+          navigate(`/job-schedules/${Setting.getIdPath(owner, record.name ?? "")}`, {replace: true});
         } else {
           const fresh = await JobScheduleBackend.getJobSchedule(owner, name!);
           if (fresh.status === "ok") {

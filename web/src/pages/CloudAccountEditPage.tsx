@@ -83,7 +83,7 @@ export default function CloudAccountEditPage() {
         if (exitAfterSave) {
           navigate("/cloud-accounts");
         } else if (record.name !== name) {
-          navigate(`/cloud-accounts/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/cloud-accounts/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),

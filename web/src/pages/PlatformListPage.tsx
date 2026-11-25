@@ -85,7 +85,7 @@ export default function PlatformListPage() {
     canGather: true,
   });
 
-  const editUrl = (item: Platform) => `/platforms/${item.owner}/${item.name}`;
+  const editUrl = (item: Platform) => `/platforms/${Setting.getIdPath(item.owner, item.name)}`;
 
   const columns: ColumnDef<Platform>[] = [
     linkColumn<Platform>({dataIndex: "name", width: 170, sortable: false, to: editUrl}),

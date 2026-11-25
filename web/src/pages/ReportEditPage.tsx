@@ -37,6 +37,7 @@ import NotFoundPage from "@/pages/NotFoundPage";
 import {BackupRunBadge} from "@/pages/AccountBackupListPage";
 import {getPeriodOptions} from "@/pages/ReportPage";
 import {downloadSavedReport, sendReportNow} from "@/pages/ReportScheduleListPage";
+import * as Setting from "@/lib/setting";
 
 export function getSectionOptions() {
   return ReportBackend.ReportSections.map((section) => ({value: section, label: i18next.t(`report:section-${section}`)}));
@@ -107,7 +108,7 @@ export default function ReportEditPage() {
         if (exitAfterSave) {
           navigate("/reports/schedules");
         } else if (record.name !== name) {
-          navigate(`/reports/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/reports/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         } else {
           setMode("edit");
           reload();

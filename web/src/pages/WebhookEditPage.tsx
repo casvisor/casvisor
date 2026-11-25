@@ -77,7 +77,7 @@ export default function WebhookEditPage() {
         if (exitAfterSave) {
           navigate("/webhooks");
         } else if (record.name !== name) {
-          navigate(`/webhooks/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/webhooks/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),

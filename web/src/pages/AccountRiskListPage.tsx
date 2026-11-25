@@ -226,7 +226,7 @@ export default function AccountRiskListPage() {
       title: i18next.t("general:Asset"),
       width: 150,
       searchable: true,
-      render: (value, risk) => <Link to={`/assets/${risk.owner}/${value}`} className="underline-offset-4 hover:underline">{value}</Link>,
+      render: (value, risk) => <Link to={`/assets/${Setting.getIdPath(risk.owner, value)}`} className="underline-offset-4 hover:underline">{value}</Link>,
     },
     {
       dataIndex: "username",

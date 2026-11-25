@@ -65,7 +65,7 @@ export default function ConnectRuleListPage() {
 
   const columns: ColumnDef<ConnectRule>[] = [
     textColumn<ConnectRule>({dataIndex: "priority", title: i18next.t("loginRule:Priority"), width: 90}),
-    linkColumn<ConnectRule>({dataIndex: "name", width: 170, to: (rule) => `/connect-rules/${rule.owner}/${rule.name}`}),
+    linkColumn<ConnectRule>({dataIndex: "name", width: 170, to: (rule) => `/connect-rules/${Setting.getIdPath(rule.owner, rule.name)}`}),
     textColumn<ConnectRule>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 180, searchable: true}),
     {
       dataIndex: "methods",
@@ -99,7 +99,7 @@ export default function ConnectRuleListPage() {
       newRecord={newRule}
       add={ConnectRuleBackend.addConnectRule}
       remove={ConnectRuleBackend.deleteConnectRule}
-      editUrl={(rule) => `/connect-rules/${rule.owner}/${rule.name}`}
+      editUrl={(rule) => `/connect-rules/${Setting.getIdPath(rule.owner, rule.name)}`}
     />
   );
 }

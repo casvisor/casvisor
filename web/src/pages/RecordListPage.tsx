@@ -43,7 +43,7 @@ export default function RecordListPage() {
   );
 
   // a record's owner is its organization, but older rows may have only one of the two
-  const viewUrl = (record: Record) => `/records/${record.owner || record.organization || account?.owner}/${record.name}`;
+  const viewUrl = (record: Record) => `/records/${Setting.getIdPath(record.owner || record.organization || account?.owner, record.name)}`;
 
   const columns: ColumnDef<Record>[] = [
     textColumn<Record>({

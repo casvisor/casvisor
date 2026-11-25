@@ -71,7 +71,7 @@ export default function PermissionListPage() {
   });
 
   const columns: ColumnDef<Permission>[] = [
-    linkColumn<Permission>({dataIndex: "name", width: 160, to: (permission) => `/permissions/${permission.owner}/${permission.name}`}),
+    linkColumn<Permission>({dataIndex: "name", width: 160, to: (permission) => `/permissions/${Setting.getIdPath(permission.owner, permission.name)}`}),
     textColumn<Permission>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 180, searchable: true}),
     tagsColumn<Permission>({dataIndex: "users", title: i18next.t("permission:Users")}),
     tagsColumn<Permission>({dataIndex: "groups", title: i18next.t("permission:Groups")}),
@@ -113,7 +113,7 @@ export default function PermissionListPage() {
       newRecord={newPermission}
       add={PermissionBackend.addPermission}
       remove={PermissionBackend.deletePermission}
-      editUrl={(permission) => `/permissions/${permission.owner}/${permission.name}`}
+      editUrl={(permission) => `/permissions/${Setting.getIdPath(permission.owner, permission.name)}`}
     />
   );
 }

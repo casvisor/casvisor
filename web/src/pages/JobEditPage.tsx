@@ -67,7 +67,7 @@ export default function JobEditPage() {
       const res = await JobBackend.startJob({...job, owner, timeout: Number(job.timeout) || 0, concurrency: Number(job.concurrency) || 0});
       if (res.status === "ok") {
         Setting.showMessage("success", i18next.t("job:Started"));
-        navigate(`/jobs/${res.data.owner}/${res.data.name}`);
+        navigate(`/jobs/${Setting.getIdPath(res.data.owner, res.data.name)}`);
       } else {
         Setting.showMessage("error", res.msg);
       }

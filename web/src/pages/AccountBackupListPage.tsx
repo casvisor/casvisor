@@ -98,7 +98,7 @@ export default function AccountBackupListPage() {
       width: 200,
       searchable: true,
       render: (value, backup) => (
-        <Link to={`/account-backups/${backup.owner}/${backup.name}`} className="font-medium underline-offset-4 hover:underline">
+        <Link to={`/account-backups/${Setting.getIdPath(backup.owner, backup.name)}`} className="font-medium underline-offset-4 hover:underline">
           {value || backup.name}
         </Link>
       ),
@@ -159,7 +159,7 @@ export default function AccountBackupListPage() {
         deps={[owner]}
         newRecord={newBackup}
         remove={AccountBackupBackend.deleteAccountBackup}
-        editUrl={(backup) => `/account-backups/${backup.owner}/${backup.name}`}
+        editUrl={(backup) => `/account-backups/${Setting.getIdPath(backup.owner, backup.name)}`}
         actionColumnWidth={240}
         rowActions={(backup) => [
           {key: "download", label: i18next.t("accountBackup:Download"), onSelect: () => downloadBackup(backup)},

@@ -91,7 +91,7 @@ export default function ReportScheduleListPage() {
       width: 200,
       searchable: true,
       render: (value, report) => (
-        <Link to={`/reports/${report.owner}/${report.name}`} className="font-medium underline-offset-4 hover:underline">
+        <Link to={`/reports/${Setting.getIdPath(report.owner, report.name)}`} className="font-medium underline-offset-4 hover:underline">
           {value || report.name}
         </Link>
       ),
@@ -150,7 +150,7 @@ export default function ReportScheduleListPage() {
       deps={[owner]}
       newRecord={newReport}
       remove={ReportBackend.deleteReport}
-      editUrl={(report) => `/reports/${report.owner}/${report.name}`}
+      editUrl={(report) => `/reports/${Setting.getIdPath(report.owner, report.name)}`}
       actionColumnWidth={240}
       rowActions={(report) => [
         {key: "download", label: i18next.t("report:Download"), onSelect: () => downloadSavedReport(report)},

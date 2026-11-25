@@ -35,6 +35,7 @@ import {getNodeOptions} from "@/lib/assetNode";
 import {getModeTitleKey, submitEdit} from "@/lib/crud";
 import {getWeekdayNames} from "@/lib/loginRule";
 import NotFoundPage from "@/pages/NotFoundPage";
+import * as Setting from "@/lib/setting";
 
 /** "*" grants every user, group or asset, the way the antd page offered it first. */
 function getPrincipalOptions(principals: Principal[]): MultiSelectOption[] {
@@ -124,7 +125,7 @@ export default function PermissionEditPage() {
         if (exitAfterSave) {
           navigate("/permissions");
         } else if (record.name !== name) {
-          navigate(`/permissions/${record.owner}/${encodeURIComponent(record.name)}`, {replace: true});
+          navigate(`/permissions/${Setting.getIdPath(record.owner, record.name)}`, {replace: true});
         }
       },
       onFailed: () => updateField("name", name),

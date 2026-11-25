@@ -64,7 +64,7 @@ export default function LoginRuleListPage() {
 
   const columns: ColumnDef<LoginRule>[] = [
     {dataIndex: "priority", title: i18next.t("loginRule:Priority"), width: 90, sortable: true},
-    linkColumn<LoginRule>({dataIndex: "name", width: 170, to: (rule) => `/login-rules/${rule.owner}/${rule.name}`}),
+    linkColumn<LoginRule>({dataIndex: "name", width: 170, to: (rule) => `/login-rules/${Setting.getIdPath(rule.owner, rule.name)}`}),
     textColumn<LoginRule>({dataIndex: "displayName", title: i18next.t("general:Display name"), width: 180, searchable: true}),
     {
       dataIndex: "action",
@@ -95,7 +95,7 @@ export default function LoginRuleListPage() {
       newRecord={newRule}
       add={LoginRuleBackend.addLoginRule}
       remove={LoginRuleBackend.deleteLoginRule}
-      editUrl={(rule) => `/login-rules/${rule.owner}/${rule.name}`}
+      editUrl={(rule) => `/login-rules/${Setting.getIdPath(rule.owner, rule.name)}`}
       initialQuery={{sortField: "priority", sortOrder: "ascend"}}
     />
   );

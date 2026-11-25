@@ -51,8 +51,16 @@ export function buildBreadcrumbItems(pathname: string): Crumb[] | null {
   return [
     home,
     {label: i18next.t(listLabelKey), to: `/${rootSegment}`},
-    {label: lastLabelKey ? i18next.t(lastLabelKey) : lastSegment},
+    {label: lastLabelKey ? i18next.t(lastLabelKey) : decodeSegment(lastSegment)},
   ];
+}
+
+function decodeSegment(segment: string) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 export function BreadcrumbBar() {
