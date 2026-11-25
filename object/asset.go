@@ -196,6 +196,13 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 		return false, nil
 	}
 
+	if asset.Name != name {
+		err = checkAssetName(asset.Name)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	err = asset.checkKeptSecrets(p, asset.Password == "***" || asset.ElevationPassword == "***", asset.PrivateKey == "***")
 	if err != nil {
 		return false, err
@@ -252,7 +259,12 @@ func UpdateAsset(id string, asset *Asset) (bool, error) {
 }
 
 func AddAsset(asset *Asset) (bool, error) {
-	err := asset.normalizeAddress()
+	err := checkAssetName(asset.Name)
+	if err != nil {
+		return false, err
+	}
+
+	err = asset.normalizeAddress()
 	if err != nil {
 		return false, err
 	}

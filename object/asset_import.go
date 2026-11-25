@@ -94,7 +94,7 @@ func normalizeAssetProtocol(protocol string) (string, error) {
 	return "", fmt.Errorf("unknown protocol: %s, it should be one of: %s", protocol, strings.Join(assetProtocols, ", "))
 }
 
-func checkImportedAssetName(name string) error {
+func checkAssetName(name string) error {
 	if name == "" {
 		return fmt.Errorf("the name can not be empty")
 	}
@@ -223,7 +223,7 @@ func ImportAssets(owner string, columns []string, rows [][]string, update bool, 
 		}
 
 		result.Name = get("name")
-		err = checkImportedAssetName(result.Name)
+		err = checkAssetName(result.Name)
 		if err != nil {
 			fail(err)
 			continue
